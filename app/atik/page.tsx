@@ -8,31 +8,29 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
 import { FloatingShape } from '@/components/animation/floating';
-import { Wrench, Lock, ArrowRight, Loader2, LockKeyhole, BadgeCheck, Shield } from 'lucide-react';
+import { Wrench, Lock, ArrowRight, LockKeyhole, BadgeCheck, Shield } from 'lucide-react';
+import { auth } from '@/lib/firebase';
+import { signInAnonymously } from 'firebase/auth';
 
 const PROVIDER_PASSWORD = '3040';
 
 export default function AtikLoginPage() {
   const router = useRouter();
   const [password, setPassword] = useState('');
-  const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
     setError('');
 
-    setTimeout(() => {
-      if (password === PROVIDER_PASSWORD) {
-        localStorage.setItem('gmb_provider_auth', 'true');
-        localStorage.removeItem('gmb_admin_auth');
-        router.push('/provider');
-      } else {
-        setError('Incorrect password. Please try again.');
-        setLoading(false);
-      }
-    }, 500);
+    if (password === PROVIDER_PASSWORD) {
+      try { if (auth && !auth.currentUser) await signInAnonymously(auth); } catch {}
+      localStorage.setItem('gmb_provider_auth', 'true');
+      localStorage.removeItem('gmb_admin_auth');
+      router.push('/provider');
+    } else {
+      setError('Incorrect password. Please try again.');
+    }
   };
 
   return (
@@ -139,19 +137,9 @@ export default function AtikLoginPage() {
                   type="submit"
                   size="lg"
                   className="w-full bg-gradient-to-r from-blue-500 to-indigo-500 text-white hover:from-blue-600 hover:to-indigo-600"
-                  disabled={loading}
                 >
-                  {loading ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Verifying...
-                    </>
-                  ) : (
-                    <>
-                      Access Provider Panel
-                      <ArrowRight className="ml-2 h-4 w-4" />
-                    </>
-                  )}
+                  Access Provider Panel
+                  <ArrowRight className="ml-2 h-4 w-4" />
                 </Button>
               </CardFooter>
             </form>

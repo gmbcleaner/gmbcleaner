@@ -12,9 +12,8 @@ import {
   limit as fbLimit,
   getDoc,
   writeBatch,
-  serverTimestamp,
 } from 'firebase/firestore';
-import { db } from './firebase';
+import { db, ensureAuth } from './firebase';
 
 export interface QueryFilter {
   field: string;
@@ -28,6 +27,7 @@ export async function fetchCollection(
   orderByField?: string,
   limitCount?: number
 ) {
+  await ensureAuth();
   const constraints: any[] = [];
   if (filters) {
     filters.forEach((f) => constraints.push(where(f.field, f.op, f.value)));
@@ -44,6 +44,7 @@ export async function fetchCollection(
 }
 
 export async function addDocument(colName: string, data: Record<string, any>) {
+  await ensureAuth();
   const docRef = await addDoc(collection(db, colName), {
     ...data,
     created_at: new Date().toISOString(),
@@ -52,25 +53,30 @@ export async function addDocument(colName: string, data: Record<string, any>) {
 }
 
 export async function addDocumentWithId(colName: string, id: string, data: Record<string, any>) {
+  await ensureAuth();
   const docRef = doc(db, colName, id);
   await setDoc(docRef, { ...data, id });
 }
 
 export async function updateDocument(colName: string, docId: string, data: Record<string, any>) {
+  await ensureAuth();
   await updateDoc(doc(db, colName, docId), data);
 }
 
 export async function deleteDocument(colName: string, docId: string) {
+  await ensureAuth();
   await deleteDoc(doc(db, colName, docId));
 }
 
 export async function getDocument(colName: string, docId: string) {
+  await ensureAuth();
   const snap = await getDoc(doc(db, colName, docId));
   if (!snap.exists()) return null;
   return { id: snap.id, ...snap.data() };
 }
 
 export async function countDocuments(colName: string, filters?: QueryFilter[]) {
+  await ensureAuth();
   const constraints: any[] = [];
   if (filters) {
     filters.forEach((f) => constraints.push(where(f.field, f.op, f.value)));
@@ -86,6 +92,7 @@ export async function fetchSubcollection(
   subColName: string,
   orderByField?: string
 ) {
+  await ensureAuth();
   const constraints: any[] = [];
   if (orderByField) {
     constraints.push(fbOrderBy(orderByField, 'asc'));
@@ -101,6 +108,7 @@ export async function addSubcollectionDoc(
   subColName: string,
   data: Record<string, any>
 ) {
+  await ensureAuth();
   const docRef = await addDoc(collection(db, colName, docId, subColName), {
     ...data,
     created_at: new Date().toISOString(),
@@ -109,6 +117,7 @@ export async function addSubcollectionDoc(
 }
 
 export async function batchUpdate(updates: { col: string; id: string; data: Record<string, any> }[]) {
+  await ensureAuth();
   const batch = writeBatch(db);
   updates.forEach(({ col, id, data }) => {
     batch.update(doc(db, col, id), data);

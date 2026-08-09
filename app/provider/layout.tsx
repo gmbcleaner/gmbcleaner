@@ -24,6 +24,8 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
+import { auth } from '@/lib/firebase';
+import { signInAnonymously } from 'firebase/auth';
 
 interface NavItem {
   label: string;
@@ -52,6 +54,9 @@ export default function ProviderLayout({ children }: { children: React.ReactNode
         return;
       }
     } catch {}
+    if (auth && !auth.currentUser) {
+      signInAnonymously(auth).catch(() => {});
+    }
     setAuthChecked(true);
   }, [router]);
 

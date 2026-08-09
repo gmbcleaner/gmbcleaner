@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useRef } from 'react';
-import { db } from '@/lib/firebase';
+import { db, ensureAuth } from '@/lib/firebase';
 import { collection, addDoc, getDocs, deleteDoc, updateDoc, doc, query, orderBy } from 'firebase/firestore';
 import { toast } from '@/hooks/use-toast';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -38,6 +38,7 @@ export default function AdminWalletsPage() {
   useEffect(() => {
     if (!db) return;
     (async () => {
+      await ensureAuth();
       try {
         const [c, n, w] = await Promise.all([
           getDocs(query(collection(db, 'currencies'), orderBy('created_at', 'desc'))).then(s => s.docs.map(d => ({ id: d.id, ...d.data() } as Currency))),
@@ -68,6 +69,7 @@ export default function AdminWalletsPage() {
     if (logoRef.current) logoRef.current.value = '';
     setExpandedCurrency(tid);
     try {
+      await ensureAuth();
       const ref = await addDoc(collection(db, 'currencies'), { ...cur, symbol: cur.name.toUpperCase(), sort_order: 0, created_at: new Date().toISOString() });
       setCurrencies(prev => prev.map(c => c.id === tid ? { ...c, id: ref.id } : c));
     } catch (e: any) {
@@ -78,7 +80,7 @@ export default function AdminWalletsPage() {
 
   const toggleCurrency = async (id: string, active: boolean) => {
     setCurrencies(prev => prev.map(c => c.id === id ? { ...c, is_active: active } : c));
-    if (db) updateDoc(doc(db, 'currencies', id), { is_active: active }).catch(() => {});
+    if (db) { await ensureAuth(); updateDoc(doc(db, 'currencies', id), { is_active: active }).catch(() => {}); }
   };
 
   const removeCurrency = async (id: string) => {
@@ -87,6 +89,7 @@ export default function AdminWalletsPage() {
     setNetworks(prev => prev.filter(n => n.currency_id !== id));
     setWallets(prev => prev.filter(w => w.currency_id !== id));
     if (!db) return;
+    await ensureAuth();
     const dels: Promise<any>[] = [deleteDoc(doc(db, 'currencies', id))];
     networks.filter(n => n.currency_id === id).forEach(n => dels.push(deleteDoc(doc(db, 'networks', n.id))));
     wallets.filter(w => w.currency_id === id).forEach(w => dels.push(deleteDoc(doc(db, 'wallet_addresses', w.id))));
@@ -100,6 +103,7 @@ export default function AdminWalletsPage() {
     setNetworks(prev => [net, ...prev]);
     setNewNetName(''); setAddNetFor('');
     try {
+      await ensureAuth();
       const ref = await addDoc(collection(db, 'networks'), { ...net, symbol: net.name.toUpperCase(), sort_order: 0, created_at: new Date().toISOString() });
       setNetworks(prev => prev.map(n => n.id === tid ? { ...n, id: ref.id } : n));
     } catch (e: any) {
@@ -110,13 +114,14 @@ export default function AdminWalletsPage() {
 
   const toggleNetwork = async (id: string, active: boolean) => {
     setNetworks(prev => prev.map(n => n.id === id ? { ...n, is_active: active } : n));
-    if (db) updateDoc(doc(db, 'networks', id), { is_active: active }).catch(() => {});
+    if (db) { await ensureAuth(); updateDoc(doc(db, 'networks', id), { is_active: active }).catch(() => {}); }
   };
 
   const removeNetwork = async (id: string) => {
     setNetworks(prev => prev.filter(n => n.id !== id));
     setWallets(prev => prev.filter(w => w.network_id !== id));
     if (!db) return;
+    await ensureAuth();
     const dels: Promise<any>[] = [deleteDoc(doc(db, 'networks', id))];
     wallets.filter(w => w.network_id === id).forEach(w => dels.push(deleteDoc(doc(db, 'wallet_addresses', w.id))));
     Promise.all(dels).catch(() => {});
@@ -129,6 +134,7 @@ export default function AdminWalletsPage() {
     setWallets(prev => [w, ...prev]);
     setNewAddr(''); setNewAddrLabel(''); setAddAddrFor('');
     try {
+      await ensureAuth();
       const ref = await addDoc(collection(db, 'wallet_addresses'), { ...w, created_at: new Date().toISOString() });
       setWallets(prev => prev.map(x => x.id === tid ? { ...x, id: ref.id } : x));
     } catch (e: any) {
@@ -139,7 +145,7 @@ export default function AdminWalletsPage() {
 
   const removeWallet = async (id: string) => {
     setWallets(prev => prev.filter(w => w.id !== id));
-    if (db) deleteDoc(doc(db, 'wallet_addresses', id)).catch(() => {});
+    if (db) { await ensureAuth(); deleteDoc(doc(db, 'wallet_addresses', id)).catch(() => {}); }
   };
 
   return (

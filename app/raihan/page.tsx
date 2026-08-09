@@ -6,28 +6,28 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
-import { ShieldCheck, Lock, ArrowRight, Loader2 } from 'lucide-react';
+import { ShieldCheck, Lock, ArrowRight } from 'lucide-react';
+import { auth } from '@/lib/firebase';
+import { signInAnonymously } from 'firebase/auth';
 
 const ADMIN_PASSWORD = '2080';
 
 export default function AdminLoginPage() {
   const router = useRouter();
   const [password, setPassword] = useState('');
-  const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
     setError('');
 
     if (password === ADMIN_PASSWORD) {
+      try { if (auth && !auth.currentUser) await signInAnonymously(auth); } catch {}
       localStorage.setItem('gmb_admin_auth', 'true');
       localStorage.removeItem('gmb_provider_auth');
       router.push('/admin');
     } else {
       setError('Incorrect password. Please try again.');
-      setLoading(false);
     }
   };
 
@@ -68,8 +68,8 @@ export default function AdminLoginPage() {
               </div>
             </CardContent>
             <CardFooter className="flex flex-col gap-4">
-              <Button type="submit" size="lg" className="w-full bg-gradient-to-r from-red-500 to-orange-500 text-white hover:from-red-600 hover:to-orange-600" disabled={loading}>
-                {loading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Verifying...</> : <>Access Admin Panel<ArrowRight className="ml-2 h-4 w-4" /></>}
+              <Button type="submit" size="lg" className="w-full bg-gradient-to-r from-red-500 to-orange-500 text-white hover:from-red-600 hover:to-orange-600">
+                Access Admin Panel<ArrowRight className="ml-2 h-4 w-4" />
               </Button>
             </CardFooter>
           </form>
