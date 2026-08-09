@@ -32,13 +32,16 @@ export default function ProviderTasksPage() {
   const fetchTasks = async () => {
     try {
       const providerId = localStorage.getItem('gmb_provider_id');
-      if (!providerId) return;
-
-      const rawTasks = await fetchCollection(
-        'provider_tasks',
-        [{ field: 'provider_id', op: '==', value: providerId }],
-        'created_at'
-      );
+      let rawTasks;
+      if (providerId) {
+        rawTasks = await fetchCollection(
+          'provider_tasks',
+          [{ field: 'provider_id', op: '==', value: providerId }],
+          'created_at'
+        );
+      } else {
+        rawTasks = await fetchCollection('provider_tasks', undefined, 'created_at');
+      }
 
       const tasksWithOrders: ProviderTask[] = await Promise.all(
         rawTasks.map(async (task: any) => {
