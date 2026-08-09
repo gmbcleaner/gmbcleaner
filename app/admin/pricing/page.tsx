@@ -96,8 +96,7 @@ export default function AdminPricingPage() {
             </p>
           </div>
           <Button onClick={save} disabled={saving} className="bg-gradient-to-r from-teal-500 to-sky-500 text-white">
-            {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
-            Save Pricing
+            <Save className="mr-2 h-4 w-4" />Save Pricing
           </Button>
         </CardContent>
       </Card>

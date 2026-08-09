@@ -156,12 +156,7 @@ export default function ContactPage() {
                           className="w-full bg-gradient-to-r from-teal-500 to-sky-500 text-white hover:from-teal-600 hover:to-sky-600"
                           disabled={loading}
                         >
-                          {loading ? (
-                            <>
-                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                              Sending...
-                            </>
-                          ) : (
+                          {loading ? 'Sending...' : (
                             <>
                               <Send className="mr-2 h-4 w-4" />
                               Send Message

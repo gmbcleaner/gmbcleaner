@@ -109,9 +109,7 @@ export default function BlogPostPage() {
     return (
       <>
         <Navbar />
-        <main className="flex items-center justify-center py-32">
-          <Loader2 className="h-8 w-8 animate-spin text-slate-400" />
-        </main>
+        <main className="py-32"><div /></main>
         <Footer />
       </>
     );

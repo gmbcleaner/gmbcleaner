@@ -457,12 +457,7 @@ export default function NewOrderPage() {
                   disabled={submitting}
                   className="bg-gradient-to-r from-teal-500 to-sky-500 text-white hover:from-teal-600 hover:to-sky-600"
                 >
-                  {submitting ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Submitting…
-                    </>
-                  ) : (
+                  {submitting ? 'Submitting...' : (
                     <>
                       <CheckCircle2 className="mr-2 h-4 w-4" />
                       Confirm &amp; Pay ${totalCost.toFixed(2)}

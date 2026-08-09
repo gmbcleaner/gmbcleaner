@@ -163,7 +163,7 @@ export default function AdminContentPage() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setFaqDialog(false)}>Cancel</Button>
-            <Button onClick={addFaq} disabled={!faqQ || !faqA || saving}>{saving ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Add'}</Button>
+            <Button onClick={addFaq} disabled={!faqQ || !faqA}>Add</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

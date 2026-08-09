@@ -82,7 +82,7 @@ export default function SettingsPage() {
               <Input placeholder="Company name" value={company} onChange={(e) => setCompany(e.target.value)} />
             </div>
             <Button onClick={handleProfileUpdate} disabled={saving} className="bg-gradient-to-r from-teal-500 to-sky-500 text-white">
-              {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}Save Changes
+              Save Changes
             </Button>
           </CardContent>
         </Card>
@@ -98,8 +98,7 @@ export default function SettingsPage() {
               <Input type="password" placeholder="Enter new password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} />
             </div>
             <Button onClick={handlePasswordChange} disabled={!newPassword || saving} variant="outline">
-              {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Shield className="mr-2 h-4 w-4" />}
-              Update Password
+              <Shield className="mr-2 h-4 w-4" />Update Password
             </Button>
           </CardContent>
         </Card>

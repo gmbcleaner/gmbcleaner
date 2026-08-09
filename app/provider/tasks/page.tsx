@@ -128,13 +128,7 @@ export default function ProviderTasksPage() {
           <TabsTrigger value="completed">Completed ({completed.length})</TabsTrigger>
         </TabsList>
 
-        {loading ? (
-          <div className="flex items-center justify-center py-12">
-            <Loader2 className="h-8 w-8 animate-spin text-slate-400" />
-          </div>
-        ) : (
-          <>
-            <TabsContent value="pending" className="space-y-3">
+          <TabsContent value="pending" className="space-y-3">
               {pending.length === 0 ? (
                 <p className="py-8 text-center text-sm text-slate-500">No pending tasks.</p>
               ) : pending.map((task) => (
@@ -153,7 +147,7 @@ export default function ProviderTasksPage() {
                         <p className="mt-1 text-xs text-slate-400">{new Date(task.created_at).toLocaleString()}</p>
                       </div>
                       <Button size="sm" className="shrink-0 bg-gradient-to-r from-blue-500 to-indigo-500 text-white" onClick={() => startTask(task.id)} disabled={updating === task.id}>
-                        {updating === task.id ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Start'}
+                        {updating === task.id ? 'Starting...' : 'Start'}
                       </Button>
                     </div>
                   </CardContent>
@@ -184,7 +178,7 @@ export default function ProviderTasksPage() {
                       <Textarea rows={2} placeholder="Add notes about the dispute..." value={notes[task.id] || ''} onChange={(e) => setNotes({ ...notes, [task.id]: e.target.value })} />
                     </div>
                     <Button size="sm" className="bg-gradient-to-r from-green-500 to-emerald-500 text-white" onClick={() => completeTask(task.id)} disabled={updating === task.id}>
-                      {updating === task.id ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Mark Done'}
+                        {updating === task.id ? 'Saving...' : 'Mark Done'}
                     </Button>
                   </CardContent>
                 </Card>
@@ -215,8 +209,6 @@ export default function ProviderTasksPage() {
                 </Card>
               ))}
             </TabsContent>
-          </>
-        )}
       </Tabs>
     </div>
   );
