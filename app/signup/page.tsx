@@ -3,7 +3,7 @@
 import { useState, FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { supabase } from '@/lib/supabase';
+import { useAuth } from '@/components/providers/auth-provider';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -62,6 +62,7 @@ const trustItems = [
 export default function SignUpPage() {
   const router = useRouter();
   const { toast } = useToast();
+  const { signUp } = useAuth();
 
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
@@ -85,25 +86,19 @@ export default function SignUpPage() {
     setLoading(true);
 
     try {
-      const { data, error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          data: {
-            full_name: fullName,
-            company: company || null,
-          },
-        },
+      const { error } = await signUp(email, password, {
+        fullName,
+        company: company || undefined,
       });
 
       if (error) {
         let title = 'Sign up failed';
-        let description = error.message;
+        let description = error;
 
-        if (error.message.toLowerCase().includes('already') || error.message.toLowerCase().includes('registered')) {
+        if (error.toLowerCase().includes('already') || error.toLowerCase().includes('registered')) {
           title = 'Email already registered';
           description = 'An account with this email already exists. Try logging in instead.';
-        } else if (error.message.toLowerCase().includes('weak') || error.message.toLowerCase().includes('password')) {
+        } else if (error.toLowerCase().includes('weak') || error.toLowerCase().includes('password')) {
           title = 'Weak password';
           description = 'Please choose a stronger password (at least 8 characters with a mix of letters and numbers).';
         }
@@ -112,17 +107,15 @@ export default function SignUpPage() {
         return;
       }
 
-      if (data.user) {
-        setSuccess(true);
-        toast({
-          title: 'Account created',
-          description: 'Your GMBCLEANER account is ready. Redirecting you to login…',
-        });
+      setSuccess(true);
+      toast({
+        title: 'Account created',
+        description: 'Your GMBCLEANER account is ready. Redirecting you to login…',
+      });
 
-        setTimeout(() => {
-          router.push('/login');
-        }, 2000);
-      }
+      setTimeout(() => {
+        router.push('/login');
+      }, 2000);
     } catch {
       toast({
         title: 'Something went wrong',

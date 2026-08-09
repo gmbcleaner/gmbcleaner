@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { supabase } from '@/lib/supabase';
+import { fetchCollection, addDocument, addSubcollectionDoc, fetchSubcollection } from '@/lib/db';
 import { useAuth } from '@/components/providers/auth-provider';
 import { toast } from '@/hooks/use-toast';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -41,12 +41,18 @@ export default function SupportPage() {
     if (!user) return;
     const fetchTickets = async () => {
       try {
-        const { data } = await supabase
-          .from('support_tickets')
-          .select('*, ticket_messages(id, message, is_admin, created_at)')
-          .eq('user_id', user.id)
-          .order('created_at', { ascending: false });
-        setTickets((data as Ticket[]) || []);
+        const ticketsData = await fetchCollection(
+          'support_tickets',
+          [{ field: 'user_id', op: '==', value: user.uid }],
+          'created_at'
+        );
+        const ticketsWithMessages = await Promise.all(
+          ticketsData.map(async (ticket) => {
+            const messages = await fetchSubcollection('support_tickets', ticket.id, 'ticket_messages', 'created_at');
+            return { ...ticket, ticket_messages: messages };
+          })
+        );
+        setTickets(ticketsWithMessages as Ticket[]);
       } catch {} finally {
         setLoading(false);
       }
@@ -58,16 +64,15 @@ export default function SupportPage() {
     if (!user || !subject.trim() || !message.trim()) return;
     setSubmitting(true);
     try {
-      const { data: ticket, error } = await supabase
-        .from('support_tickets')
-        .insert({ user_id: user.id, subject: subject.trim(), status: 'open', priority })
-        .select('id')
-        .single();
-      if (error) throw error;
+      const ticketId = await addDocument('support_tickets', {
+        user_id: user.uid,
+        subject: subject.trim(),
+        status: 'open',
+        priority,
+      });
 
-      await supabase.from('ticket_messages').insert({
-        ticket_id: ticket.id,
-        user_id: user.id,
+      await addSubcollectionDoc('support_tickets', ticketId, 'ticket_messages', {
+        user_id: user.uid,
         message: message.trim(),
         is_admin: false,
       });
@@ -77,9 +82,19 @@ export default function SupportPage() {
       setSubject('');
       setMessage('');
       setPriority('medium');
-      // Refresh
-      const { data } = await supabase.from('support_tickets').select('*, ticket_messages(id, message, is_admin, created_at)').eq('user_id', user.id).order('created_at', { ascending: false });
-      setTickets((data as Ticket[]) || []);
+
+      const ticketsData = await fetchCollection(
+        'support_tickets',
+        [{ field: 'user_id', op: '==', value: user.uid }],
+        'created_at'
+      );
+      const ticketsWithMessages = await Promise.all(
+        ticketsData.map(async (ticket) => {
+          const messages = await fetchSubcollection('support_tickets', ticket.id, 'ticket_messages', 'created_at');
+          return { ...ticket, ticket_messages: messages };
+        })
+      );
+      setTickets(ticketsWithMessages as Ticket[]);
     } catch (err: any) {
       toast({ title: 'Error', description: err.message, variant: 'destructive' });
     } finally {
@@ -91,19 +106,26 @@ export default function SupportPage() {
     if (!user || !selectedTicket || !reply.trim()) return;
     setReplying(true);
     try {
-      await supabase.from('ticket_messages').insert({
-        ticket_id: selectedTicket.id,
-        user_id: user.id,
+      await addSubcollectionDoc('support_tickets', selectedTicket.id, 'ticket_messages', {
+        user_id: user.uid,
         message: reply.trim(),
         is_admin: false,
       });
       setReply('');
-      // Refresh tickets
-      const { data } = await supabase.from('support_tickets').select('*, ticket_messages(id, message, is_admin, created_at)').eq('user_id', user.id).order('created_at', { ascending: false });
-      setTickets((data as Ticket[]) || []);
-      // Re-select ticket
-      const updated = tickets.find(t => t.id === selectedTicket.id);
-      if (updated) setSelectedTicket(updated);
+      const ticketsData = await fetchCollection(
+        'support_tickets',
+        [{ field: 'user_id', op: '==', value: user.uid }],
+        'created_at'
+      );
+      const ticketsWithMessages = await Promise.all(
+        ticketsData.map(async (ticket) => {
+          const messages = await fetchSubcollection('support_tickets', ticket.id, 'ticket_messages', 'created_at');
+          return { ...ticket, ticket_messages: messages };
+        })
+      );
+      setTickets(ticketsWithMessages as Ticket[]);
+      const updated = ticketsWithMessages.find(t => t.id === selectedTicket.id);
+      if (updated) setSelectedTicket(updated as Ticket);
     } catch {} finally {
       setReplying(false);
     }
@@ -190,7 +212,6 @@ export default function SupportPage() {
         </CardContent>
       </Card>
 
-      {/* Ticket Detail Dialog */}
       <Dialog open={!!selectedTicket} onOpenChange={() => setSelectedTicket(null)}>
         <DialogContent className="max-w-lg">
           <DialogHeader>

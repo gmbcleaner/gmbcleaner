@@ -12,7 +12,7 @@ import {
   Inbox,
   Loader2,
 } from 'lucide-react';
-import { supabase } from '@/lib/supabase';
+import { fetchCollection } from '@/lib/db';
 import { useAuth } from '@/components/providers/auth-provider';
 import { toast } from '@/hooks/use-toast';
 import {
@@ -111,14 +111,12 @@ export default function OrdersPage() {
     if (!user) return;
     try {
       setLoading(true);
-      const { data, error } = await supabase
-        .from('orders')
-        .select('id, order_code, status, total_amount, item_count, created_at, notes')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-      setOrders((data as OrderRow[]) || []);
+      const data = await fetchCollection(
+        'orders',
+        [{ field: 'user_id', op: '==', value: user.uid }],
+        'created_at'
+      );
+      setOrders(data as OrderRow[]);
     } catch {
       toast({
         title: 'Error',
@@ -138,14 +136,10 @@ export default function OrdersPage() {
     async (orderId: string) => {
       setLoadingItems(orderId);
       try {
-        const { data, error } = await supabase
-          .from('order_items')
-          .select('id, review_url, status')
-          .eq('order_id', orderId)
-          .order('created_at', { ascending: true });
-
-        if (error) throw error;
-        setOrderItems((prev) => ({ ...prev, [orderId]: (data as OrderItemRow[]) || [] }));
+        const data = await fetchCollection('order_items', [
+          { field: 'order_id', op: '==', value: orderId },
+        ]);
+        setOrderItems((prev) => ({ ...prev, [orderId]: data as OrderItemRow[] }));
       } catch {
         toast({
           title: 'Error',
@@ -170,7 +164,6 @@ export default function OrdersPage() {
     }
   };
 
-  // Filter and search
   const filteredOrders = orders.filter((order) => {
     const matchesStatus =
       statusFilter === 'all' || order.status?.toLowerCase() === statusFilter;
@@ -180,21 +173,18 @@ export default function OrdersPage() {
     return matchesStatus && matchesSearch;
   });
 
-  // Pagination
   const totalPages = Math.ceil(filteredOrders.length / ITEMS_PER_PAGE) || 1;
   const paginatedOrders = filteredOrders.slice(
     (currentPage - 1) * ITEMS_PER_PAGE,
     currentPage * ITEMS_PER_PAGE
   );
 
-  // Reset page when filter changes
   useEffect(() => {
     setCurrentPage(1);
   }, [statusFilter, searchQuery]);
 
   return (
     <div className="space-y-6">
-      {/* Page header */}
       <div>
         <h1 className="text-2xl font-bold tracking-tight text-slate-900">Orders</h1>
         <p className="mt-1 text-sm text-slate-500">
@@ -202,7 +192,6 @@ export default function OrdersPage() {
         </p>
       </div>
 
-      {/* Filters */}
       <Card className="shadow-card">
         <CardHeader>
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -213,7 +202,6 @@ export default function OrdersPage() {
               </CardDescription>
             </div>
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-              {/* Search */}
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
                 <Input
@@ -223,7 +211,6 @@ export default function OrdersPage() {
                   className="pl-9 sm:w-56"
                 />
               </div>
-              {/* Status filter */}
               <Select
                 value={statusFilter}
                 onValueChange={(v) => setStatusFilter(v as StatusFilter)}
@@ -338,7 +325,6 @@ export default function OrdersPage() {
                             >
                               <TableCell colSpan={6} className="bg-slate-50 p-0">
                                 <div className="p-4">
-                                  {/* Order notes */}
                                   {order.notes && (
                                     <div className="mb-3 rounded-lg border border-slate-200 bg-white p-3">
                                       <p className="text-xs font-medium text-slate-500">Notes</p>
@@ -346,7 +332,6 @@ export default function OrdersPage() {
                                     </div>
                                   )}
 
-                                  {/* Order items */}
                                   <p className="mb-2 text-xs font-medium text-slate-500">
                                     Review Items ({order.item_count})
                                   </p>
@@ -396,7 +381,6 @@ export default function OrdersPage() {
                 </TableBody>
               </Table>
 
-              {/* Pagination */}
               {totalPages > 1 && (
                 <div className="mt-4 flex items-center justify-between">
                   <p className="text-xs text-slate-500">

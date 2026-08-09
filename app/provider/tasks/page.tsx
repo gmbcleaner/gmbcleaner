@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { supabase } from '@/lib/supabase';
+import { fetchCollection, updateDocument, getDocument } from '@/lib/db';
 import { toast } from '@/hooks/use-toast';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -34,13 +34,23 @@ export default function ProviderTasksPage() {
       const providerId = localStorage.getItem('gmb_provider_id');
       if (!providerId) return;
 
-      const { data } = await supabase
-        .from('provider_tasks')
-        .select('*, orders(order_code)')
-        .eq('provider_id', providerId)
-        .order('created_at', { ascending: false });
+      const rawTasks = await fetchCollection(
+        'provider_tasks',
+        [{ field: 'provider_id', op: '==', value: providerId }],
+        'created_at'
+      );
 
-      setTasks((data as ProviderTask[]) || []);
+      const tasksWithOrders: ProviderTask[] = await Promise.all(
+        rawTasks.map(async (task: any) => {
+          let orders = null;
+          try {
+            orders = await getDocument('orders', task.order_id);
+          } catch {}
+          return { ...task, orders } as ProviderTask;
+        })
+      );
+
+      setTasks(tasksWithOrders);
     } catch {} finally {
       setLoading(false);
     }
@@ -51,7 +61,7 @@ export default function ProviderTasksPage() {
   const startTask = async (taskId: string) => {
     setUpdating(taskId);
     try {
-      await supabase.from('provider_tasks').update({ status: 'processing' }).eq('id', taskId);
+      await updateDocument('provider_tasks', taskId, { status: 'processing' });
       toast({ title: 'Task started' });
       fetchTasks();
     } catch (err: any) {
@@ -64,23 +74,24 @@ export default function ProviderTasksPage() {
   const completeTask = async (taskId: string) => {
     setUpdating(taskId);
     try {
-      await supabase.from('provider_tasks').update({
+      await updateDocument('provider_tasks', taskId, {
         status: 'completed',
         completed_at: new Date().toISOString(),
         notes: notes[taskId] || null,
-      }).eq('id', taskId);
+      });
 
-      // Check if all tasks for the order are completed
       const task = tasks.find(t => t.id === taskId);
       if (task) {
-        const { data: remaining } = await supabase
-          .from('provider_tasks')
-          .select('id')
-          .eq('order_id', task.order_id)
-          .neq('status', 'completed');
+        const remaining = await fetchCollection(
+          'provider_tasks',
+          [
+            { field: 'order_id', op: '==', value: task.order_id },
+            { field: 'status', op: '!=', value: 'completed' },
+          ]
+        );
 
         if (!remaining || remaining.length === 0) {
-          await supabase.from('orders').update({ status: 'completed' }).eq('id', task.order_id);
+          await updateDocument('orders', task.order_id, { status: 'completed' });
         }
       }
 

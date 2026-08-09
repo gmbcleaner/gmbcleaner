@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { Users, ListOrdered, DollarSign, Activity } from 'lucide-react';
-import { supabase } from '@/lib/supabase';
+import { fetchCollection, countDocuments } from '@/lib/db';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -31,28 +31,28 @@ export default function AdminDashboardPage() {
     let cancelled = false;
     const fetchData = async () => {
       try {
-        const [usersRes, ordersRes, revenueRes, pendingRes, recentRes] = await Promise.all([
-          supabase.from('profiles').select('id', { count: 'exact', head: true }),
-          supabase.from('orders').select('id', { count: 'exact', head: true }),
-          supabase.from('orders').select('total_amount').eq('status', 'completed'),
-          supabase.from('orders').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
-          supabase.from('orders').select('id, order_code, status, total_amount, created_at').order('created_at', { ascending: false }).limit(10),
+        const [totalUsers, totalOrders, completedOrders, pendingOrders, recentOrdersData] = await Promise.all([
+          countDocuments('profiles'),
+          countDocuments('orders'),
+          fetchCollection('orders', [{ field: 'status', op: '==', value: 'completed' }]),
+          countDocuments('orders', [{ field: 'status', op: '==', value: 'pending' }]),
+          fetchCollection('orders', undefined, 'created_at', 10),
         ]);
 
         if (cancelled) return;
 
-        const totalRevenue = (revenueRes.data || []).reduce((sum: number, o: any) => sum + (o.total_amount || 0), 0);
+        const totalRevenue = (completedOrders || []).reduce((sum: number, o: any) => sum + (o.total_amount || 0), 0);
 
         setStats({
-          totalUsers: usersRes.count || 0,
-          totalOrders: ordersRes.count || 0,
+          totalUsers: totalUsers || 0,
+          totalOrders: totalOrders || 0,
           totalRevenue,
-          pendingOrders: pendingRes.count || 0,
+          pendingOrders: pendingOrders || 0,
         });
 
-        setRecentOrders((recentRes.data as RecentOrder[]) || []);
+        setRecentOrders((recentOrdersData as RecentOrder[]) || []);
       } catch {
-        // Supabase unavailable or tables missing
+        // Firebase unavailable or collections missing
       } finally {
         if (!cancelled) setLoading(false);
       }

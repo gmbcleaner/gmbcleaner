@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { supabase } from '@/lib/supabase';
+import { fetchCollection, updateDocument, addDocument, getDocument } from '@/lib/db';
 import { toast } from '@/hooks/use-toast';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -19,7 +19,7 @@ interface Order {
   notes: string | null;
   assigned_provider: string | null;
   created_at: string;
-  profiles?: { email: string } | null;
+  user_email?: string;
   order_items?: { id: string; review_url: string; status: string }[];
 }
 
@@ -37,13 +37,23 @@ export default function AdminOrdersPage() {
 
   const fetchOrders = async () => {
     try {
-      const { data } = await supabase
-        .from('orders')
-        .select('*, profiles:user_id(email), order_items(id, review_url, status)')
-        .order('created_at', { ascending: false });
-      setOrders((data as Order[]) || []);
+      const ordersData = await fetchCollection('orders', undefined, 'created_at');
 
-      const { data: provs } = await supabase.from('profiles').select('id, email').eq('role', 'provider');
+      // Fetch user emails and order items for each order
+      const enrichedOrders = await Promise.all(
+        (ordersData || []).map(async (order: any) => {
+          let user_email = '';
+          if (order.user_id) {
+            const profile = await getDocument('profiles', order.user_id);
+            user_email = profile?.email || '';
+          }
+          const orderItems = await fetchCollection('order_items', [{ field: 'order_id', op: '==', value: order.id }]);
+          return { ...order, user_email, order_items: orderItems || [] } as Order;
+        })
+      );
+      setOrders(enrichedOrders);
+
+      const provs = await fetchCollection('profiles', [{ field: 'role', op: '==', value: 'provider' }]);
       setProviders((provs as Provider[]) || []);
     } catch {} finally {
       setLoading(false);
@@ -55,10 +65,10 @@ export default function AdminOrdersPage() {
   const updateStatus = async (orderId: string, status: string) => {
     setUpdating(orderId);
     try {
-      await supabase.from('orders').update({ status }).eq('id', orderId);
+      await updateDocument('orders', orderId, { status });
       const order = orders.find(o => o.id === orderId);
       if (order) {
-        await supabase.from('notifications').insert({
+        await addDocument('notifications', {
           user_id: order.id,
           title: 'Order Updated',
           message: `Your order ${order.order_code} status changed to ${status}.`,
@@ -77,19 +87,20 @@ export default function AdminOrdersPage() {
 
   const assignProvider = async (orderId: string, providerId: string) => {
     try {
-      await supabase.from('orders').update({ assigned_provider: providerId }).eq('id', orderId);
+      await updateDocument('orders', orderId, { assigned_provider: providerId });
 
       // Create provider tasks for each order item
       const order = orders.find(o => o.id === orderId);
       if (order?.order_items) {
-        const tasks = order.order_items.map(item => ({
-          order_id: orderId,
-          order_item_id: item.id,
-          provider_id: providerId,
-          status: 'pending',
-          review_url: item.review_url,
-        }));
-        await supabase.from('provider_tasks').insert(tasks);
+        for (const item of order.order_items) {
+          await addDocument('provider_tasks', {
+            order_id: orderId,
+            order_item_id: item.id,
+            provider_id: providerId,
+            status: 'pending',
+            review_url: item.review_url,
+          });
+        }
       }
 
       toast({ title: 'Provider assigned' });
@@ -131,7 +142,7 @@ export default function AdminOrdersPage() {
                       </div>
                       <div>
                         <p className="text-sm font-semibold text-slate-900">{order.order_code}</p>
-                        <p className="text-xs text-slate-500">{(order.profiles as any)?.email || 'Unknown'} &middot; {order.item_count} items &middot; {new Date(order.created_at).toLocaleDateString()}</p>
+                        <p className="text-xs text-slate-500">{order.user_email || 'Unknown'} &middot; {order.item_count} items &middot; {new Date(order.created_at).toLocaleDateString()}</p>
                       </div>
                     </div>
                     <div className="flex items-center gap-3">

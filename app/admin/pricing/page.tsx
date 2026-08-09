@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { supabase } from '@/lib/supabase';
+import { fetchCollection, addDocument, updateDocument, getDocument } from '@/lib/db';
 import { toast } from '@/hooks/use-toast';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -10,6 +10,7 @@ import { Label } from '@/components/ui/label';
 import { Loader2, Save } from 'lucide-react';
 
 export default function AdminPricingPage() {
+  const [pricingId, setPricingId] = useState<string | null>(null);
   const [basePrice, setBasePrice] = useState('1.00');
   const [serviceFee, setServiceFee] = useState('0.15');
   const [minDeposit, setMinDeposit] = useState('20');
@@ -18,11 +19,13 @@ export default function AdminPricingPage() {
   useEffect(() => {
     const fetchPricing = async () => {
       try {
-        const { data } = await supabase.from('pricing_settings').select('*').limit(1).single();
-        if (data) {
-          setBasePrice(String(data.base_price || 1));
-          setServiceFee(String(data.service_fee || 0.15));
-          setMinDeposit(String(data.min_deposit || 20));
+        const data = await fetchCollection('pricing_settings');
+        if (data && data.length > 0) {
+          const row = data[0];
+          setPricingId(row.id);
+          setBasePrice(String(row.base_price || 1));
+          setServiceFee(String(row.service_fee || 0.15));
+          setMinDeposit(String(row.min_deposit || 20));
         }
       } catch {}
     };
@@ -32,19 +35,16 @@ export default function AdminPricingPage() {
   const save = async () => {
     setSaving(true);
     try {
-      const { data: existing } = await supabase.from('pricing_settings').select('id').limit(1).single();
-      if (existing) {
-        await supabase.from('pricing_settings').update({
-          base_price: parseFloat(basePrice),
-          service_fee: parseFloat(serviceFee),
-          min_deposit: parseFloat(minDeposit),
-        }).eq('id', existing.id);
+      const payload = {
+        base_price: parseFloat(basePrice),
+        service_fee: parseFloat(serviceFee),
+        min_deposit: parseFloat(minDeposit),
+      };
+      if (pricingId) {
+        await updateDocument('pricing_settings', pricingId, payload);
       } else {
-        await supabase.from('pricing_settings').insert({
-          base_price: parseFloat(basePrice),
-          service_fee: parseFloat(serviceFee),
-          min_deposit: parseFloat(minDeposit),
-        });
+        const newId = await addDocument('pricing_settings', payload);
+        setPricingId(newId);
       }
       toast({ title: 'Pricing updated' });
     } catch (err: any) {

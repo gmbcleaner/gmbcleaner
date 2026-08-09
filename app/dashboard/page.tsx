@@ -15,7 +15,7 @@ import {
   Clock,
   TrendingUp,
 } from 'lucide-react';
-import { supabase } from '@/lib/supabase';
+import { fetchCollection, countDocuments } from '@/lib/db';
 import { useAuth } from '@/components/providers/auth-provider';
 import { toast } from '@/hooks/use-toast';
 import {
@@ -141,47 +141,24 @@ export default function DashboardHomePage() {
     try {
       setLoading(true);
 
-      const [ordersRes, completedItemsRes, notifRes] = await Promise.all([
-        supabase
-          .from('orders')
-          .select('id, order_code, status, total_amount, item_count, created_at')
-          .eq('user_id', user.id)
-          .order('created_at', { ascending: false })
-          .limit(5),
-        supabase
-          .from('order_items')
-          .select('id, status')
-          .eq('user_id', user.id)
-          .eq('status', 'completed'),
-        supabase
-          .from('notifications')
-          .select('id, title, message, type, is_read, created_at')
-          .eq('user_id', user.id)
-          .order('created_at', { ascending: false })
-          .limit(5),
+      const filters = [{ field: 'user_id', op: '==' as const, value: user.uid }];
+
+      const [ordersData, completedItemsData, notifData, totalOrders, activeOrders] = await Promise.all([
+        fetchCollection('orders', filters, 'created_at', 5),
+        fetchCollection('order_items', [...filters, { field: 'status', op: '==' as const, value: 'completed' }]),
+        fetchCollection('notifications', filters, 'created_at', 5),
+        countDocuments('orders', filters),
+        countDocuments('orders', [...filters, { field: 'status', op: 'in' as const, value: ['pending', 'processing'] }]),
       ]);
 
-      // Fetch total order count and active order count
-      const [totalOrdersRes, activeOrdersRes] = await Promise.all([
-        supabase
-          .from('orders')
-          .select('id', { count: 'exact', head: true })
-          .eq('user_id', user.id),
-        supabase
-          .from('orders')
-          .select('id', { count: 'exact', head: true })
-          .eq('user_id', user.id)
-          .in('status', ['pending', 'processing']),
-      ]);
-
-      setRecentOrders((ordersRes.data as OrderRow[]) || []);
-      setRecentNotifications((notifRes.data as NotificationRow[]) || []);
+      setRecentOrders(ordersData as OrderRow[]);
+      setRecentNotifications(notifData as NotificationRow[]);
 
       setStats({
         walletBalance: profile?.wallet_balance ?? 0,
-        totalOrders: totalOrdersRes.count ?? 0,
-        activeOrders: activeOrdersRes.count ?? 0,
-        completedItems: completedItemsRes.data?.length ?? 0,
+        totalOrders: totalOrders,
+        activeOrders: activeOrders,
+        completedItems: completedItemsData.length,
       });
     } catch {
       toast({
@@ -198,7 +175,6 @@ export default function DashboardHomePage() {
     fetchData();
   }, [fetchData]);
 
-  // Refresh profile to get latest wallet balance
   useEffect(() => {
     if (user) refreshProfile();
   }, [user, refreshProfile]);
@@ -210,7 +186,6 @@ export default function DashboardHomePage() {
 
   return (
     <div className="space-y-6">
-      {/* Page header */}
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-slate-900">
@@ -236,7 +211,6 @@ export default function DashboardHomePage() {
         </div>
       </div>
 
-      {/* Stat cards */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {loading ? (
           Array.from({ length: 4 }).map((_, i) => (
@@ -285,7 +259,6 @@ export default function DashboardHomePage() {
       </div>
 
       <div className="grid gap-6 lg:grid-cols-3">
-        {/* Recent orders */}
         <Card className="lg:col-span-2 shadow-card">
           <CardHeader className="flex flex-row items-center justify-between space-y-0">
             <div>
@@ -368,7 +341,6 @@ export default function DashboardHomePage() {
           </CardContent>
         </Card>
 
-        {/* Recent notifications */}
         <Card className="shadow-card">
           <CardHeader>
             <div className="flex items-center gap-2">
@@ -432,7 +404,6 @@ export default function DashboardHomePage() {
         </Card>
       </div>
 
-      {/* Progress card */}
       {!loading && stats.totalOrders > 0 && (
         <Card className="shadow-card">
           <CardHeader>

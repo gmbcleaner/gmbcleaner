@@ -1,3 +1,6 @@
+'use client';
+
+import { useEffect, useState } from 'react';
 import { Navbar } from '@/components/shared/navbar';
 import { Footer } from '@/components/shared/footer';
 import { PageHeader, CTABanner } from '@/components/shared/sections';
@@ -5,7 +8,7 @@ import { Reveal } from '@/components/animation/reveal';
 import { FloatingShape } from '@/components/animation/floating';
 import { Card, CardContent } from '@/components/ui/card';
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from '@/components/ui/accordion';
-import { supabase } from '@/lib/supabase';
+import { fetchCollection } from '@/lib/db';
 import { HelpCircle, MessageCircle } from 'lucide-react';
 
 interface Faq {
@@ -83,20 +86,33 @@ const fallbackFaqs: Faq[] = [
 
 const categoryOrder = ['general', 'pricing', 'security', 'payments'];
 
-export default async function FaqPage() {
-  let faqs = null;
-  try {
-    const result = await supabase
-      .from('faqs')
-      .select('*')
-      .eq('is_published', true)
-      .order('sort_order');
-    faqs = result.data;
-  } catch {
-    // Supabase unavailable at build time
-  }
+export default function FaqPage() {
+  const [faqs, setFaqs] = useState<Faq[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const allFaqs: Faq[] = faqs && faqs.length > 0 ? faqs : fallbackFaqs;
+  useEffect(() => {
+    const fetchFaqs = async () => {
+      try {
+        const data = await fetchCollection(
+          'faqs',
+          [{ field: 'is_published', op: '==', value: true }],
+          'sort_order'
+        );
+        if (data && data.length > 0) {
+          setFaqs(data as Faq[]);
+        } else {
+          setFaqs(fallbackFaqs);
+        }
+      } catch {
+        setFaqs(fallbackFaqs);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchFaqs();
+  }, []);
+
+  const allFaqs: Faq[] = faqs.length > 0 ? faqs : fallbackFaqs;
 
   const grouped: Record<string, Faq[]> = {};
   for (const faq of allFaqs) {

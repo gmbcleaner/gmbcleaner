@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
-import { supabase } from '@/lib/supabase';
+import { useAuth } from '@/components/providers/auth-provider';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -13,6 +13,7 @@ import { ShieldCheck, Mail, Lock, ArrowRight, Loader2 } from 'lucide-react';
 
 export default function UserLoginPage() {
   const router = useRouter();
+  const { signIn } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -23,7 +24,7 @@ export default function UserLoginPage() {
     setLoading(true);
     setError('');
 
-    const { data, error: authError } = await supabase.auth.signInWithPassword({ email, password });
+    const { error: authError } = await signIn(email, password);
 
     if (authError) {
       setError('Invalid email or password. Please try again.');
@@ -31,10 +32,8 @@ export default function UserLoginPage() {
       return;
     }
 
-    if (data.user) {
-      router.push('/dashboard');
-      router.refresh();
-    }
+    router.push('/dashboard');
+    router.refresh();
   };
 
   return (

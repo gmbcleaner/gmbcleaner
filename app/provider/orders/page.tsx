@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { supabase } from '@/lib/supabase';
+import { fetchCollection } from '@/lib/db';
 import { useAuth } from '@/components/providers/auth-provider';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -27,13 +27,10 @@ export default function ProviderOrdersPage() {
     if (!user) return;
     const fetchOrders = async () => {
       try {
-        const { data } = await supabase
-          .from('orders')
-          .select('id, order_code, status, total_amount, item_count, notes, created_at')
-          .order('created_at', { ascending: false });
+        const data = await fetchCollection('orders', undefined, 'created_at');
         setOrders((data as Order[]) || []);
       } catch {
-        // Supabase unavailable
+        // Firebase unavailable
       } finally {
         setLoading(false);
       }

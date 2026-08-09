@@ -3,7 +3,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
-import { motion, AnimatePresence } from 'framer-motion';
 import {
   LayoutDashboard,
   PlusCircle,
@@ -19,7 +18,7 @@ import {
   ChevronDown,
   ShieldCheck,
 } from 'lucide-react';
-import { supabase } from '@/lib/supabase';
+import { fetchCollection, batchUpdate } from '@/lib/db';
 import { useAuth } from '@/components/providers/auth-provider';
 import { toast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
@@ -86,14 +85,13 @@ export default function DashboardLayout({
 }) {
   const router = useRouter();
   const pathname = usePathname();
-  const { user, profile, loading, refreshProfile } = useAuth();
+  const { user, profile, loading, refreshProfile, signOut } = useAuth();
   const [authChecked, setAuthChecked] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [extendedProfile, setExtendedProfile] = useState<ExtendedProfile | null>(null);
 
-  // Auth guard
   useEffect(() => {
     if (loading) return;
     if (!user) {
@@ -103,77 +101,52 @@ export default function DashboardLayout({
     setAuthChecked(true);
   }, [user, loading, router]);
 
-  // Fetch extended profile (full_name, company, avatar_url)
   const fetchExtendedProfile = useCallback(async () => {
     if (!user) return;
-    const { data } = await supabase
-      .from('profiles')
-      .select('id, email, role, user_code, wallet_balance, full_name, company, avatar_url')
-      .eq('id', user.id)
-      .maybeSingle();
-    if (data) setExtendedProfile(data as ExtendedProfile);
+    const data = await fetchCollection('profiles', [{ field: 'id', op: '==', value: user.uid }]);
+    if (data.length > 0) setExtendedProfile(data[0] as ExtendedProfile);
   }, [user]);
 
   useEffect(() => {
     if (user) fetchExtendedProfile();
   }, [user, fetchExtendedProfile]);
 
-  // Fetch notifications
   const fetchNotifications = useCallback(async () => {
     if (!user) return;
-    const { data } = await supabase
-      .from('notifications')
-      .select('id, title, message, type, is_read, created_at')
-      .eq('user_id', user.id)
-      .order('created_at', { ascending: false })
-      .limit(20);
-    if (data) {
-      setNotifications(data as NotificationItem[]);
-      setUnreadCount(data.filter((n) => !n.is_read).length);
-    }
+    const data = await fetchCollection(
+      'notifications',
+      [{ field: 'user_id', op: '==', value: user.uid }],
+      'created_at',
+      20
+    );
+    setNotifications(data as NotificationItem[]);
+    setUnreadCount(data.filter((n) => !n.is_read).length);
   }, [user]);
 
   useEffect(() => {
     if (user) fetchNotifications();
   }, [user, fetchNotifications]);
 
-  // Subscribe to realtime notifications
   useEffect(() => {
     if (!user) return;
-    const channel = supabase
-      .channel('notifications-channel')
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'notifications',
-          filter: `user_id=eq.${user.id}`,
-        },
-        () => {
-          fetchNotifications();
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
+    const interval = setInterval(fetchNotifications, 30000);
+    return () => clearInterval(interval);
   }, [user, fetchNotifications]);
 
   const handleLogout = async () => {
-    await supabase.auth.signOut();
+    await signOut();
     toast({ title: 'Logged out', description: 'You have been signed out successfully.' });
     router.replace('/login');
   };
 
   const markAllRead = async () => {
     if (!user) return;
-    await supabase
-      .from('notifications')
-      .update({ is_read: true })
-      .eq('user_id', user.id)
-      .eq('is_read', false);
+    const unread = notifications.filter((n) => !n.is_read);
+    if (unread.length > 0) {
+      await batchUpdate(
+        unread.map((n) => ({ col: 'notifications', id: n.id, data: { is_read: true } }))
+      );
+    }
     setNotifications((prev) => prev.map((n) => ({ ...n, is_read: true })));
     setUnreadCount(0);
   };
@@ -204,7 +177,6 @@ export default function DashboardLayout({
 
   const SidebarContent = () => (
     <div className="flex h-full flex-col">
-      {/* Logo */}
       <div className="flex h-16 items-center gap-2 border-b border-slate-200 px-6">
         <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-teal-500 to-sky-500">
           <ShieldCheck className="h-5 w-5 text-white" />
@@ -214,7 +186,6 @@ export default function DashboardLayout({
         </span>
       </div>
 
-      {/* Nav */}
       <nav className="flex-1 space-y-1 px-3 py-4">
         {navItems.map((item) => {
           const active = isActive(item.href);
@@ -237,7 +208,6 @@ export default function DashboardLayout({
         })}
       </nav>
 
-      {/* Wallet balance card */}
       <div className="px-3 pb-4">
         <div className="rounded-xl border border-slate-200 bg-gradient-to-br from-slate-900 to-slate-800 p-4">
           <p className="text-xs font-medium text-slate-400">Wallet Balance</p>
@@ -258,12 +228,10 @@ export default function DashboardLayout({
 
   return (
     <div className="flex min-h-screen bg-slate-50">
-      {/* Desktop sidebar */}
       <aside className="fixed inset-y-0 left-0 z-40 hidden w-64 border-r border-slate-200 bg-white lg:block">
         <SidebarContent />
       </aside>
 
-      {/* Mobile sidebar */}
       <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
         <SheetContent side="left" className="w-72 p-0 lg:hidden">
           <SheetHeader className="sr-only">
@@ -273,11 +241,8 @@ export default function DashboardLayout({
         </SheetContent>
       </Sheet>
 
-      {/* Main content area */}
       <div className="flex flex-1 flex-col lg:pl-64">
-        {/* Top bar */}
         <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-slate-200 bg-white/80 px-4 backdrop-blur-xl lg:px-8">
-          {/* Mobile menu trigger */}
           <div className="flex items-center gap-3 lg:hidden">
             <SheetTrigger asChild>
               <Button
@@ -300,16 +265,13 @@ export default function DashboardLayout({
             </div>
           </div>
 
-          {/* Desktop page indicator */}
           <div className="hidden lg:block">
             <p className="text-sm font-medium text-slate-500">
               {navItems.find((n) => isActive(n.href))?.label || 'Dashboard'}
             </p>
           </div>
 
-          {/* Right side actions */}
           <div className="flex items-center gap-2 lg:gap-3">
-            {/* Notifications */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="icon" className="relative h-9 w-9">
@@ -363,7 +325,6 @@ export default function DashboardLayout({
               </DropdownMenuContent>
             </DropdownMenu>
 
-            {/* User menu */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button className="flex items-center gap-2 rounded-lg px-2 py-1.5 transition-colors hover:bg-slate-100">
@@ -428,19 +389,8 @@ export default function DashboardLayout({
           </div>
         </header>
 
-        {/* Page content */}
         <main className="flex-1 px-4 py-6 lg:px-8 lg:py-8">
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={pathname}
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -8 }}
-              transition={{ duration: 0.2 }}
-            >
-              {children}
-            </motion.div>
-          </AnimatePresence>
+          {children}
         </main>
       </div>
     </div>

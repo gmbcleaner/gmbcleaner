@@ -1,13 +1,16 @@
-import type { Metadata } from 'next';
+'use client';
+
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { notFound } from 'next/navigation';
+import { useParams, notFound } from 'next/navigation';
 import { Navbar } from '@/components/shared/navbar';
 import { Footer } from '@/components/shared/footer';
 import { Reveal, Stagger, staggerItem } from '@/components/animation/reveal';
 import { FloatingShape } from '@/components/animation/floating';
 import { Card, CardContent } from '@/components/ui/card';
-import { supabase } from '@/lib/supabase';
+import { fetchCollection } from '@/lib/db';
 import { ArrowLeft, ArrowRight, Calendar, User, Tag, Clock } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 
 interface BlogPost {
   id: string;
@@ -35,22 +38,6 @@ interface RelatedPost {
   author: string;
 }
 
-const fallbackPost: BlogPost = {
-  id: 'fallback',
-  title: 'Article Not Found',
-  slug: 'not-found',
-  excerpt: '',
-  content: '',
-  category: '',
-  author: '',
-  featured_image: null,
-  tags: [],
-  is_published: false,
-  published_at: '',
-  created_at: '',
-  updated_at: '',
-};
-
 function formatDate(dateStr: string): string {
   if (!dateStr) return '';
   const date = new Date(dateStr);
@@ -68,111 +55,74 @@ function estimateReadTime(content: string): string {
   return `${minutes} min read`;
 }
 
-export async function generateStaticParams() {
-  try {
-    const { data: posts } = await supabase
-      .from('blog_posts')
-      .select('slug')
-      .eq('is_published', true);
+export default function BlogPostPage() {
+  const params = useParams();
+  const slug = params.slug as string;
 
-    if (!posts || posts.length === 0) {
-      return [
-        { slug: 'how-to-identify-fake-reviews' },
-        { slug: 'protect-online-reputation' },
-        { slug: 'listing-spam-attack-response' },
-        { slug: 'how-review-moderation-works' },
-        { slug: 'responding-to-negative-reviews' },
-      ];
-    }
+  const [post, setPost] = useState<BlogPost | null>(null);
+  const [relatedPosts, setRelatedPosts] = useState<RelatedPost[]>([]);
+  const [loading, setLoading] = useState(true);
 
-    return posts.map((post: { slug: string }) => ({ slug: post.slug }));
-  } catch {
-    return [
-      { slug: 'how-to-identify-fake-reviews' },
-      { slug: 'protect-online-reputation' },
-      { slug: 'listing-spam-attack-response' },
-      { slug: 'how-review-moderation-works' },
-      { slug: 'responding-to-negative-reviews' },
-    ];
-  }
-}
+  useEffect(() => {
+    if (!slug) return;
 
-export async function generateMetadata({
-  params,
-}: {
-  params: { slug: string };
-}): Promise<Metadata> {
-  try {
-    const { data: post } = await supabase
-      .from('blog_posts')
-      .select('title, excerpt, category, author')
-      .eq('slug', params.slug)
-      .eq('is_published', true)
-      .single();
+    const fetchPost = async () => {
+      try {
+        const data = await fetchCollection(
+          'blog_posts',
+          [
+            { field: 'slug', op: '==', value: slug },
+            { field: 'is_published', op: '==', value: true },
+          ]
+        );
 
-    if (!post) {
-      return {
-        title: 'Article Not Found | GMBCLEANER',
-        description: 'The requested article could not be found.',
-      };
-    }
+        if (!data || data.length === 0) {
+          notFound();
+          return;
+        }
 
-    return {
-      title: `${post.title} | GMBCLEANER Blog`,
-      description: post.excerpt,
-      openGraph: {
-        title: post.title,
-        description: post.excerpt,
-        type: 'article',
-      },
+        setPost(data[0] as BlogPost);
+
+        const relatedData = await fetchCollection(
+          'blog_posts',
+          [{ field: 'is_published', op: '==', value: true }],
+          'published_at',
+          3
+        );
+
+        if (relatedData) {
+          setRelatedPosts(
+            (relatedData as RelatedPost[]).filter((r) => r.slug !== slug)
+          );
+        }
+      } catch {
+        notFound();
+      } finally {
+        setLoading(false);
+      }
     };
-  } catch {
-    return {
-      title: 'Blog | GMBCLEANER',
-      description: 'Read the latest insights from GMBCLEANER.',
-    };
-  }
-}
 
-export default async function BlogPostPage({
-  params,
-}: {
-  params: { slug: string };
-}) {
-  let post = null;
-  try {
-    const result = await supabase
-      .from('blog_posts')
-      .select('*')
-      .eq('slug', params.slug)
-      .eq('is_published', true)
-      .single();
-    post = result.data;
-  } catch {
-    // Supabase unavailable at build time
+    fetchPost();
+  }, [slug]);
+
+  if (loading) {
+    return (
+      <>
+        <Navbar />
+        <main className="flex items-center justify-center py-32">
+          <Loader2 className="h-8 w-8 animate-spin text-slate-400" />
+        </main>
+        <Footer />
+      </>
+    );
   }
 
   if (!post) {
     notFound();
   }
 
-  const postData = (post as BlogPost) || fallbackPost;
+  const postData = post!;
 
-  let relatedPosts: RelatedPost[] = [];
-  try {
-    const { data: relatedData } = await supabase
-      .from('blog_posts')
-      .select('id, title, slug, excerpt, category, published_at, author')
-      .eq('is_published', true)
-      .neq('slug', params.slug)
-      .order('published_at', { ascending: false })
-      .limit(3);
-    relatedPosts = (relatedData as RelatedPost[]) || [];
-  } catch {
-    // Supabase unavailable
-  }
-
-  // Split content into paragraphs for styled rendering
   const contentParagraphs = postData.content
     ? postData.content.split(/\n\n+/).filter((p) => p.trim().length > 0)
     : [];

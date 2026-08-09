@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { supabase } from '@/lib/supabase';
+import { fetchCollection } from '@/lib/db';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -25,13 +25,10 @@ export default function AdminUsersPage() {
   useEffect(() => {
     const fetchUsers = async () => {
       try {
-        const { data } = await supabase
-          .from('profiles')
-          .select('id, email, role, user_code, wallet_balance, created_at')
-          .order('created_at', { ascending: false });
+        const data = await fetchCollection('profiles', undefined, 'created_at');
         setUsers((data as UserProfile[]) || []);
       } catch {
-        // Supabase unavailable
+        // Firebase unavailable
       } finally {
         setLoading(false);
       }

@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { supabase } from '@/lib/supabase';
+import { fetchCollection, updateDocument, addDocument, getDocument } from '@/lib/db';
 import { toast } from '@/hooks/use-toast';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -20,7 +20,7 @@ interface Deposit {
   sender_wallet: string | null;
   status: string;
   created_at: string;
-  profiles?: { email: string } | null;
+  user_email?: string;
 }
 
 export default function AdminDepositsPage() {
@@ -32,11 +32,19 @@ export default function AdminDepositsPage() {
 
   const fetchDeposits = async () => {
     try {
-      const { data } = await supabase
-        .from('deposits')
-        .select('*, profiles:user_id(email)')
-        .order('created_at', { ascending: false });
-      setDeposits((data as Deposit[]) || []);
+      const depositsData = await fetchCollection('deposits', undefined, 'created_at');
+
+      const enriched = await Promise.all(
+        (depositsData || []).map(async (dep: any) => {
+          let user_email = '';
+          if (dep.user_id) {
+            const profile = await getDocument('profiles', dep.user_id);
+            user_email = profile?.email || '';
+          }
+          return { ...dep, user_email } as Deposit;
+        })
+      );
+      setDeposits(enriched);
     } catch {} finally {
       setLoading(false);
     }
@@ -47,19 +55,15 @@ export default function AdminDepositsPage() {
   const approveDeposit = async (deposit: Deposit) => {
     setProcessing(deposit.id);
     try {
-      // Update deposit status
-      await supabase.from('deposits').update({ status: 'approved' }).eq('id', deposit.id);
+      await updateDocument('deposits', deposit.id, { status: 'approved' });
 
-      // Get current balance
-      const { data: profile } = await supabase.from('profiles').select('wallet_balance').eq('id', deposit.user_id).single();
+      const profile = await getDocument('profiles', deposit.user_id);
       const currentBalance = profile?.wallet_balance || 0;
       const newBalance = currentBalance + deposit.amount;
 
-      // Update wallet
-      await supabase.from('profiles').update({ wallet_balance: newBalance }).eq('id', deposit.user_id);
+      await updateDocument('profiles', deposit.user_id, { wallet_balance: newBalance });
 
-      // Record transaction
-      await supabase.from('transactions').insert({
+      await addDocument('transactions', {
         user_id: deposit.user_id,
         type: 'deposit',
         amount: deposit.amount,
@@ -67,8 +71,7 @@ export default function AdminDepositsPage() {
         description: `Deposit via ${deposit.network.toUpperCase()} approved`,
       });
 
-      // Notify user
-      await supabase.from('notifications').insert({
+      await addDocument('notifications', {
         user_id: deposit.user_id,
         title: 'Deposit Approved',
         message: `Your $${deposit.amount.toFixed(2)} deposit has been approved. Balance updated.`,
@@ -89,8 +92,8 @@ export default function AdminDepositsPage() {
     if (!rejectDialog) return;
     setProcessing(rejectDialog.id);
     try {
-      await supabase.from('deposits').update({ status: 'rejected' }).eq('id', rejectDialog.id);
-      await supabase.from('notifications').insert({
+      await updateDocument('deposits', rejectDialog.id, { status: 'rejected' });
+      await addDocument('notifications', {
         user_id: rejectDialog.user_id,
         title: 'Deposit Rejected',
         message: `Your $${rejectDialog.amount.toFixed(2)} deposit was rejected. ${rejectReason || ''}`,
@@ -157,7 +160,7 @@ export default function AdminDepositsPage() {
               {deposits.map((d) => (
                 <div key={d.id} className="flex items-center justify-between rounded-lg border border-slate-200 p-4">
                   <div>
-                    <p className="text-sm font-semibold text-slate-900">{(d.profiles as any)?.email || 'Unknown'}</p>
+                    <p className="text-sm font-semibold text-slate-900">{d.user_email || 'Unknown'}</p>
                     <p className="text-xs text-slate-500">${d.amount.toFixed(2)} via {d.network.toUpperCase()}</p>
                     <p className="text-[10px] text-slate-400 font-mono mt-1">TX: {d.tx_hash}</p>
                     <p className="text-[10px] text-slate-400">{new Date(d.created_at).toLocaleString()}</p>

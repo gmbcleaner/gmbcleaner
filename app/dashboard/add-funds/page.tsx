@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Wallet, Copy, Clock, CheckCircle2, AlertTriangle, Loader2 } from 'lucide-react';
-import { supabase } from '@/lib/supabase';
+import { addDocument } from '@/lib/db';
 import { useAuth } from '@/components/providers/auth-provider';
 import { toast } from '@/hooks/use-toast';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -48,8 +48,8 @@ export default function AddFundsPage() {
     setSubmitting(true);
 
     try {
-      const { error } = await supabase.from('deposits').insert({
-        user_id: user.id,
+      await addDocument('deposits', {
+        user_id: user.uid,
         amount: parsedAmount,
         network,
         tx_hash: txHash.trim(),
@@ -57,10 +57,8 @@ export default function AddFundsPage() {
         status: 'pending',
       });
 
-      if (error) throw error;
-
-      await supabase.from('notifications').insert({
-        user_id: user.id,
+      await addDocument('notifications', {
+        user_id: user.uid,
         title: 'Deposit Request Submitted',
         message: `Your $${parsedAmount.toFixed(2)} deposit request via ${network.toUpperCase()} is pending review.`,
         type: 'deposit',
@@ -91,7 +89,6 @@ export default function AddFundsPage() {
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
-        {/* Deposit Form */}
         <Card className="shadow-card">
           <CardHeader>
             <CardTitle className="text-lg">Make a Deposit</CardTitle>
@@ -155,7 +152,6 @@ export default function AddFundsPage() {
           </CardContent>
         </Card>
 
-        {/* Instructions */}
         <div className="space-y-4">
           <Card className="shadow-card">
             <CardContent className="p-6">

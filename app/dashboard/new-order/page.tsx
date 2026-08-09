@@ -16,7 +16,7 @@ import {
   ArrowRight,
   Info,
 } from 'lucide-react';
-import { supabase } from '@/lib/supabase';
+import { addDocument, updateDocument, fetchCollection } from '@/lib/db';
 import { useAuth } from '@/components/providers/auth-provider';
 import { toast } from '@/hooks/use-toast';
 import {
@@ -58,7 +58,6 @@ function parseUrls(raw: string): ParsedUrl[] {
     .filter((line) => line.length > 0)
     .map((line) => {
       let url = line;
-      // Add https:// if missing protocol
       if (!/^https?:\/\//i.test(url)) {
         url = 'https://' + url;
       }
@@ -67,7 +66,6 @@ function parseUrls(raw: string): ParsedUrl[] {
       try {
         const parsed = new URL(url);
         domain = parsed.hostname;
-        // Must have a dot in the domain to be valid
         valid = domain.includes('.') && domain.length > 3;
       } catch {
         valid = false;
@@ -138,66 +136,36 @@ export default function NewOrderPage() {
       const orderCode = generateOrderCode();
       const newBalance = walletBalance - totalCost;
 
-      // Insert order
-      const { data: orderData, error: orderError } = await supabase
-        .from('orders')
-        .insert({
-          user_id: user.id,
-          order_code: orderCode,
-          status: 'pending',
-          total_amount: totalCost,
-          item_count: itemCount,
-          notes: notes.trim() || null,
-        })
-        .select('id')
-        .single();
+      const orderId = await addDocument('orders', {
+        user_id: user.uid,
+        order_code: orderCode,
+        status: 'pending',
+        total_amount: totalCost,
+        item_count: itemCount,
+        notes: notes.trim() || null,
+      });
 
-      if (orderError || !orderData) {
-        throw new Error(orderError?.message || 'Failed to create order');
-      }
-
-      const orderId = orderData.id;
-
-      // Insert order items
       const orderItems = validUrls.map((u) => ({
-        user_id: user.id,
+        user_id: user.uid,
         order_id: orderId,
         review_url: u.url,
         status: 'pending',
       }));
 
-      const { error: itemsError } = await supabase
-        .from('order_items')
-        .insert(orderItems);
+      await Promise.all(orderItems.map((item) => addDocument('order_items', item)));
 
-      if (itemsError) {
-        // Attempt to rollback order
-        await supabase.from('orders').delete().eq('id', orderId);
-        throw new Error(itemsError.message);
-      }
+      await updateDocument('profiles', user.uid, { wallet_balance: newBalance });
 
-      // Deduct from wallet
-      const { error: walletError } = await supabase
-        .from('profiles')
-        .update({ wallet_balance: newBalance })
-        .eq('id', user.id);
-
-      if (walletError) {
-        throw new Error(walletError.message);
-      }
-
-      // Insert transaction record
-      await supabase.from('transactions').insert({
-        user_id: user.id,
+      await addDocument('transactions', {
+        user_id: user.uid,
         type: 'order_payment',
         amount: -totalCost,
         balance_after: newBalance,
         description: `Payment for order ${orderCode} (${itemCount} items)`,
       });
 
-      // Insert notification
-      await supabase.from('notifications').insert({
-        user_id: user.id,
+      await addDocument('notifications', {
+        user_id: user.uid,
         title: 'Order Created',
         message: `Your order ${orderCode} with ${itemCount} review${itemCount > 1 ? 's' : ''} has been submitted for processing.`,
         type: 'order',
@@ -211,7 +179,6 @@ export default function NewOrderPage() {
         description: `Order ${orderCode} created with ${itemCount} item${itemCount > 1 ? 's' : ''}. $${totalCost.toFixed(2)} deducted from your wallet.`,
       });
 
-      // Reset form
       setUrlInput('');
       setNotes('');
     } catch (err) {
@@ -228,7 +195,6 @@ export default function NewOrderPage() {
 
   return (
     <div className="mx-auto max-w-4xl space-y-6">
-      {/* Page header */}
       <div>
         <h1 className="text-2xl font-bold tracking-tight text-slate-900">New Order</h1>
         <p className="mt-1 text-sm text-slate-500">
@@ -236,7 +202,6 @@ export default function NewOrderPage() {
         </p>
       </div>
 
-      {/* Wallet balance banner */}
       <Card className="overflow-hidden border-0 bg-gradient-to-r from-slate-900 to-slate-800 shadow-card">
         <CardContent className="flex items-center justify-between p-4">
           <div className="flex items-center gap-3">
@@ -262,7 +227,6 @@ export default function NewOrderPage() {
         </CardContent>
       </Card>
 
-      {/* URL input form */}
       <Card className="shadow-card">
         <CardHeader>
           <div className="flex items-center justify-between">
@@ -290,7 +254,6 @@ export default function NewOrderPage() {
             />
           </div>
 
-          {/* URL validation summary */}
           {parsedUrls.length > 0 && (
             <div className="space-y-2">
               <div className="flex flex-wrap items-center gap-2">
@@ -306,7 +269,6 @@ export default function NewOrderPage() {
                 )}
               </div>
 
-              {/* Invalid URLs list */}
               {invalidUrls.length > 0 && (
                 <div className="rounded-lg border border-red-200 bg-red-50 p-3">
                   <p className="text-xs font-medium text-red-700">
@@ -322,7 +284,6 @@ export default function NewOrderPage() {
                 </div>
               )}
 
-              {/* Valid URLs preview */}
               {validUrls.length > 0 && (
                 <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
                   <p className="mb-2 text-xs font-medium text-slate-600">Valid URLs detected:</p>
@@ -342,7 +303,6 @@ export default function NewOrderPage() {
             </div>
           )}
 
-          {/* Insufficient funds warning */}
           {hasInsufficientFunds && (
             <motion.div
               initial={{ opacity: 0, scale: 0.97 }}
@@ -365,7 +325,6 @@ export default function NewOrderPage() {
             </motion.div>
           )}
 
-          {/* Notes field */}
           <div className="space-y-2">
             <Label htmlFor="notes">
               Notes <span className="text-slate-400">(optional)</span>
@@ -380,7 +339,6 @@ export default function NewOrderPage() {
           </div>
         </CardContent>
         <CardFooter className="flex items-center justify-between border-t bg-slate-50/50 px-6 py-4">
-          {/* Cost summary */}
           <div className="flex items-center gap-6">
             <div>
               <p className="text-xs text-slate-500">Items</p>
@@ -398,7 +356,6 @@ export default function NewOrderPage() {
             </div>
           </div>
 
-          {/* Submit button */}
           <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
             <DialogTrigger asChild>
               <Button
@@ -417,7 +374,6 @@ export default function NewOrderPage() {
                 </DialogDescription>
               </DialogHeader>
 
-              {/* Order summary */}
               <div className="space-y-4 py-2">
                 <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
                   <div className="mb-3 flex items-center gap-2">
@@ -461,7 +417,6 @@ export default function NewOrderPage() {
                   </div>
                 )}
 
-                {/* URL list */}
                 <div className="max-h-40 space-y-1 overflow-y-auto rounded-lg border border-slate-200 p-3">
                   <p className="mb-2 text-xs font-medium text-slate-500">URLs to be submitted:</p>
                   {validUrls.map((u, i) => (

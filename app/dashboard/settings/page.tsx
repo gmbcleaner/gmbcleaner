@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { supabase } from '@/lib/supabase';
+import { updateDocument } from '@/lib/db';
 import { useAuth } from '@/components/providers/auth-provider';
 import { toast } from '@/hooks/use-toast';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -12,7 +12,7 @@ import { Separator } from '@/components/ui/separator';
 import { Loader2, User, Lock, Shield } from 'lucide-react';
 
 export default function SettingsPage() {
-  const { user, profile, refreshProfile } = useAuth();
+  const { user, profile, refreshProfile, updatePassword } = useAuth();
   const [fullName, setFullName] = useState('');
   const [company, setCompany] = useState('');
   const [currentPassword, setCurrentPassword] = useState('');
@@ -23,11 +23,10 @@ export default function SettingsPage() {
     if (!user) return;
     setSaving(true);
     try {
-      const { error } = await supabase
-        .from('profiles')
-        .update({ full_name: fullName || null, company: company || null })
-        .eq('id', user.id);
-      if (error) throw error;
+      await updateDocument('profiles', user.uid, {
+        full_name: fullName || null,
+        company: company || null,
+      });
       await refreshProfile();
       toast({ title: 'Profile updated', description: 'Your profile has been saved.' });
     } catch (err: any) {
@@ -41,8 +40,7 @@ export default function SettingsPage() {
     if (!currentPassword || !newPassword) return;
     setSaving(true);
     try {
-      const { error } = await supabase.auth.updateUser({ password: newPassword });
-      if (error) throw error;
+      await updatePassword(newPassword);
       toast({ title: 'Password updated', description: 'Your password has been changed.' });
       setCurrentPassword('');
       setNewPassword('');

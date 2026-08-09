@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { supabase } from '@/lib/supabase';
+import { fetchCollection, addDocument, deleteDocument, updateDocument } from '@/lib/db';
 import { toast } from '@/hooks/use-toast';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -35,9 +35,9 @@ export default function AdminWalletsPage() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const { data: w } = await supabase.from('wallet_addresses').select('*').order('network');
+        const w = await fetchCollection('wallet_addresses');
         setWallets((w as WalletAddress[]) || []);
-        const { data: n } = await supabase.from('network_settings').select('*').order('name');
+        const n = await fetchCollection('network_settings');
         setNetworks((n as NetworkSetting[]) || []);
       } catch {}
     };
@@ -48,14 +48,14 @@ export default function AdminWalletsPage() {
     if (!newNetwork || !newAddress) return;
     setSaving(true);
     try {
-      await supabase.from('wallet_addresses').insert({
+      await addDocument('wallet_addresses', {
         network: newNetwork,
         address: newAddress,
         label: newLabel || newNetwork,
       });
       toast({ title: 'Wallet added' });
       setNewNetwork(''); setNewAddress(''); setNewLabel('');
-      const { data } = await supabase.from('wallet_addresses').select('*');
+      const data = await fetchCollection('wallet_addresses');
       setWallets((data as WalletAddress[]) || []);
     } catch (err: any) {
       toast({ title: 'Error', description: err.message, variant: 'destructive' });
@@ -65,12 +65,12 @@ export default function AdminWalletsPage() {
   };
 
   const removeWallet = async (id: string) => {
-    await supabase.from('wallet_addresses').delete().eq('id', id);
+    await deleteDocument('wallet_addresses', id);
     setWallets(wallets.filter(w => w.id !== id));
   };
 
   const toggleNetwork = async (id: string, active: boolean) => {
-    await supabase.from('network_settings').update({ is_active: active }).eq('id', id);
+    await updateDocument('network_settings', id, { is_active: active });
     setNetworks(networks.map(n => n.id === id ? { ...n, is_active: active } : n));
   };
 

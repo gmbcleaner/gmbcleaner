@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { supabase } from '@/lib/supabase';
+import { fetchCollection } from '@/lib/db';
 import { useAuth } from '@/components/providers/auth-provider';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -26,12 +26,12 @@ export default function BillingPage() {
     if (!user) return;
     const fetchTransactions = async () => {
       try {
-        const { data } = await supabase
-          .from('transactions')
-          .select('id, type, amount, balance_after, description, created_at')
-          .eq('user_id', user.id)
-          .order('created_at', { ascending: false });
-        setTransactions((data as Transaction[]) || []);
+        const data = await fetchCollection(
+          'transactions',
+          [{ field: 'user_id', op: '==', value: user.uid }],
+          'created_at'
+        );
+        setTransactions(data as Transaction[]);
       } catch {} finally {
         setLoading(false);
       }

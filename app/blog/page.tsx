@@ -1,3 +1,6 @@
+'use client';
+
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Navbar } from '@/components/shared/navbar';
 import { Footer } from '@/components/shared/footer';
@@ -5,7 +8,7 @@ import { PageHeader, CTABanner } from '@/components/shared/sections';
 import { Stagger, staggerItem } from '@/components/animation/reveal';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { supabase } from '@/lib/supabase';
+import { fetchCollection } from '@/lib/db';
 import { ArrowRight, Calendar, User } from 'lucide-react';
 
 interface BlogPost {
@@ -100,20 +103,33 @@ function getCategoryColor(category: string): string {
   return colors[category] || 'bg-slate-100 text-navy-700 border-slate-200';
 }
 
-export default async function BlogPage() {
-  let posts = null;
-  try {
-    const result = await supabase
-      .from('blog_posts')
-      .select('id, title, slug, excerpt, category, published_at, author')
-      .eq('is_published', true)
-      .order('published_at', { ascending: false });
-    posts = result.data;
-  } catch {
-    // Supabase unavailable at build time
-  }
+export default function BlogPage() {
+  const [posts, setPosts] = useState<BlogPost[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const allPosts = posts && posts.length > 0 ? (posts as BlogPost[]) : fallbackPosts;
+  useEffect(() => {
+    const fetchPosts = async () => {
+      try {
+        const data = await fetchCollection(
+          'blog_posts',
+          [{ field: 'is_published', op: '==', value: true }],
+          'published_at'
+        );
+        if (data && data.length > 0) {
+          setPosts(data as BlogPost[]);
+        } else {
+          setPosts(fallbackPosts);
+        }
+      } catch {
+        setPosts(fallbackPosts);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchPosts();
+  }, []);
+
+  const allPosts = posts.length > 0 ? posts : fallbackPosts;
 
   return (
     <>

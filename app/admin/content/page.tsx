@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { supabase } from '@/lib/supabase';
+import { fetchCollection, addDocument, updateDocument, deleteDocument } from '@/lib/db';
 import { toast } from '@/hooks/use-toast';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -32,13 +32,13 @@ export default function AdminContentPage() {
     const fetchAll = async () => {
       try {
         const [f, t, b] = await Promise.all([
-          supabase.from('faqs').select('*').order('sort_order'),
-          supabase.from('testimonials').select('*').order('created_at', { ascending: false }),
-          supabase.from('blog_posts').select('*').order('created_at', { ascending: false }),
+          fetchCollection('faqs'),
+          fetchCollection('testimonials', undefined, 'created_at'),
+          fetchCollection('blog_posts', undefined, 'created_at'),
         ]);
-        setFaqs((f.data as FAQ[]) || []);
-        setTestimonials((t.data as Testimonial[]) || []);
-        setPosts((b.data as BlogPost[]) || []);
+        setFaqs((f as FAQ[]) || []);
+        setTestimonials((t as Testimonial[]) || []);
+        setPosts((b as BlogPost[]) || []);
       } catch {} finally {
         setLoading(false);
       }
@@ -49,32 +49,32 @@ export default function AdminContentPage() {
   const addFaq = async () => {
     setSaving(true);
     try {
-      await supabase.from('faqs').insert({ question: faqQ, answer: faqA, category: faqCat, is_published: true, sort_order: faqs.length });
+      await addDocument('faqs', { question: faqQ, answer: faqA, category: faqCat, is_published: true, sort_order: faqs.length });
       toast({ title: 'FAQ added' });
       setFaqDialog(false); setFaqQ(''); setFaqA('');
-      const { data } = await supabase.from('faqs').select('*').order('sort_order');
+      const data = await fetchCollection('faqs');
       setFaqs((data as FAQ[]) || []);
     } catch (err: any) { toast({ title: 'Error', description: err.message, variant: 'destructive' }); }
     finally { setSaving(false); }
   };
 
   const deleteFaq = async (id: string) => {
-    await supabase.from('faqs').delete().eq('id', id);
+    await deleteDocument('faqs', id);
     setFaqs(faqs.filter(f => f.id !== id));
   };
 
   const toggleFaq = async (faq: FAQ) => {
-    await supabase.from('faqs').update({ is_published: !faq.is_published }).eq('id', faq.id);
+    await updateDocument('faqs', faq.id, { is_published: !faq.is_published });
     setFaqs(faqs.map(f => f.id === faq.id ? { ...f, is_published: !f.is_published } : f));
   };
 
   const toggleTestimonial = async (t: Testimonial) => {
-    await supabase.from('testimonials').update({ is_published: !t.is_published }).eq('id', t.id);
+    await updateDocument('testimonials', t.id, { is_published: !t.is_published });
     setTestimonials(testimonials.map(x => x.id === t.id ? { ...x, is_published: !x.is_published } : x));
   };
 
   const togglePost = async (p: BlogPost) => {
-    await supabase.from('blog_posts').update({ is_published: !p.is_published }).eq('id', p.id);
+    await updateDocument('blog_posts', p.id, { is_published: !p.is_published });
     setPosts(posts.map(x => x.id === p.id ? { ...x, is_published: !x.is_published } : x));
   };
 
