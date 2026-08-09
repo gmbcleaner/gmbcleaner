@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 import type { Session, User } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
 
@@ -35,12 +35,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [profile, setProfile] = useState<UserProfile | null>(null);
 
   const fetchProfile = async (uid: string) => {
-    const { data } = await supabase
-      .from('profiles')
-      .select('id, email, role, user_code, wallet_balance')
-      .eq('id', uid)
-      .maybeSingle();
-    if (data) setProfile(data as UserProfile);
+    try {
+      const { data } = await supabase
+        .from('profiles')
+        .select('id, email, role, user_code, wallet_balance')
+        .eq('id', uid)
+        .maybeSingle();
+      if (data) setProfile(data as UserProfile);
+    } catch {
+      // table may not exist
+    }
   };
 
   const refreshProfile = async () => {
@@ -48,29 +52,36 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   useEffect(() => {
+    let mounted = true;
+
     supabase.auth.getSession().then(({ data }) => {
+      if (!mounted) return;
       setSession(data.session);
       setUser(data.session?.user ?? null);
       if (data.session?.user) {
         fetchProfile(data.session.user.id);
       }
       setLoading(false);
+    }).catch(() => {
+      if (!mounted) return;
+      setLoading(false);
     });
 
     const { data: listener } = supabase.auth.onAuthStateChange((event, sess) => {
-      (async () => {
-        setSession(sess);
-        setUser(sess?.user ?? null);
-        if (sess?.user) {
-          await fetchProfile(sess.user.id);
-        } else {
-          setProfile(null);
-        }
-        setLoading(false);
-      })();
+      setSession(sess);
+      setUser(sess?.user ?? null);
+      if (sess?.user) {
+        fetchProfile(sess.user.id);
+      } else {
+        setProfile(null);
+      }
+      setLoading(false);
     });
 
-    return () => listener.subscription.unsubscribe();
+    return () => {
+      mounted = false;
+      listener.subscription.unsubscribe();
+    };
   }, []);
 
   return (

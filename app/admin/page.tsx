@@ -1,8 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { motion } from 'framer-motion';
-import { Users, ListOrdered, DollarSign, TrendingUp, Activity } from 'lucide-react';
+import { Users, ListOrdered, DollarSign, Activity } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -21,15 +20,15 @@ interface RecentOrder {
   status: string;
   total_amount: number;
   created_at: string;
-  profiles?: { email: string } | null;
 }
 
 export default function AdminDashboardPage() {
-  const [stats, setStats] = useState<Stats | null>(null);
+  const [stats, setStats] = useState<Stats>({ totalUsers: 0, totalOrders: 0, totalRevenue: 0, pendingOrders: 0 });
   const [recentOrders, setRecentOrders] = useState<RecentOrder[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    let cancelled = false;
     const fetchData = async () => {
       try {
         const [usersRes, ordersRes, revenueRes, pendingRes, recentRes] = await Promise.all([
@@ -40,7 +39,9 @@ export default function AdminDashboardPage() {
           supabase.from('orders').select('id, order_code, status, total_amount, created_at').order('created_at', { ascending: false }).limit(10),
         ]);
 
-        const totalRevenue = revenueRes.data?.reduce((sum, o) => sum + (o.total_amount || 0), 0) || 0;
+        if (cancelled) return;
+
+        const totalRevenue = (revenueRes.data || []).reduce((sum: number, o: any) => sum + (o.total_amount || 0), 0);
 
         setStats({
           totalUsers: usersRes.count || 0,
@@ -51,20 +52,21 @@ export default function AdminDashboardPage() {
 
         setRecentOrders((recentRes.data as RecentOrder[]) || []);
       } catch {
-        // Supabase unavailable
+        // Supabase unavailable or tables missing
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     };
 
     fetchData();
+    return () => { cancelled = true; };
   }, []);
 
   const statCards = [
-    { title: 'Total Users', value: stats?.totalUsers ?? 0, icon: Users, color: 'text-blue-500', bg: 'bg-blue-50' },
-    { title: 'Total Orders', value: stats?.totalOrders ?? 0, icon: ListOrdered, color: 'text-teal-500', bg: 'bg-teal-50' },
-    { title: 'Revenue', value: `$${(stats?.totalRevenue ?? 0).toFixed(2)}`, icon: DollarSign, color: 'text-green-500', bg: 'bg-green-50' },
-    { title: 'Pending Orders', value: stats?.pendingOrders ?? 0, icon: Activity, color: 'text-amber-500', bg: 'bg-amber-50' },
+    { title: 'Total Users', value: String(stats.totalUsers), icon: Users, color: 'text-blue-500', bg: 'bg-blue-50' },
+    { title: 'Total Orders', value: String(stats.totalOrders), icon: ListOrdered, color: 'text-teal-500', bg: 'bg-teal-50' },
+    { title: 'Revenue', value: `$${stats.totalRevenue.toFixed(2)}`, icon: DollarSign, color: 'text-green-500', bg: 'bg-green-50' },
+    { title: 'Pending Orders', value: String(stats.pendingOrders), icon: Activity, color: 'text-amber-500', bg: 'bg-amber-50' },
   ];
 
   const statusColors: Record<string, string> = {
@@ -82,14 +84,10 @@ export default function AdminDashboardPage() {
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {statCards.map((card, i) => (
-          <motion.div
-            key={card.title}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: i * 0.1 }}
-          >
-            <Card className="shadow-card">
+        {statCards.map((card) => {
+          const Icon = card.icon;
+          return (
+            <Card key={card.title} className="shadow-card">
               <CardContent className="p-6">
                 <div className="flex items-center justify-between">
                   <div>
@@ -101,13 +99,13 @@ export default function AdminDashboardPage() {
                     )}
                   </div>
                   <div className={`flex h-12 w-12 items-center justify-center rounded-xl ${card.bg}`}>
-                    <card.icon className={`h-6 w-6 ${card.color}`} />
+                    <Icon className={`h-6 w-6 ${card.color}`} />
                   </div>
                 </div>
               </CardContent>
             </Card>
-          </motion.div>
-        ))}
+          );
+        })}
       </div>
 
       <Card className="shadow-card">
@@ -127,16 +125,14 @@ export default function AdminDashboardPage() {
             <div className="space-y-3">
               {recentOrders.map((order) => (
                 <div key={order.id} className="flex items-center justify-between rounded-lg border border-slate-200 p-3">
-                  <div className="flex items-center gap-3">
-                    <div>
-                      <p className="text-sm font-semibold text-slate-900">{order.order_code}</p>
-                      <p className="text-xs text-slate-500">{new Date(order.created_at).toLocaleDateString()}</p>
-                    </div>
+                  <div>
+                    <p className="text-sm font-semibold text-slate-900">{order.order_code || 'N/A'}</p>
+                    <p className="text-xs text-slate-500">{order.created_at ? new Date(order.created_at).toLocaleDateString() : ''}</p>
                   </div>
                   <div className="flex items-center gap-3">
-                    <span className="text-sm font-bold text-slate-900">${order.total_amount.toFixed(2)}</span>
+                    <span className="text-sm font-bold text-slate-900">${(order.total_amount || 0).toFixed(2)}</span>
                     <Badge className={statusColors[order.status] || 'bg-slate-100 text-slate-700'}>
-                      {order.status}
+                      {order.status || 'unknown'}
                     </Badge>
                   </div>
                 </div>

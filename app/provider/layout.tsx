@@ -3,7 +3,6 @@
 import { useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
-import { motion, AnimatePresence } from 'framer-motion';
 import {
   LayoutDashboard,
   ListOrdered,
@@ -47,8 +46,13 @@ export default function ProviderLayout({ children }: { children: React.ReactNode
   const [mobileOpen, setMobileOpen] = useState(false);
 
   useEffect(() => {
-    const isProvider = localStorage.getItem('gmb_provider_auth');
-    if (!isProvider) {
+    try {
+      const isProvider = localStorage.getItem('gmb_provider_auth');
+      if (!isProvider) {
+        router.replace('/atik');
+        return;
+      }
+    } catch {
       router.replace('/atik');
       return;
     }
@@ -56,7 +60,7 @@ export default function ProviderLayout({ children }: { children: React.ReactNode
   }, [router]);
 
   const handleLogout = () => {
-    localStorage.removeItem('gmb_provider_auth');
+    try { localStorage.removeItem('gmb_provider_auth'); } catch {}
     router.replace('/atik');
   };
 
@@ -183,17 +187,7 @@ export default function ProviderLayout({ children }: { children: React.ReactNode
         </header>
 
         <main className="flex-1 px-4 py-6 lg:px-8 lg:py-8">
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={pathname}
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -8 }}
-              transition={{ duration: 0.2 }}
-            >
-              {children}
-            </motion.div>
-          </AnimatePresence>
+          {children}
         </main>
       </div>
     </div>

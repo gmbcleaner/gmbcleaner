@@ -3,7 +3,6 @@
 import { useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
-import { motion, AnimatePresence } from 'framer-motion';
 import {
   LayoutDashboard,
   Users,
@@ -55,8 +54,13 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const [mobileOpen, setMobileOpen] = useState(false);
 
   useEffect(() => {
-    const isAdmin = localStorage.getItem('gmb_admin_auth');
-    if (!isAdmin) {
+    try {
+      const isAdmin = localStorage.getItem('gmb_admin_auth');
+      if (!isAdmin) {
+        router.replace('/login');
+        return;
+      }
+    } catch {
       router.replace('/login');
       return;
     }
@@ -64,7 +68,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   }, [router]);
 
   const handleLogout = () => {
-    localStorage.removeItem('gmb_admin_auth');
+    try { localStorage.removeItem('gmb_admin_auth'); } catch {}
     router.replace('/login');
   };
 
@@ -191,17 +195,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         </header>
 
         <main className="flex-1 px-4 py-6 lg:px-8 lg:py-8">
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={pathname}
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -8 }}
-              transition={{ duration: 0.2 }}
-            >
-              {children}
-            </motion.div>
-          </AnimatePresence>
+          {children}
         </main>
       </div>
     </div>
