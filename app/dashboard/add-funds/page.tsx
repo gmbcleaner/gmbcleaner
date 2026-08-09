@@ -5,6 +5,7 @@ import { Wallet, Copy, CheckCircle2, AlertTriangle, Upload, X, ArrowRight, Arrow
 import { addDocument, fetchCollection } from '@/lib/db';
 import { useAuth } from '@/components/providers/auth-provider';
 import { toast } from '@/hooks/use-toast';
+import { uploadToImgbb } from '@/lib/imgbb';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -65,6 +66,12 @@ export default function AddFundsPage() {
     if (step === 'currency') fetchData();
   }, [step, fetchData]);
 
+  useEffect(() => {
+    if (step === 'address' && walletsForNetwork.length > 0 && !selectedWallet) {
+      setSelectedWallet(walletsForNetwork[0]);
+    }
+  }, [step]);
+
   const parsedAmount = parseFloat(amount) || 0;
   const isValidAmount = parsedAmount >= minDeposit;
   const networksForCurrency = networks.filter(n => n.currency_id === selectedCurrency?.id);
@@ -96,6 +103,13 @@ export default function AddFundsPage() {
     if (!user || !isValidAmount || !selectedCurrency || !selectedNetwork || !selectedWallet || !txHash.trim()) return;
     setSubmitting(true);
     try {
+      let uploadedScreenshotUrl = screenshotUrl || null;
+      if (screenshotUrl && screenshotUrl.startsWith('data:')) {
+        toast({ title: 'Uploading screenshot...', description: 'Please wait.' });
+        const base64Only = screenshotUrl.split(',')[1];
+        uploadedScreenshotUrl = await uploadToImgbb(base64Only);
+      }
+
       await addDocument('deposits', {
         user_id: user.uid,
         user_email: user.email,
@@ -107,7 +121,7 @@ export default function AddFundsPage() {
         wallet_address: selectedWallet.address,
         tx_hash: txHash.trim(),
         sender_wallet: senderWallet.trim() || null,
-        screenshot_url: screenshotUrl || null,
+        screenshot_url: uploadedScreenshotUrl,
         status: 'pending',
       });
 
@@ -133,11 +147,11 @@ export default function AddFundsPage() {
         `Status: ⏳ Pending Admin Approval`,
       ].filter(Boolean).join('\n');
 
-      if (screenshotUrl) {
+      if (uploadedScreenshotUrl) {
         await fetch('/api/telegram', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ type: 'photo', photo: screenshotUrl, caption: telegramMsg }),
+          body: JSON.stringify({ type: 'photo', photo: uploadedScreenshotUrl, caption: telegramMsg }),
         });
       } else {
         await sendTelegramMessage(telegramMsg);

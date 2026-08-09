@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useRef } from 'react';
 import { fetchCollection, addDocument, deleteDocument, updateDocument } from '@/lib/db';
+import { uploadToImgbb } from '@/lib/imgbb';
 import { toast } from '@/hooks/use-toast';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -69,14 +70,20 @@ export default function AdminWalletsPage() {
     setNewCurName(''); setNewCurLogo('');
     if (logoRef.current) logoRef.current.value = '';
     try {
+      let logoUrl = optimistic.logo_url;
+      if (logoUrl && logoUrl.startsWith('data:')) {
+        toast({ title: 'Uploading logo...' });
+        const base64Only = logoUrl.split(',')[1];
+        logoUrl = await uploadToImgbb(base64Only);
+      }
       const realId = await addDocument('currencies', {
         name: optimistic.name,
         symbol: optimistic.symbol,
-        logo_url: optimistic.logo_url,
+        logo_url: logoUrl,
         is_active: true,
         sort_order: currencies.length,
       });
-      setCurrencies(prev => prev.map(c => c.id === tempId ? { ...c, id: realId } : c));
+      setCurrencies(prev => prev.map(c => c.id === tempId ? { ...c, id: realId, logo_url: logoUrl } : c));
       toast({ title: 'Currency added' });
     } catch (e: any) {
       setCurrencies(prev => prev.filter(c => c.id !== tempId));
