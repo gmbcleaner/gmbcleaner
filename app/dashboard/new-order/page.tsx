@@ -43,7 +43,8 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 
-const PRICE_PER_ITEM = 1.15;
+const DEFAULT_PRICE_PER_ITEM = 1.15;
+const DEFAULT_MIN_DEPOSIT = 20;
 
 interface ParsedUrl {
   url: string;
@@ -87,12 +88,26 @@ export default function NewOrderPage() {
   const [notes, setNotes] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [pricePerItem, setPricePerItem] = useState(DEFAULT_PRICE_PER_ITEM);
+  const [minDeposit, setMinDeposit] = useState(DEFAULT_MIN_DEPOSIT);
+
+  useState(() => {
+    fetchCollection('pricing_settings')
+      .then((data) => {
+        if (data && data.length > 0) {
+          const p = data[0];
+          setPricePerItem((p.base_price || 1) + (p.service_fee || 0.15));
+          setMinDeposit(p.min_deposit || 20);
+        }
+      })
+      .catch(() => {});
+  });
 
   const parsedUrls = useMemo(() => parseUrls(urlInput), [urlInput]);
   const validUrls = useMemo(() => parsedUrls.filter((u) => u.valid), [parsedUrls]);
   const invalidUrls = useMemo(() => parsedUrls.filter((u) => !u.valid), [parsedUrls]);
   const itemCount = validUrls.length;
-  const totalCost = itemCount * PRICE_PER_ITEM;
+  const totalCost = itemCount * pricePerItem;
   const walletBalance = profile?.wallet_balance ?? 0;
   const hasInsufficientFunds = itemCount > 0 && totalCost > walletBalance;
 
@@ -198,7 +213,7 @@ export default function NewOrderPage() {
       <div>
         <h1 className="text-2xl font-bold tracking-tight text-slate-900">New Order</h1>
         <p className="mt-1 text-sm text-slate-500">
-          Submit review URLs for dispute. Each review costs ${PRICE_PER_ITEM.toFixed(2)}.
+          Submit review URLs for dispute. Each review costs ${pricePerItem.toFixed(2)}.
         </p>
       </div>
 
@@ -347,7 +362,7 @@ export default function NewOrderPage() {
             <Separator orientation="vertical" className="h-10" />
             <div>
               <p className="text-xs text-slate-500">Price / item</p>
-              <p className="text-lg font-bold text-slate-900">${PRICE_PER_ITEM.toFixed(2)}</p>
+              <p className="text-lg font-bold text-slate-900">${pricePerItem.toFixed(2)}</p>
             </div>
             <Separator orientation="vertical" className="h-10" />
             <div>
@@ -387,7 +402,7 @@ export default function NewOrderPage() {
                     </div>
                     <div className="flex justify-between">
                       <span className="text-slate-500">Price per item</span>
-                      <span className="font-semibold text-slate-900">${PRICE_PER_ITEM.toFixed(2)}</span>
+                      <span className="font-semibold text-slate-900">${pricePerItem.toFixed(2)}</span>
                     </div>
                     <Separator />
                     <div className="flex justify-between text-base">

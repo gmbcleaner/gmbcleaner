@@ -1,9 +1,8 @@
 'use client';
 
-import { useState } from 'react';
-import { motion } from 'framer-motion';
-import { Wallet, Copy, Clock, CheckCircle2, AlertTriangle, Loader2 } from 'lucide-react';
-import { addDocument } from '@/lib/db';
+import { useState, useEffect } from 'react';
+import { Wallet, Copy, CheckCircle2, AlertTriangle } from 'lucide-react';
+import { addDocument, fetchCollection } from '@/lib/db';
 import { useAuth } from '@/components/providers/auth-provider';
 import { toast } from '@/hooks/use-toast';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -11,42 +10,43 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
 
-const networks = [
-  { id: 'trc20', name: 'USDT TRC20', icon: '🔗' },
-  { id: 'bep20', name: 'USDT BEP20', icon: '🔗' },
-  { id: 'erc20', name: 'USDT ERC20', icon: '🔗' },
-  { id: 'btc', name: 'Bitcoin (BTC)', icon: '₿' },
-  { id: 'eth', name: 'Ethereum (ETH)', icon: 'Ξ' },
-];
-
-const walletAddresses: Record<string, string> = {
-  trc20: 'TXyz1234567890abcdef',
-  bep20: '0x1234567890abcdef1234567890abcdef12345678',
-  erc20: '0x1234567890abcdef1234567890abcdef12345678',
-  btc: '1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa',
-  eth: '0x1234567890abcdef1234567890abcdef12345678',
-};
+interface WalletAddr { id: string; network: string; address: string; label: string; }
+interface NetworkInfo { id: string; name: string; symbol: string; is_active: boolean; }
 
 export default function AddFundsPage() {
   const { user, refreshProfile } = useAuth();
   const [amount, setAmount] = useState('');
-  const [network, setNetwork] = useState('trc20');
+  const [network, setNetwork] = useState('');
   const [txHash, setTxHash] = useState('');
   const [senderWallet, setSenderWallet] = useState('');
   const [submitting, setSubmitting] = useState(false);
-  const [recentDeposits, setRecentDeposits] = useState<any[]>([]);
+  const [wallets, setWallets] = useState<WalletAddr[]>([]);
+  const [networks, setNetworks] = useState<NetworkInfo[]>([]);
+  const [minDeposit, setMinDeposit] = useState(20);
+  const [copied, setCopied] = useState('');
 
-  const minAmount = 20;
+  useEffect(() => {
+    Promise.all([
+      fetchCollection('wallet_addresses').catch(() => []),
+      fetchCollection('network_settings').catch(() => []),
+      fetchCollection('pricing_settings').catch(() => []),
+    ]).then(([w, n, p]) => {
+      setWallets((w as WalletAddr[]) || []);
+      const activeNetworks = (n as NetworkInfo[]) || [];
+      setNetworks(activeNetworks);
+      if (activeNetworks.length > 0 && !network) setNetwork(activeNetworks[0].id);
+      if (p && p.length > 0) setMinDeposit(p[0].min_deposit || 20);
+    });
+  }, []);
+
   const parsedAmount = parseFloat(amount) || 0;
-  const isValid = parsedAmount >= minAmount && txHash.trim().length > 5;
+  const isValid = parsedAmount >= minDeposit && txHash.trim().length > 5;
+  const activeWallet = wallets.find((w) => w.network === network);
 
   const handleSubmit = async () => {
     if (!user || !isValid) return;
     setSubmitting(true);
-
     try {
       await addDocument('deposits', {
         user_id: user.uid,
@@ -56,21 +56,17 @@ export default function AddFundsPage() {
         sender_wallet: senderWallet.trim() || null,
         status: 'pending',
       });
-
       await addDocument('notifications', {
         user_id: user.uid,
-        title: 'Deposit Request Submitted',
-        message: `Your $${parsedAmount.toFixed(2)} deposit request via ${network.toUpperCase()} is pending review.`,
+        title: 'Deposit Submitted',
+        message: `Your $${parsedAmount.toFixed(2)} deposit via ${network.toUpperCase()} is pending review.`,
         type: 'deposit',
         is_read: false,
       });
-
-      toast({ title: 'Deposit submitted!', description: 'Your payment is being verified. This may take 10-15 minutes.' });
-      setAmount('');
-      setTxHash('');
-      setSenderWallet('');
+      toast({ title: 'Deposit submitted', description: 'Your deposit is pending admin approval.' });
+      setAmount(''); setTxHash(''); setSenderWallet('');
     } catch (err: any) {
-      toast({ title: 'Error', description: err.message || 'Failed to submit deposit.', variant: 'destructive' });
+      toast({ title: 'Error', description: err.message, variant: 'destructive' });
     } finally {
       setSubmitting(false);
     }
@@ -78,58 +74,59 @@ export default function AddFundsPage() {
 
   const copyAddress = (addr: string) => {
     navigator.clipboard.writeText(addr);
-    toast({ title: 'Copied', description: 'Wallet address copied to clipboard.' });
+    setCopied(network);
+    setTimeout(() => setCopied(''), 2000);
   };
 
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold tracking-tight text-slate-900">Add Funds</h1>
-        <p className="text-sm text-slate-500">Fund your wallet with crypto to start submitting review disputes.</p>
+        <p className="text-sm text-slate-500">Deposit cryptocurrency to fund your wallet. Minimum deposit: ${minDeposit}</p>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
         <Card className="shadow-card">
           <CardHeader>
-            <CardTitle className="text-lg">Make a Deposit</CardTitle>
-            <CardDescription>Minimum deposit: ${minAmount}. Send crypto and submit your transaction.</CardDescription>
+            <CardTitle className="text-lg">Deposit Details</CardTitle>
+            <CardDescription>Select network and enter deposit information</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
-              <Label>Amount (USD)</Label>
-              <div className="relative">
-                <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
-                <Input type="number" min={minAmount} step="0.01" placeholder={`${minAmount}.00`} value={amount} onChange={(e) => setAmount(e.target.value)} className="pl-8" />
-              </div>
-              {parsedAmount > 0 && parsedAmount < minAmount && (
-                <p className="text-xs text-red-500">Minimum deposit is ${minAmount}</p>
-              )}
-            </div>
-
-            <div className="space-y-2">
               <Label>Network</Label>
               <Select value={network} onValueChange={setNetwork}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectTrigger><SelectValue placeholder="Select network" /></SelectTrigger>
                 <SelectContent>
-                  {networks.map((n) => (
-                    <SelectItem key={n.id} value={n.id}>{n.icon} {n.name}</SelectItem>
+                  {networks.filter(n => n.is_active).map((n) => (
+                    <SelectItem key={n.id} value={n.id}>{n.name} ({n.symbol})</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
 
-            {network && walletAddresses[network] && (
-              <div className="rounded-xl border border-teal-200 bg-teal-50 p-4">
-                <p className="text-xs font-medium text-teal-700 mb-2">Send exactly ${parsedAmount >= minAmount ? parsedAmount.toFixed(2) : '0.00'} to:</p>
+            {activeWallet && (
+              <div className="rounded-lg border border-teal-200 bg-teal-50 p-4">
+                <p className="text-xs font-medium text-teal-700 mb-2">Send {networks.find(n => n.id === network)?.symbol || network.toUpperCase()} to this address:</p>
                 <div className="flex items-center gap-2">
-                  <code className="flex-1 rounded bg-white px-3 py-2 text-xs font-mono text-slate-700 border border-slate-200 break-all">{walletAddresses[network]}</code>
-                  <Button size="icon" variant="outline" className="shrink-0" onClick={() => copyAddress(walletAddresses[network])}>
-                    <Copy className="h-4 w-4" />
+                  <code className="flex-1 break-all text-xs font-mono text-slate-700">{activeWallet.address}</code>
+                  <Button size="icon" variant="ghost" className="h-8 w-8 shrink-0" onClick={() => copyAddress(activeWallet.address)}>
+                    {copied === network ? <CheckCircle2 className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
                   </Button>
                 </div>
-                <p className="mt-2 text-[10px] text-teal-600">Only send {networks.find(n => n.id === network)?.name} to this address</p>
+                {activeWallet.label && <p className="mt-1 text-[10px] text-teal-600">{activeWallet.label}</p>}
               </div>
             )}
+
+            <div className="space-y-2">
+              <Label>Amount (USD)</Label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
+                <Input type="number" min={minDeposit} step="0.01" placeholder={`${minDeposit}.00`} value={amount} onChange={(e) => setAmount(e.target.value)} className="pl-8" />
+              </div>
+              {parsedAmount > 0 && parsedAmount < minDeposit && (
+                <p className="text-xs text-red-500 flex items-center gap-1"><AlertTriangle className="h-3 w-3" />Minimum deposit is ${minDeposit}</p>
+              )}
+            </div>
 
             <div className="space-y-2">
               <Label>Transaction Hash (TX ID)</Label>
@@ -137,58 +134,39 @@ export default function AddFundsPage() {
             </div>
 
             <div className="space-y-2">
-              <Label>Sender Wallet <span className="text-muted-foreground">(optional)</span></Label>
+              <Label>Sender Wallet Address (optional)</Label>
               <Input placeholder="Your sending wallet address" value={senderWallet} onChange={(e) => setSenderWallet(e.target.value)} />
             </div>
 
-            <Button onClick={handleSubmit} disabled={!isValid || submitting} className="w-full bg-gradient-to-r from-teal-500 to-sky-500 text-white hover:from-teal-600 hover:to-sky-600">
-              {submitting ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Submitting...</> : 'Submit Deposit Request'}
+            <Button onClick={handleSubmit} disabled={!isValid || submitting} className="w-full bg-gradient-to-r from-teal-500 to-sky-500 text-white">
+              {submitting ? 'Submitting...' : 'Submit Deposit'}
             </Button>
-
-            <div className="flex items-start gap-2 rounded-lg bg-amber-50 border border-amber-200 p-3">
-              <AlertTriangle className="h-4 w-4 text-amber-600 mt-0.5 shrink-0" />
-              <p className="text-xs text-amber-700">Payment verification may take 10-15 minutes. You will be notified once your deposit is approved.</p>
-            </div>
           </CardContent>
         </Card>
 
-        <div className="space-y-4">
-          <Card className="shadow-card">
-            <CardContent className="p-6">
-              <h3 className="text-sm font-bold text-slate-900 mb-3">How to Deposit</h3>
-              <div className="space-y-3">
-                {[
-                  { step: '1', text: 'Select your preferred crypto network' },
-                  { step: '2', text: 'Copy the wallet address and send your payment' },
-                  { step: '3', text: 'Paste the transaction hash (TX ID) in the form' },
-                  { step: '4', text: 'Submit and wait for admin approval (10-15 min)' },
-                ].map((s) => (
-                  <div key={s.step} className="flex items-start gap-3">
-                    <div className="flex h-6 w-6 items-center justify-center rounded-full bg-teal-100 text-xs font-bold text-teal-700 shrink-0">{s.step}</div>
-                    <p className="text-sm text-slate-600">{s.text}</p>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="shadow-card">
-            <CardContent className="p-6">
-              <h3 className="text-sm font-bold text-slate-900 mb-3">Supported Networks</h3>
-              <div className="space-y-2">
-                {networks.map((n) => (
-                  <div key={n.id} className="flex items-center justify-between rounded-lg border border-slate-200 p-3">
-                    <div className="flex items-center gap-2">
-                      <span className="text-lg">{n.icon}</span>
-                      <span className="text-sm font-medium text-slate-700">{n.name}</span>
-                    </div>
-                    <Badge variant="outline" className="text-[10px]">Available</Badge>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+        <Card className="shadow-card">
+          <CardHeader>
+            <CardTitle className="text-lg">How it works</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex gap-3">
+              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-teal-100 text-sm font-bold text-teal-700">1</div>
+              <div><p className="text-sm font-medium text-slate-900">Select your network</p><p className="text-xs text-slate-500">Choose the cryptocurrency network you want to use.</p></div>
+            </div>
+            <div className="flex gap-3">
+              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-teal-100 text-sm font-bold text-teal-700">2</div>
+              <div><p className="text-sm font-medium text-slate-900">Send crypto</p><p className="text-xs text-slate-500">Send the desired amount to the wallet address shown.</p></div>
+            </div>
+            <div className="flex gap-3">
+              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-teal-100 text-sm font-bold text-teal-700">3</div>
+              <div><p className="text-sm font-medium text-slate-900">Submit details</p><p className="text-xs text-slate-500">Paste your transaction hash and submit for verification.</p></div>
+            </div>
+            <div className="flex gap-3">
+              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-teal-100 text-sm font-bold text-teal-700">4</div>
+              <div><p className="text-sm font-medium text-slate-900">Funds credited</p><p className="text-xs text-slate-500">Once approved, your wallet balance updates instantly.</p></div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     </div>
   );

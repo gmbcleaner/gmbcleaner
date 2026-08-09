@@ -24,20 +24,17 @@ export default function ContactPage() {
     e.preventDefault();
     setLoading(true);
 
-    // Simulate sending (in production, connect to your email/API)
-    await new Promise((resolve) => setTimeout(resolve, 1500));
-
-    toast({
-      title: 'Message sent!',
-      description: 'We will get back to you within 24 hours.',
-    });
-
-    setSent(true);
-    setLoading(false);
-    setName('');
-    setEmail('');
-    setSubject('');
-    setMessage('');
+    try {
+      const { addDocument } = await import('@/lib/db');
+      await addDocument('contact_messages', { name, email, subject, message });
+      toast({ title: 'Message sent!', description: 'We will get back to you within 24 hours.' });
+      setSent(true);
+      setName(''); setEmail(''); setSubject(''); setMessage('');
+    } catch {
+      toast({ title: 'Error', description: 'Failed to send message. Please try again.', variant: 'destructive' });
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (

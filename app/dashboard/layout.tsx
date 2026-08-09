@@ -128,7 +128,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const handleLogout = async () => {
     await signOut();
     toast({ title: 'Logged out', description: 'You have been signed out successfully.' });
-    router.replace('/login');
+    router.replace('/user-login');
   };
 
   const markAllRead = async () => {
