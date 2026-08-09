@@ -3,11 +3,11 @@
 import { useEffect, useState, useRef } from 'react';
 import { fetchCollection, addDocument, deleteDocument, updateDocument } from '@/lib/db';
 import { toast } from '@/hooks/use-toast';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Loader2, Plus, Trash2, ChevronDown, ChevronRight, Upload, X } from 'lucide-react';
+import { Plus, Trash2, ChevronDown, ChevronRight, Upload, X } from 'lucide-react';
 
 interface Currency {
   id: string;
@@ -42,15 +42,13 @@ export default function AdminWalletsPage() {
   const [expandedCurrency, setExpandedCurrency] = useState<string | null>(null);
 
   const [newCurName, setNewCurName] = useState('');
-  const [newCurSymbol, setNewCurSymbol] = useState('');
   const [newCurLogo, setNewCurLogo] = useState('');
   const [newNetCurrency, setNewNetCurrency] = useState('');
   const [newNetName, setNewNetName] = useState('');
-  const [newNetSymbol, setNewNetSymbol] = useState('');
   const [newWalletNetwork, setNewWalletNetwork] = useState('');
   const [newWalletAddress, setNewWalletAddress] = useState('');
   const [newWalletLabel, setNewWalletLabel] = useState('');
-  const [saving, setSaving] = useState(false);
+  const logoRef = useRef<HTMLInputElement>(null);
 
   const fetchData = async () => {
     try {
@@ -67,30 +65,51 @@ export default function AdminWalletsPage() {
 
   useEffect(() => { fetchData(); }, []);
 
+  const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 2 * 1024 * 1024) {
+      toast({ title: 'File too large', description: 'Max 2MB allowed.', variant: 'destructive' });
+      return;
+    }
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setNewCurLogo(reader.result as string);
+    };
+    reader.readAsDataURL(file);
+  };
+
   const addCurrency = async () => {
-    if (!newCurName || !newCurSymbol) return;
-    setSaving(true);
+    if (!newCurName) return;
     try {
-      await addDocument('currencies', {
+      const id = await addDocument('currencies', {
         name: newCurName.trim(),
-        symbol: newCurSymbol.trim().toUpperCase(),
-        logo_url: newCurLogo.trim() || '',
+        symbol: newCurName.trim().toUpperCase(),
+        logo_url: newCurLogo || '',
         is_active: true,
         sort_order: currencies.length,
       });
       toast({ title: 'Currency added' });
-      setNewCurName(''); setNewCurSymbol(''); setNewCurLogo('');
+      setNewCurName('');
+      setNewCurLogo('');
+      if (logoRef.current) logoRef.current.value = '';
       fetchData();
     } catch (err: any) {
       toast({ title: 'Error', description: err.message, variant: 'destructive' });
-    } finally { setSaving(false); }
+    }
   };
 
   const removeCurrency = async (id: string) => {
-    await deleteDocument('currencies', id);
-    currencies.filter(c => c.network_id === id).forEach(n => deleteDocument('networks', n.id));
-    wallets.filter(w => w.currency_id === id).forEach(w => deleteDocument('wallet_addresses', w.id));
-    fetchData();
+    try {
+      await deleteDocument('currencies', id);
+      const curNetworks = networks.filter(n => n.currency_id === id);
+      const curWallets = wallets.filter(w => w.currency_id === id);
+      await Promise.all([
+        ...curNetworks.map(n => deleteDocument('networks', n.id)),
+        ...curWallets.map(w => deleteDocument('wallet_addresses', w.id)),
+      ]);
+      fetchData();
+    } catch {}
   };
 
   const toggleCurrency = async (id: string, active: boolean) => {
@@ -99,29 +118,31 @@ export default function AdminWalletsPage() {
   };
 
   const addNetwork = async (currencyId: string) => {
-    if (!newNetName || !newNetSymbol) return;
-    setSaving(true);
+    if (!newNetName) return;
     try {
       const existingNets = networks.filter(n => n.currency_id === currencyId);
       await addDocument('networks', {
         currency_id: currencyId,
         name: newNetName.trim(),
-        symbol: newNetSymbol.trim().toUpperCase(),
+        symbol: newNetName.trim().toUpperCase(),
         is_active: true,
         sort_order: existingNets.length,
       });
       toast({ title: 'Network added' });
-      setNewNetName(''); setNewNetSymbol('');
+      setNewNetName('');
       fetchData();
     } catch (err: any) {
       toast({ title: 'Error', description: err.message, variant: 'destructive' });
-    } finally { setSaving(false); }
+    }
   };
 
   const removeNetwork = async (id: string) => {
-    await deleteDocument('networks', id);
-    wallets.filter(w => w.network_id === id).forEach(w => deleteDocument('wallet_addresses', w.id));
-    fetchData();
+    try {
+      await deleteDocument('networks', id);
+      const netWallets = wallets.filter(w => w.network_id === id);
+      await Promise.all(netWallets.map(w => deleteDocument('wallet_addresses', w.id)));
+      fetchData();
+    } catch {}
   };
 
   const toggleNetwork = async (id: string, active: boolean) => {
@@ -131,7 +152,6 @@ export default function AdminWalletsPage() {
 
   const addWallet = async (currencyId: string, networkId: string) => {
     if (!newWalletAddress) return;
-    setSaving(true);
     try {
       await addDocument('wallet_addresses', {
         currency_id: currencyId,
@@ -140,11 +160,12 @@ export default function AdminWalletsPage() {
         label: newWalletLabel.trim() || '',
       });
       toast({ title: 'Wallet address added' });
-      setNewWalletAddress(''); setNewWalletLabel('');
+      setNewWalletAddress('');
+      setNewWalletLabel('');
       fetchData();
     } catch (err: any) {
       toast({ title: 'Error', description: err.message, variant: 'destructive' });
-    } finally { setSaving(false); }
+    }
   };
 
   const removeWallet = async (id: string) => {
@@ -160,33 +181,37 @@ export default function AdminWalletsPage() {
       </div>
 
       <div className="grid gap-6 lg:grid-cols-3">
-        {/* Add Currency */}
         <Card className="shadow-card lg:col-span-1">
           <CardHeader><CardTitle className="text-lg">Add Currency</CardTitle></CardHeader>
           <CardContent className="space-y-3">
-            <div className="space-y-1"><Label>Name</Label><Input placeholder="e.g. USDT" value={newCurName} onChange={(e) => setNewCurName(e.target.value)} /></div>
-            <div className="space-y-1"><Label>Symbol</Label><Input placeholder="e.g. USDT" value={newCurSymbol} onChange={(e) => setNewCurSymbol(e.target.value)} /></div>
             <div className="space-y-1">
-              <Label>Logo URL (optional)</Label>
-              <Input placeholder="https://... or emoji like 🔗" value={newCurLogo} onChange={(e) => setNewCurLogo(e.target.value)} />
-              {newCurLogo && (
-                <div className="flex items-center gap-2 mt-1">
-                  {newCurLogo.startsWith('http') ? (
-                    <img src={newCurLogo} alt="" className="h-6 w-6 rounded object-cover" />
-                  ) : (
-                    <span className="text-xl">{newCurLogo}</span>
-                  )}
-                  <span className="text-xs text-slate-500">Preview</span>
+              <Label>Name</Label>
+              <Input placeholder="e.g. USDT" value={newCurName} onChange={(e) => setNewCurName(e.target.value)} />
+            </div>
+            <div className="space-y-1">
+              <Label>Logo (optional)</Label>
+              <input ref={logoRef} type="file" accept="image/*" className="hidden" onChange={handleLogoUpload} />
+              {newCurLogo ? (
+                <div className="relative inline-block">
+                  <img src={newCurLogo} alt="" className="h-16 w-16 rounded-lg object-cover border" />
+                  <button onClick={() => { setNewCurLogo(''); if (logoRef.current) logoRef.current.value = ''; }}
+                    className="absolute -top-2 -right-2 h-5 w-5 rounded-full bg-red-500 text-white flex items-center justify-center">
+                    <X className="h-3 w-3" />
+                  </button>
                 </div>
+              ) : (
+                <button onClick={() => logoRef.current?.click()}
+                  className="flex w-full items-center justify-center gap-2 rounded-lg border-2 border-dashed border-slate-200 p-4 text-sm text-slate-500 hover:border-teal-300 hover:text-teal-600 transition-colors">
+                  <Upload className="h-4 w-4" />Click to upload logo
+                </button>
               )}
             </div>
-            <Button onClick={addCurrency} disabled={!newCurName || !newCurSymbol || saving} className="w-full">
-              {saving ? <Loader2 className="mr-2 h-3 w-3 animate-spin" /> : <Plus className="mr-2 h-3 w-3" />}Add Currency
+            <Button onClick={addCurrency} disabled={!newCurName} className="w-full">
+              <Plus className="mr-2 h-3 w-3" />Add Currency
             </Button>
           </CardContent>
         </Card>
 
-        {/* Currencies List */}
         <Card className="shadow-card lg:col-span-2">
           <CardHeader><CardTitle className="text-lg">All Currencies</CardTitle></CardHeader>
           <CardContent className="space-y-3">
@@ -200,17 +225,13 @@ export default function AdminWalletsPage() {
                     <div className="flex items-center gap-3">
                       {isExpanded ? <ChevronDown className="h-4 w-4 text-slate-400" /> : <ChevronRight className="h-4 w-4 text-slate-400" />}
                       {cur.logo_url ? (
-                        cur.logo_url.startsWith('http') ? (
-                          <img src={cur.logo_url} alt="" className="h-8 w-8 rounded-lg object-cover" />
-                        ) : (
-                          <span className="text-2xl">{cur.logo_url}</span>
-                        )
+                        <img src={cur.logo_url} alt="" className="h-8 w-8 rounded-lg object-cover" />
                       ) : (
-                        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100 text-xs font-bold text-slate-600">{cur.symbol?.charAt(0)}</div>
+                        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100 text-xs font-bold text-slate-600">{cur.name?.charAt(0)}</div>
                       )}
                       <div>
                         <p className="text-sm font-semibold text-slate-900">{cur.name}</p>
-                        <p className="text-xs text-slate-500">{cur.symbol} &middot; {curNetworks.length} networks</p>
+                        <p className="text-xs text-slate-500">{curNetworks.length} networks</p>
                       </div>
                     </div>
                     <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
@@ -230,10 +251,7 @@ export default function AdminWalletsPage() {
                         return (
                           <div key={net.id} className="rounded-lg border border-slate-200 bg-white p-3">
                             <div className="flex items-center justify-between mb-2">
-                              <div className="flex items-center gap-2">
-                                <span className="text-sm font-semibold text-slate-900">{net.name}</span>
-                                <span className="text-xs text-slate-400">({net.symbol})</span>
-                              </div>
+                              <span className="text-sm font-semibold text-slate-900">{net.name}</span>
                               <div className="flex items-center gap-1">
                                 <Button size="sm" variant={net.is_active ? 'default' : 'outline'} className="h-7 text-xs" onClick={() => toggleNetwork(net.id, !net.is_active)}>
                                   {net.is_active ? 'On' : 'Off'}
@@ -257,7 +275,7 @@ export default function AdminWalletsPage() {
                             <div className="flex gap-2 mt-2">
                               <Input placeholder="Wallet address" value={newWalletNetwork === net.id ? newWalletAddress : ''} onChange={(e) => { setNewWalletNetwork(net.id); setNewWalletAddress(e.target.value); }} className="text-xs" />
                               <Input placeholder="Label" value={newWalletNetwork === net.id ? newWalletLabel : ''} onChange={(e) => { setNewWalletNetwork(net.id); setNewWalletLabel(e.target.value); }} className="text-xs w-24" />
-                              <Button size="sm" className="h-8" onClick={() => addWallet(cur.id, net.id)} disabled={!newWalletAddress || newWalletNetwork !== net.id || saving}>
+                              <Button size="sm" className="h-8" onClick={() => addWallet(cur.id, net.id)} disabled={!newWalletAddress || newWalletNetwork !== net.id}>
                                 <Plus className="h-3 w-3" />
                               </Button>
                             </div>
@@ -267,9 +285,8 @@ export default function AdminWalletsPage() {
 
                       <div className="flex gap-2">
                         <Input placeholder="Network name (e.g. TRC20)" value={newNetCurrency === cur.id ? newNetName : ''} onChange={(e) => { setNewNetCurrency(cur.id); setNewNetName(e.target.value); }} className="text-xs" />
-                        <Input placeholder="Symbol" value={newNetCurrency === cur.id ? newNetSymbol : ''} onChange={(e) => { setNewNetCurrency(cur.id); setNewNetSymbol(e.target.value); }} className="text-xs w-24" />
-                        <Button size="sm" className="h-8" onClick={() => addNetwork(cur.id)} disabled={!newNetName || !newNetSymbol || newNetCurrency !== cur.id || saving}>
-                          <Plus className="h-3 w-3" /> Add Network
+                        <Button size="sm" className="h-8" onClick={() => addNetwork(cur.id)} disabled={!newNetName || newNetCurrency !== cur.id}>
+                          <Plus className="h-3 w-3" /> Add
                         </Button>
                       </div>
                     </div>

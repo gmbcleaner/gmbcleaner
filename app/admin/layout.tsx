@@ -79,7 +79,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     return pathname.startsWith(href);
   };
 
-  if (!authChecked) return null;
+  if (!authChecked) return <div className="min-h-screen bg-slate-50" />;
 
   const SidebarContent = () => (
     <div className="flex h-full flex-col">
