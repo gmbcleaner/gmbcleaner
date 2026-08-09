@@ -290,8 +290,9 @@ export default function AddFundsPage() {
             {step === 'proof' && (
               <>
                 <div className="space-y-2">
-                  <Label>Transaction Hash (TX ID) *</Label>
-                  <Input placeholder="Paste your transaction hash here" value={txHash} onChange={(e) => setTxHash(e.target.value)} />
+                  <Label className="text-red-600">Transaction Hash (TX ID) *</Label>
+                  <Input placeholder="Paste your transaction hash here" value={txHash} onChange={(e) => setTxHash(e.target.value)} className={txHash.trim().length > 0 ? '' : 'border-red-300 focus-visible:ring-red-500'} />
+                  {txHash.length === 0 && <p className="text-xs text-red-500">Transaction ID is required for deposit approval</p>}
                 </div>
                 <div className="space-y-2">
                   <Label>Sender Wallet Address (optional)</Label>
