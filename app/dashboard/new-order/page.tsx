@@ -19,6 +19,7 @@ import {
 import { addDocument, updateDocument, fetchCollection } from '@/lib/db';
 import { useAuth } from '@/components/providers/auth-provider';
 import { toast } from '@/hooks/use-toast';
+import { sendTelegramMessage } from '@/lib/telegram';
 import {
   Card,
   CardHeader,
@@ -196,6 +197,19 @@ export default function NewOrderPage() {
         type: 'order',
         is_read: false,
       });
+
+      const telegramMsg = [
+        '🛒 <b>New Order</b>',
+        '',
+        `👤 User: ${user.email}`,
+        `📋 Order: <code>${orderCode}</code>`,
+        `🔗 Reviews: ${itemCount}`,
+        `💵 Total: $${totalCost.toFixed(2)}`,
+        notes.trim() ? `📝 Notes: ${notes.trim()}` : '',
+        '',
+        'Status: ⏳ Pending',
+      ].filter(Boolean).join('\n');
+      sendTelegramMessage(telegramMsg).catch(() => {});
 
       await refreshProfile();
 

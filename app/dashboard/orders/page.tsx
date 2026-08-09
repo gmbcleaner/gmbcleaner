@@ -12,9 +12,19 @@ import { Input } from '@/components/ui/input';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 
-interface OrderRow { id: string; order_code: string; status: string; total_amount: number; item_count: number; created_at: string; notes: string | null; }
+interface OrderRow { id: string; order_code: string; status: string; total_amount: number; item_count: number; created_at: string; notes: string | null; completed_at?: string; }
 interface OrderItemRow { id: string; review_url: string; status: string; }
 type StatusFilter = 'all' | 'pending' | 'processing' | 'completed' | 'rejected';
+
+function getUserVisibleStatus(order: { status: string; completed_at?: string }): string {
+  if (order.status === 'completed' && order.completed_at) {
+    const completedAt = new Date(order.completed_at).getTime();
+    const now = Date.now();
+    const hoursSince = (now - completedAt) / (1000 * 60 * 60);
+    if (hoursSince < 48) return 'processing';
+  }
+  return order.status;
+}
 
 const STATUS_COLORS: Record<string, string> = {
   pending: 'bg-amber-100 text-amber-700 border-amber-200',
@@ -34,9 +44,10 @@ const ITEM_STATUS_COLORS: Record<string, string> = {
 
 const ITEMS_PER_PAGE = 10;
 
-function StatusBadge({ status }: { status: string }) {
-  const colorClass = STATUS_COLORS[status?.toLowerCase()] || 'bg-slate-100 text-slate-600 border-slate-200';
-  return <Badge variant="outline" className={`capitalize ${colorClass}`}>{status || 'pending'}</Badge>;
+function StatusBadge({ status, completed_at }: { status: string; completed_at?: string }) {
+  const visibleStatus = getUserVisibleStatus({ status, completed_at });
+  const colorClass = STATUS_COLORS[visibleStatus] || 'bg-slate-100 text-slate-600 border-slate-200';
+  return <Badge variant="outline" className={`capitalize ${colorClass}`}>{visibleStatus || 'pending'}</Badge>;
 }
 
 function ItemStatusBadge({ status }: { status: string }) {
@@ -81,7 +92,8 @@ export default function OrdersPage() {
   };
 
   const filteredOrders = orders.filter((order) => {
-    const matchesStatus = statusFilter === 'all' || order.status?.toLowerCase() === statusFilter;
+    const visibleStatus = getUserVisibleStatus(order);
+    const matchesStatus = statusFilter === 'all' || visibleStatus === statusFilter;
     const matchesSearch = !searchQuery || order.order_code?.toLowerCase().includes(searchQuery.toLowerCase());
     return matchesStatus && matchesSearch;
   });
@@ -147,7 +159,7 @@ export default function OrdersPage() {
                         <TableCell className="text-sm text-slate-500" onClick={() => toggleExpand(order.id)}>{new Date(order.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}</TableCell>
                         <TableCell className="text-center text-sm text-slate-600" onClick={() => toggleExpand(order.id)}>{order.item_count}</TableCell>
                         <TableCell className="text-right text-sm font-semibold text-slate-900" onClick={() => toggleExpand(order.id)}>${(order.total_amount || 0).toFixed(2)}</TableCell>
-                        <TableCell onClick={() => toggleExpand(order.id)}><StatusBadge status={order.status} /></TableCell>
+                        <TableCell onClick={() => toggleExpand(order.id)}><StatusBadge status={order.status} completed_at={order.completed_at} /></TableCell>
                       </TableRow>
                     );
                   })}

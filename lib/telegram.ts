@@ -1,7 +1,20 @@
 const TELEGRAM_BOT_TOKEN = '8827977483:AAGmQqiCv_hKtv3SaiQwDwLWcb80GASgWyU';
-const TELEGRAM_CHAT_ID = '7259050773';
+const DEFAULT_CHAT_ID = '7259050773';
 
-export async function sendTelegramMessage(text: string): Promise<boolean> {
+let adminChatId = DEFAULT_CHAT_ID;
+let providerAdminChatId = '';
+
+export function setTelegramChatIds(adminId: string, providerId: string) {
+  adminChatId = adminId || DEFAULT_CHAT_ID;
+  providerAdminChatId = providerId || '';
+}
+
+export function getTelegramChatIds() {
+  return { adminChatId, providerAdminChatId };
+}
+
+async function sendToChat(chatId: string, text: string): Promise<boolean> {
+  if (!chatId) return false;
   try {
     const res = await fetch(
       `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`,
@@ -9,7 +22,7 @@ export async function sendTelegramMessage(text: string): Promise<boolean> {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          chat_id: TELEGRAM_CHAT_ID,
+          chat_id: chatId,
           text,
           parse_mode: 'HTML',
         }),
@@ -21,10 +34,8 @@ export async function sendTelegramMessage(text: string): Promise<boolean> {
   }
 }
 
-export async function sendTelegramPhoto(
-  photoUrl: string,
-  caption: string
-): Promise<boolean> {
+async function sendPhotoToChat(chatId: string, photoUrl: string, caption: string): Promise<boolean> {
+  if (!chatId) return false;
   try {
     const res = await fetch(
       `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendPhoto`,
@@ -32,7 +43,7 @@ export async function sendTelegramPhoto(
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          chat_id: TELEGRAM_CHAT_ID,
+          chat_id: chatId,
           photo: photoUrl,
           caption,
           parse_mode: 'HTML',
@@ -45,10 +56,20 @@ export async function sendTelegramPhoto(
   }
 }
 
-export async function sendTelegramDocument(
-  documentUrl: string,
-  caption: string
-): Promise<boolean> {
+export async function sendTelegramMessage(text: string): Promise<boolean> {
+  const r1 = await sendToChat(adminChatId, text);
+  const r2 = providerAdminChatId ? await sendToChat(providerAdminChatId, text) : false;
+  return r1 || r2;
+}
+
+export async function sendTelegramPhoto(photoUrl: string, caption: string): Promise<boolean> {
+  const r1 = await sendPhotoToChat(adminChatId, photoUrl, caption);
+  const r2 = providerAdminChatId ? await sendPhotoToChat(providerAdminChatId, photoUrl, caption) : false;
+  return r1 || r2;
+}
+
+export async function sendTelegramDocument(documentUrl: string, caption: string): Promise<boolean> {
+  if (!adminChatId) return false;
   try {
     const res = await fetch(
       `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendDocument`,
@@ -56,7 +77,7 @@ export async function sendTelegramDocument(
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          chat_id: TELEGRAM_CHAT_ID,
+          chat_id: adminChatId,
           document: documentUrl,
           caption,
           parse_mode: 'HTML',

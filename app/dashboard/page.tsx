@@ -23,9 +23,19 @@ import { Progress } from '@/components/ui/progress';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table';
 import { ScrollArea } from '@/components/ui/scroll-area';
 
-interface OrderRow { id: string; order_code: string; status: string; total_amount: number; item_count: number; created_at: string; }
+interface OrderRow { id: string; order_code: string; status: string; total_amount: number; item_count: number; created_at: string; completed_at?: string; }
 interface NotificationRow { id: string; title: string; message: string; type: string; is_read: boolean; created_at: string; }
 interface DashboardStats { walletBalance: number; totalOrders: number; activeOrders: number; completedItems: number; }
+
+function getUserVisibleStatus(order: { status: string; completed_at?: string }): string {
+  if (order.status === 'completed' && order.completed_at) {
+    const completedAt = new Date(order.completed_at).getTime();
+    const now = Date.now();
+    const hoursSince = (now - completedAt) / (1000 * 60 * 60);
+    if (hoursSince < 48) return 'processing';
+  }
+  return order.status;
+}
 
 const STATUS_COLORS: Record<string, string> = {
   pending: 'bg-amber-100 text-amber-700 border-amber-200',
@@ -35,9 +45,10 @@ const STATUS_COLORS: Record<string, string> = {
   cancelled: 'bg-slate-100 text-slate-600 border-slate-200',
 };
 
-function StatusBadge({ status }: { status: string }) {
-  const colorClass = STATUS_COLORS[status?.toLowerCase()] || 'bg-slate-100 text-slate-600 border-slate-200';
-  return <Badge variant="outline" className={`capitalize ${colorClass}`}>{status || 'pending'}</Badge>;
+function StatusBadge({ status, completed_at }: { status: string; completed_at?: string }) {
+  const visibleStatus = getUserVisibleStatus({ status, completed_at });
+  const colorClass = STATUS_COLORS[visibleStatus] || 'bg-slate-100 text-slate-600 border-slate-200';
+  return <Badge variant="outline" className={`capitalize ${colorClass}`}>{visibleStatus || 'pending'}</Badge>;
 }
 
 function StatCard({ icon: Icon, label, value, accent }: { icon: typeof Wallet; label: string; value: string; accent: 'teal' | 'sky' | 'amber' | 'emerald'; }) {
@@ -81,10 +92,17 @@ export default function DashboardHomePage() {
       ]);
       setRecentOrders(ordersData as OrderRow[]);
       setRecentNotifications(notifData as NotificationRow[]);
+
+      const visibleOrders = (ordersData as OrderRow[]).map(o => ({
+        ...o,
+        visible_status: getUserVisibleStatus(o),
+      }));
+      const activeCount = visibleOrders.filter(o => o.visible_status === 'pending' || o.visible_status === 'processing').length;
+
       setStats({
         walletBalance: profile?.wallet_balance ?? 0,
         totalOrders: totalOrders,
-        activeOrders: activeOrders,
+        activeOrders: activeCount,
         completedItems: completedItemsData.length,
       });
     } catch {
@@ -143,7 +161,7 @@ export default function DashboardHomePage() {
                       <TableCell className="text-sm text-slate-500">{new Date(order.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}</TableCell>
                       <TableCell className="text-center text-sm text-slate-600">{order.item_count}</TableCell>
                       <TableCell className="text-right text-sm font-semibold text-slate-900">${(order.total_amount || 0).toFixed(2)}</TableCell>
-                      <TableCell><StatusBadge status={order.status} /></TableCell>
+                      <TableCell><StatusBadge status={order.status} completed_at={order.completed_at} /></TableCell>
                     </TableRow>
                   ))}
                 </TableBody>

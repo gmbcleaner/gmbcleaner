@@ -1,13 +1,13 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { fetchCollection, updateDocument, addDocument, getDocument } from '@/lib/db';
+import { fetchCollection, updateDocument, addDocument, getDocument, deleteDocument } from '@/lib/db';
 import { toast } from '@/hooks/use-toast';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ListOrdered, ChevronDown, ChevronUp } from 'lucide-react';
+import { ListOrdered, ChevronDown, ChevronUp, Trash2 } from 'lucide-react';
 
 interface Order {
   id: string;
@@ -100,6 +100,26 @@ export default function AdminOrdersPage() {
     }
   };
 
+  const deleteOrder = async (orderId: string) => {
+    try {
+      await deleteDocument('orders', orderId);
+      const order = orders.find(o => o.id === orderId);
+      if (order?.order_items) {
+        for (const item of order.order_items) {
+          await deleteDocument('order_items', item.id);
+        }
+      }
+      const tasks = await fetchCollection('provider_tasks', [{ field: 'order_id', op: '==', value: orderId }]);
+      for (const task of tasks) {
+        await deleteDocument('provider_tasks', task.id);
+      }
+      toast({ title: 'Order moved to trash' });
+      fetchOrders();
+    } catch (err: any) {
+      toast({ title: 'Error', description: err.message, variant: 'destructive' });
+    }
+  };
+
   const statusColors: Record<string, string> = {
     pending: 'bg-amber-100 text-amber-700',
     processing: 'bg-blue-100 text-blue-700',
@@ -158,6 +178,15 @@ export default function AdminOrdersPage() {
                             {providers.map(p => <SelectItem key={p.id} value={p.id}>{p.email}</SelectItem>)}
                           </SelectContent>
                         </Select>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="text-red-600 border-red-200 hover:bg-red-50"
+                          onClick={() => deleteOrder(order.id)}
+                        >
+                          <Trash2 className="mr-1 h-3 w-3" />
+                          Delete
+                        </Button>
                       </div>
                       {order.order_items && order.order_items.length > 0 && (
                         <div className="space-y-2">
