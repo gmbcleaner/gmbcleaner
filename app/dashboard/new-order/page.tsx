@@ -1,0 +1,509 @@
+'use client';
+
+import { useState, useMemo, useCallback } from 'react';
+import Link from 'next/link';
+import { motion } from 'framer-motion';
+import {
+  PlusCircle,
+  Link2,
+  AlertTriangle,
+  CheckCircle2,
+  Wallet,
+  Loader2,
+  ClipboardPaste,
+  FileText,
+  ShoppingBag,
+  ArrowRight,
+  Info,
+} from 'lucide-react';
+import { supabase } from '@/lib/supabase';
+import { useAuth } from '@/components/providers/auth-provider';
+import { toast } from '@/hooks/use-toast';
+import {
+  Card,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+  CardContent,
+  CardFooter,
+} from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
+import { Separator } from '@/components/ui/separator';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+  DialogTrigger,
+} from '@/components/ui/dialog';
+
+const PRICE_PER_ITEM = 1.15;
+
+interface ParsedUrl {
+  url: string;
+  valid: boolean;
+  domain: string;
+}
+
+function parseUrls(raw: string): ParsedUrl[] {
+  return raw
+    .split('\n')
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0)
+    .map((line) => {
+      let url = line;
+      // Add https:// if missing protocol
+      if (!/^https?:\/\//i.test(url)) {
+        url = 'https://' + url;
+      }
+      let domain = '';
+      let valid = false;
+      try {
+        const parsed = new URL(url);
+        domain = parsed.hostname;
+        // Must have a dot in the domain to be valid
+        valid = domain.includes('.') && domain.length > 3;
+      } catch {
+        valid = false;
+      }
+      return { url: line, valid, domain };
+    });
+}
+
+function generateOrderCode(): string {
+  const prefix = 'ORD';
+  const timestamp = Date.now().toString(36).toUpperCase().slice(-6);
+  const random = Math.random().toString(36).toUpperCase().slice(2, 6);
+  return `${prefix}-${timestamp}${random}`;
+}
+
+export default function NewOrderPage() {
+  const { user, profile, refreshProfile } = useAuth();
+  const [urlInput, setUrlInput] = useState('');
+  const [notes, setNotes] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+
+  const parsedUrls = useMemo(() => parseUrls(urlInput), [urlInput]);
+  const validUrls = useMemo(() => parsedUrls.filter((u) => u.valid), [parsedUrls]);
+  const invalidUrls = useMemo(() => parsedUrls.filter((u) => !u.valid), [parsedUrls]);
+  const itemCount = validUrls.length;
+  const totalCost = itemCount * PRICE_PER_ITEM;
+  const walletBalance = profile?.wallet_balance ?? 0;
+  const hasInsufficientFunds = itemCount > 0 && totalCost > walletBalance;
+
+  const handlePaste = async () => {
+    try {
+      const text = await navigator.clipboard.readText();
+      setUrlInput((prev) => (prev ? prev + '\n' + text : text));
+      toast({ title: 'Pasted', description: 'Clipboard content added to the textarea.' });
+    } catch {
+      toast({
+        title: 'Paste failed',
+        description: 'Could not read clipboard. Please paste manually.',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleSubmit = useCallback(async () => {
+    if (!user) return;
+    if (itemCount === 0) {
+      toast({
+        title: 'No valid URLs',
+        description: 'Please paste at least one valid review URL.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    if (hasInsufficientFunds) {
+      toast({
+        title: 'Insufficient balance',
+        description: 'Please add funds to your wallet first.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setSubmitting(true);
+    setConfirmOpen(false);
+
+    try {
+      const orderCode = generateOrderCode();
+      const newBalance = walletBalance - totalCost;
+
+      // Insert order
+      const { data: orderData, error: orderError } = await supabase
+        .from('orders')
+        .insert({
+          user_id: user.id,
+          order_code: orderCode,
+          status: 'pending',
+          total_amount: totalCost,
+          item_count: itemCount,
+          notes: notes.trim() || null,
+        })
+        .select('id')
+        .single();
+
+      if (orderError || !orderData) {
+        throw new Error(orderError?.message || 'Failed to create order');
+      }
+
+      const orderId = orderData.id;
+
+      // Insert order items
+      const orderItems = validUrls.map((u) => ({
+        user_id: user.id,
+        order_id: orderId,
+        review_url: u.url,
+        status: 'pending',
+      }));
+
+      const { error: itemsError } = await supabase
+        .from('order_items')
+        .insert(orderItems);
+
+      if (itemsError) {
+        // Attempt to rollback order
+        await supabase.from('orders').delete().eq('id', orderId);
+        throw new Error(itemsError.message);
+      }
+
+      // Deduct from wallet
+      const { error: walletError } = await supabase
+        .from('profiles')
+        .update({ wallet_balance: newBalance })
+        .eq('id', user.id);
+
+      if (walletError) {
+        throw new Error(walletError.message);
+      }
+
+      // Insert transaction record
+      await supabase.from('transactions').insert({
+        user_id: user.id,
+        type: 'order_payment',
+        amount: -totalCost,
+        balance_after: newBalance,
+        description: `Payment for order ${orderCode} (${itemCount} items)`,
+      });
+
+      // Insert notification
+      await supabase.from('notifications').insert({
+        user_id: user.id,
+        title: 'Order Created',
+        message: `Your order ${orderCode} with ${itemCount} review${itemCount > 1 ? 's' : ''} has been submitted for processing.`,
+        type: 'order',
+        is_read: false,
+      });
+
+      await refreshProfile();
+
+      toast({
+        title: 'Order submitted!',
+        description: `Order ${orderCode} created with ${itemCount} item${itemCount > 1 ? 's' : ''}. $${totalCost.toFixed(2)} deducted from your wallet.`,
+      });
+
+      // Reset form
+      setUrlInput('');
+      setNotes('');
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Something went wrong';
+      toast({
+        title: 'Order failed',
+        description: message,
+        variant: 'destructive',
+      });
+    } finally {
+      setSubmitting(false);
+    }
+  }, [user, itemCount, totalCost, walletBalance, hasInsufficientFunds, validUrls, notes, refreshProfile]);
+
+  return (
+    <div className="mx-auto max-w-4xl space-y-6">
+      {/* Page header */}
+      <div>
+        <h1 className="text-2xl font-bold tracking-tight text-slate-900">New Order</h1>
+        <p className="mt-1 text-sm text-slate-500">
+          Submit review URLs for dispute. Each review costs ${PRICE_PER_ITEM.toFixed(2)}.
+        </p>
+      </div>
+
+      {/* Wallet balance banner */}
+      <Card className="overflow-hidden border-0 bg-gradient-to-r from-slate-900 to-slate-800 shadow-card">
+        <CardContent className="flex items-center justify-between p-4">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-teal-500/20">
+              <Wallet className="h-5 w-5 text-teal-400" />
+            </div>
+            <div>
+              <p className="text-xs font-medium text-slate-400">Current Wallet Balance</p>
+              <p className="text-xl font-bold text-white">${walletBalance.toFixed(2)}</p>
+            </div>
+          </div>
+          <Button
+            asChild
+            variant="secondary"
+            size="sm"
+            className="bg-teal-500 text-white hover:bg-teal-600"
+          >
+            <Link href="/dashboard/add-funds">
+              <PlusCircle className="mr-1 h-4 w-4" />
+              Add Funds
+            </Link>
+          </Button>
+        </CardContent>
+      </Card>
+
+      {/* URL input form */}
+      <Card className="shadow-card">
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="text-lg">Review URLs</CardTitle>
+              <CardDescription>
+                Paste review URLs below — one per line. We&apos;ll validate each one.
+              </CardDescription>
+            </div>
+            <Button variant="outline" size="sm" onClick={handlePaste}>
+              <ClipboardPaste className="mr-2 h-4 w-4" />
+              Paste
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="urls">Review URLs</Label>
+            <Textarea
+              id="urls"
+              placeholder={"https://www.google.com/maps/review/...\nhttps://www.google.com/maps/review/...\nhttps://www.yelp.com/biz/..."}
+              value={urlInput}
+              onChange={(e) => setUrlInput(e.target.value)}
+              className="min-h-48 font-mono text-sm"
+            />
+          </div>
+
+          {/* URL validation summary */}
+          {parsedUrls.length > 0 && (
+            <div className="space-y-2">
+              <div className="flex flex-wrap items-center gap-2">
+                <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200">
+                  <CheckCircle2 className="mr-1 h-3 w-3" />
+                  {itemCount} valid
+                </Badge>
+                {invalidUrls.length > 0 && (
+                  <Badge className="bg-red-100 text-red-700 border-red-200">
+                    <AlertTriangle className="mr-1 h-3 w-3" />
+                    {invalidUrls.length} invalid
+                  </Badge>
+                )}
+              </div>
+
+              {/* Invalid URLs list */}
+              {invalidUrls.length > 0 && (
+                <div className="rounded-lg border border-red-200 bg-red-50 p-3">
+                  <p className="text-xs font-medium text-red-700">
+                    The following URLs appear invalid (must contain a domain):
+                  </p>
+                  <ul className="mt-2 space-y-1">
+                    {invalidUrls.map((u, i) => (
+                      <li key={i} className="font-mono text-xs text-red-600">
+                        • {u.url}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {/* Valid URLs preview */}
+              {validUrls.length > 0 && (
+                <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                  <p className="mb-2 text-xs font-medium text-slate-600">Valid URLs detected:</p>
+                  <div className="max-h-32 space-y-1 overflow-y-auto">
+                    {validUrls.map((u, i) => (
+                      <div key={i} className="flex items-center gap-2 text-xs">
+                        <Link2 className="h-3 w-3 shrink-0 text-teal-500" />
+                        <span className="truncate font-mono text-slate-600">{u.url}</span>
+                        <Badge variant="outline" className="ml-auto shrink-0 text-[10px]">
+                          {u.domain}
+                        </Badge>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Insufficient funds warning */}
+          {hasInsufficientFunds && (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.97 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="flex items-center gap-3 rounded-lg border border-amber-300 bg-amber-50 p-4"
+            >
+              <AlertTriangle className="h-5 w-5 shrink-0 text-amber-600" />
+              <div className="flex-1">
+                <p className="text-sm font-medium text-amber-800">Insufficient wallet balance</p>
+                <p className="text-xs text-amber-700">
+                  You need ${totalCost.toFixed(2)} but have ${walletBalance.toFixed(2)}. Please add ${(totalCost - walletBalance).toFixed(2)} more.
+                </p>
+              </div>
+              <Button asChild size="sm" className="bg-amber-600 text-white hover:bg-amber-700">
+                <Link href="/dashboard/add-funds">
+                  Add Funds
+                  <ArrowRight className="ml-1 h-4 w-4" />
+                </Link>
+              </Button>
+            </motion.div>
+          )}
+
+          {/* Notes field */}
+          <div className="space-y-2">
+            <Label htmlFor="notes">
+              Notes <span className="text-slate-400">(optional)</span>
+            </Label>
+            <Textarea
+              id="notes"
+              placeholder="Add any context about these reviews..."
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              className="min-h-20"
+            />
+          </div>
+        </CardContent>
+        <CardFooter className="flex items-center justify-between border-t bg-slate-50/50 px-6 py-4">
+          {/* Cost summary */}
+          <div className="flex items-center gap-6">
+            <div>
+              <p className="text-xs text-slate-500">Items</p>
+              <p className="text-lg font-bold text-slate-900">{itemCount}</p>
+            </div>
+            <Separator orientation="vertical" className="h-10" />
+            <div>
+              <p className="text-xs text-slate-500">Price / item</p>
+              <p className="text-lg font-bold text-slate-900">${PRICE_PER_ITEM.toFixed(2)}</p>
+            </div>
+            <Separator orientation="vertical" className="h-10" />
+            <div>
+              <p className="text-xs text-slate-500">Total</p>
+              <p className="text-lg font-bold text-teal-600">${totalCost.toFixed(2)}</p>
+            </div>
+          </div>
+
+          {/* Submit button */}
+          <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+            <DialogTrigger asChild>
+              <Button
+                disabled={itemCount === 0 || hasInsufficientFunds || submitting}
+                className="bg-gradient-to-r from-teal-500 to-sky-500 text-white hover:from-teal-600 hover:to-sky-600"
+              >
+                <ShoppingBag className="mr-2 h-4 w-4" />
+                Review &amp; Submit
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Confirm Order</DialogTitle>
+                <DialogDescription>
+                  Please review your order summary before submitting. This action cannot be undone.
+                </DialogDescription>
+              </DialogHeader>
+
+              {/* Order summary */}
+              <div className="space-y-4 py-2">
+                <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+                  <div className="mb-3 flex items-center gap-2">
+                    <Info className="h-4 w-4 text-slate-500" />
+                    <span className="text-sm font-medium text-slate-700">Order Summary</span>
+                  </div>
+                  <div className="space-y-2 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-slate-500">Total review URLs</span>
+                      <span className="font-semibold text-slate-900">{itemCount}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-slate-500">Price per item</span>
+                      <span className="font-semibold text-slate-900">${PRICE_PER_ITEM.toFixed(2)}</span>
+                    </div>
+                    <Separator />
+                    <div className="flex justify-between text-base">
+                      <span className="font-medium text-slate-700">Total cost</span>
+                      <span className="font-bold text-teal-600">${totalCost.toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-slate-500">Current balance</span>
+                      <span className="font-semibold text-slate-900">${walletBalance.toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-slate-500">Balance after order</span>
+                      <span className="font-semibold text-slate-900">
+                        ${(walletBalance - totalCost).toFixed(2)}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {notes.trim() && (
+                  <div className="rounded-lg border border-slate-200 p-4">
+                    <div className="mb-2 flex items-center gap-2">
+                      <FileText className="h-4 w-4 text-slate-500" />
+                      <span className="text-sm font-medium text-slate-700">Notes</span>
+                    </div>
+                    <p className="text-sm text-slate-600">{notes}</p>
+                  </div>
+                )}
+
+                {/* URL list */}
+                <div className="max-h-40 space-y-1 overflow-y-auto rounded-lg border border-slate-200 p-3">
+                  <p className="mb-2 text-xs font-medium text-slate-500">URLs to be submitted:</p>
+                  {validUrls.map((u, i) => (
+                    <div key={i} className="flex items-center gap-2 text-xs">
+                      <span className="text-slate-400">{i + 1}.</span>
+                      <Link2 className="h-3 w-3 shrink-0 text-teal-500" />
+                      <span className="truncate font-mono text-slate-600">{u.url}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <DialogFooter>
+                <Button
+                  variant="outline"
+                  onClick={() => setConfirmOpen(false)}
+                  disabled={submitting}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={handleSubmit}
+                  disabled={submitting}
+                  className="bg-gradient-to-r from-teal-500 to-sky-500 text-white hover:from-teal-600 hover:to-sky-600"
+                >
+                  {submitting ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Submitting…
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle2 className="mr-2 h-4 w-4" />
+                      Confirm &amp; Pay ${totalCost.toFixed(2)}
+                    </>
+                  )}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        </CardFooter>
+      </Card>
+    </div>
+  );
+}
