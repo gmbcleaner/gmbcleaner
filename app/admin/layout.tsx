@@ -13,6 +13,10 @@ import {
   ShieldCheck,
   Menu,
   ChevronDown,
+  Banknote,
+  FileText,
+  DollarSign,
+  Wallet,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
@@ -37,6 +41,10 @@ const navItems: NavItem[] = [
   { label: 'Dashboard', href: '/admin', icon: LayoutDashboard },
   { label: 'Users', href: '/admin/users', icon: Users },
   { label: 'Orders', href: '/admin/orders', icon: ListOrdered },
+  { label: 'Deposits', href: '/admin/deposits', icon: Banknote },
+  { label: 'Content', href: '/admin/content', icon: FileText },
+  { label: 'Pricing', href: '/admin/pricing', icon: DollarSign },
+  { label: 'Wallets', href: '/admin/wallets', icon: Wallet },
   { label: 'Settings', href: '/admin/settings', icon: Settings },
 ];
 

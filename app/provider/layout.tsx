@@ -12,6 +12,7 @@ import {
   Wrench,
   Menu,
   ChevronDown,
+  ClipboardList,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
@@ -34,6 +35,7 @@ interface NavItem {
 
 const navItems: NavItem[] = [
   { label: 'Dashboard', href: '/provider', icon: LayoutDashboard },
+  { label: 'Tasks', href: '/provider/tasks', icon: ClipboardList },
   { label: 'Orders', href: '/provider/orders', icon: ListOrdered },
   { label: 'Settings', href: '/provider/settings', icon: Settings },
 ];
