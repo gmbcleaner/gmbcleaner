@@ -5,6 +5,7 @@ import {
   updateDoc,
   deleteDoc,
   doc,
+  setDoc,
   query,
   where,
   orderBy as fbOrderBy,
@@ -52,7 +53,7 @@ export async function addDocument(colName: string, data: Record<string, any>) {
 
 export async function addDocumentWithId(colName: string, id: string, data: Record<string, any>) {
   const docRef = doc(db, colName, id);
-  await addDoc(collection(db, colName), { ...data, id });
+  await setDoc(docRef, { ...data, id });
 }
 
 export async function updateDocument(colName: string, docId: string, data: Record<string, any>) {

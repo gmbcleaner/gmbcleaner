@@ -16,6 +16,7 @@ import {
   FileText,
   DollarSign,
   Wallet,
+  MessageSquare,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
@@ -43,6 +44,7 @@ const navItems: NavItem[] = [
   { label: 'Content', href: '/admin/content', icon: FileText },
   { label: 'Pricing', href: '/admin/pricing', icon: DollarSign },
   { label: 'Wallets', href: '/admin/wallets', icon: Wallet },
+  { label: 'Support', href: '/admin/support', icon: MessageSquare },
   { label: 'Settings', href: '/admin/settings', icon: Settings },
 ];
 

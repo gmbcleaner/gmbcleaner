@@ -53,6 +53,31 @@ export default function SupportPage() {
     try {
       const ticketId = await addDocument('support_tickets', { user_id: user.uid, subject: subject.trim(), status: 'open', priority });
       await addSubcollectionDoc('support_tickets', ticketId, 'ticket_messages', { user_id: user.uid, message: message.trim(), is_admin: false });
+      await addDocument('notifications', {
+        user_id: user.uid,
+        title: 'Support Ticket Created',
+        message: `Your ticket "${subject.trim()}" has been created. We'll respond shortly.`,
+        type: 'support',
+        is_read: false,
+      });
+
+      // Forward to Telegram
+      const telegramMsg = [
+        '🎫 <b>New Support Ticket</b>',
+        '',
+        `👤 User: ${user.email}`,
+        `📋 Subject: ${subject.trim()}`,
+        `⚡ Priority: ${priority}`,
+        '',
+        `💬 Message:`,
+        message.trim(),
+      ].join('\n');
+      fetch('/api/telegram', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: telegramMsg }),
+      }).catch(() => {});
+
       toast({ title: 'Ticket created', description: 'We will respond shortly.' });
       setNewOpen(false); setSubject(''); setMessage(''); setPriority('medium');
       fetchTickets();
@@ -66,6 +91,22 @@ export default function SupportPage() {
     setReplying(true);
     try {
       await addSubcollectionDoc('support_tickets', selectedTicket.id, 'ticket_messages', { user_id: user.uid, message: reply.trim(), is_admin: false });
+
+      // Forward reply to Telegram
+      const telegramMsg = [
+        '💬 <b>User Reply (Support)</b>',
+        '',
+        `👤 User: ${user.email}`,
+        `📋 Ticket: ${selectedTicket.subject}`,
+        '',
+        reply.trim(),
+      ].join('\n');
+      fetch('/api/telegram', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: telegramMsg }),
+      }).catch(() => {});
+
       setReply('');
       fetchTickets();
     } catch {} finally { setReplying(false); }
