@@ -14,7 +14,6 @@ import {
   Bell,
   LogOut,
   Menu,
-  X,
   ChevronDown,
   ShieldCheck,
 } from 'lucide-react';
@@ -24,14 +23,6 @@ import { toast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetTrigger,
-  SheetClose,
-} from '@/components/ui/sheet';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -78,16 +69,11 @@ interface ExtendedProfile {
   avatar_url?: string;
 }
 
-export default function DashboardLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
   const { user, profile, loading, refreshProfile, signOut } = useAuth();
-  const [authChecked, setAuthChecked] = useState(false);
-  const [mobileOpen, setMobileOpen] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [extendedProfile, setExtendedProfile] = useState<ExtendedProfile | null>(null);
@@ -96,15 +82,15 @@ export default function DashboardLayout({
     if (loading) return;
     if (!user) {
       router.replace('/user-login');
-      return;
     }
-    setAuthChecked(true);
   }, [user, loading, router]);
 
   const fetchExtendedProfile = useCallback(async () => {
     if (!user) return;
-    const data = await fetchCollection('profiles', [{ field: 'id', op: '==', value: user.uid }]);
-    if (data.length > 0) setExtendedProfile(data[0] as ExtendedProfile);
+    try {
+      const data = await fetchCollection('profiles', [{ field: 'id', op: '==', value: user.uid }]);
+      if (data.length > 0) setExtendedProfile(data[0] as ExtendedProfile);
+    } catch {}
   }, [user]);
 
   useEffect(() => {
@@ -113,14 +99,16 @@ export default function DashboardLayout({
 
   const fetchNotifications = useCallback(async () => {
     if (!user) return;
-    const data = await fetchCollection(
-      'notifications',
-      [{ field: 'user_id', op: '==', value: user.uid }],
-      'created_at',
-      20
-    );
-    setNotifications(data as NotificationItem[]);
-    setUnreadCount(data.filter((n) => !n.is_read).length);
+    try {
+      const data = await fetchCollection(
+        'notifications',
+        [{ field: 'user_id', op: '==', value: user.uid }],
+        'created_at',
+        20
+      );
+      setNotifications(data as NotificationItem[]);
+      setUnreadCount(data.filter((n) => !n.is_read).length);
+    } catch {}
   }, [user]);
 
   useEffect(() => {
@@ -132,6 +120,10 @@ export default function DashboardLayout({
     const interval = setInterval(fetchNotifications, 30000);
     return () => clearInterval(interval);
   }, [user, fetchNotifications]);
+
+  useEffect(() => {
+    setSidebarOpen(false);
+  }, [pathname]);
 
   const handleLogout = async () => {
     await signOut();
@@ -156,6 +148,8 @@ export default function DashboardLayout({
     return pathname.startsWith(href);
   };
 
+  if (loading) return null;
+
   const displayName =
     extendedProfile?.full_name ||
     profile?.email?.split('@')[0] ||
@@ -163,17 +157,6 @@ export default function DashboardLayout({
     'User';
   const walletBalance = extendedProfile?.wallet_balance ?? profile?.wallet_balance ?? 0;
   const initials = displayName.charAt(0).toUpperCase();
-
-  if (loading || !authChecked) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-50">
-        <div className="flex flex-col items-center gap-4">
-          <div className="h-12 w-12 animate-spin rounded-full border-4 border-slate-200 border-t-teal-500" />
-          <p className="text-sm text-slate-500">Loading dashboard…</p>
-        </div>
-      </div>
-    );
-  }
 
   const SidebarContent = () => (
     <div className="flex h-full flex-col">
@@ -194,7 +177,6 @@ export default function DashboardLayout({
             <Link
               key={item.href}
               href={item.href}
-              onClick={() => setMobileOpen(false)}
               className={`group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all ${
                 active
                   ? 'bg-gradient-to-r from-teal-500 to-sky-500 text-white shadow-md shadow-teal-500/20'
@@ -216,7 +198,6 @@ export default function DashboardLayout({
           </p>
           <Link
             href="/dashboard/add-funds"
-            onClick={() => setMobileOpen(false)}
             className="mt-3 block rounded-lg bg-teal-500 px-3 py-2 text-center text-xs font-semibold text-white transition-colors hover:bg-teal-600"
           >
             Add Funds
@@ -232,29 +213,21 @@ export default function DashboardLayout({
         <SidebarContent />
       </aside>
 
-      <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
-        <SheetContent side="left" className="w-72 p-0 lg:hidden">
-          <SheetHeader className="sr-only">
-            <SheetTitle>Navigation Menu</SheetTitle>
-          </SheetHeader>
-          <SidebarContent />
-        </SheetContent>
-      </Sheet>
+      {sidebarOpen && (
+        <div className="fixed inset-0 z-40 lg:hidden">
+          <div className="fixed inset-0 bg-black/50" onClick={() => setSidebarOpen(false)} />
+          <aside className="fixed inset-y-0 left-0 z-50 w-72 border-r border-slate-200 bg-white">
+            <SidebarContent />
+          </aside>
+        </div>
+      )}
 
       <div className="flex flex-1 flex-col lg:pl-64">
         <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-slate-200 bg-white/80 px-4 backdrop-blur-xl lg:px-8">
           <div className="flex items-center gap-3 lg:hidden">
-            <SheetTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => setMobileOpen(true)}
-                className="h-9 w-9"
-              >
-                <Menu className="h-5 w-5" />
-                <span className="sr-only">Open menu</span>
-              </Button>
-            </SheetTrigger>
+            <Button variant="ghost" size="icon" onClick={() => setSidebarOpen(true)} className="h-9 w-9">
+              <Menu className="h-5 w-5" />
+            </Button>
             <div className="flex items-center gap-2">
               <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-teal-500 to-sky-500">
                 <ShieldCheck className="h-4 w-4 text-white" />
@@ -287,10 +260,7 @@ export default function DashboardLayout({
                 <DropdownMenuLabel className="flex items-center justify-between">
                   <span>Notifications</span>
                   {unreadCount > 0 && (
-                    <button
-                      onClick={markAllRead}
-                      className="text-xs font-medium text-teal-600 hover:text-teal-700"
-                    >
+                    <button onClick={markAllRead} className="text-xs font-medium text-teal-600 hover:text-teal-700">
                       Mark all read
                     </button>
                   )}
@@ -329,18 +299,14 @@ export default function DashboardLayout({
               <DropdownMenuTrigger asChild>
                 <button className="flex items-center gap-2 rounded-lg px-2 py-1.5 transition-colors hover:bg-slate-100">
                   <Avatar className="h-8 w-8">
-                    {extendedProfile?.avatar_url ? (
-                      <AvatarImage src={extendedProfile.avatar_url} alt={displayName} />
-                    ) : null}
+                    {extendedProfile?.avatar_url ? <AvatarImage src={extendedProfile.avatar_url} alt={displayName} /> : null}
                     <AvatarFallback className="bg-gradient-to-br from-teal-500 to-sky-500 text-xs font-semibold text-white">
                       {initials}
                     </AvatarFallback>
                   </Avatar>
                   <div className="hidden text-left sm:block">
                     <p className="text-xs font-semibold text-slate-900">{displayName}</p>
-                    <p className="text-[10px] text-slate-500">
-                      ${walletBalance.toFixed(2)}
-                    </p>
+                    <p className="text-[10px] text-slate-500">${walletBalance.toFixed(2)}</p>
                   </div>
                   <ChevronDown className="hidden h-4 w-4 text-slate-400 sm:block" />
                 </button>
@@ -377,10 +343,7 @@ export default function DashboardLayout({
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem
-                  onClick={handleLogout}
-                  className="flex items-center gap-2 text-red-600 focus:text-red-600"
-                >
+                <DropdownMenuItem onClick={handleLogout} className="flex items-center gap-2 text-red-600 focus:text-red-600">
                   <LogOut className="h-4 w-4" />
                   Logout
                 </DropdownMenuItem>

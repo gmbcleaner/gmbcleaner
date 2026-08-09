@@ -5,7 +5,6 @@ import { fetchCollection } from '@/lib/db';
 import { useAuth } from '@/components/providers/auth-provider';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Skeleton } from '@/components/ui/skeleton';
 import { ListOrdered } from 'lucide-react';
 
 interface Order {
@@ -21,21 +20,12 @@ interface Order {
 export default function ProviderOrdersPage() {
   const { user } = useAuth();
   const [orders, setOrders] = useState<Order[]>([]);
-  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (!user) return;
-    const fetchOrders = async () => {
-      try {
-        const data = await fetchCollection('orders', undefined, 'created_at');
-        setOrders((data as Order[]) || []);
-      } catch {
-        // Firebase unavailable
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchOrders();
+    fetchCollection('orders', undefined, 'created_at')
+      .then((data) => setOrders((data as Order[]) || []))
+      .catch(() => {});
   }, [user]);
 
   const statusColors: Record<string, string> = {
@@ -54,11 +44,7 @@ export default function ProviderOrdersPage() {
 
       <Card className="shadow-card">
         <CardContent className="p-6">
-          {loading ? (
-            <div className="space-y-3">
-              {[1, 2, 3, 4].map((i) => <Skeleton key={i} className="h-16 w-full" />)}
-            </div>
-          ) : orders.length === 0 ? (
+          {orders.length === 0 ? (
             <p className="py-8 text-center text-sm text-slate-500">No orders yet.</p>
           ) : (
             <div className="space-y-3">
@@ -70,19 +56,13 @@ export default function ProviderOrdersPage() {
                     </div>
                     <div>
                       <p className="text-sm font-semibold text-slate-900">{order.order_code}</p>
-                      <p className="text-xs text-slate-500">
-                        {order.item_count} items &middot; {new Date(order.created_at).toLocaleDateString()}
-                      </p>
-                      {order.notes && (
-                        <p className="mt-1 text-xs text-slate-400 line-clamp-1">{order.notes}</p>
-                      )}
+                      <p className="text-xs text-slate-500">{order.item_count} items &middot; {new Date(order.created_at).toLocaleDateString()}</p>
+                      {order.notes && <p className="mt-1 text-xs text-slate-400 line-clamp-1">{order.notes}</p>}
                     </div>
                   </div>
                   <div className="flex items-center gap-3">
-                    <span className="text-sm font-bold text-slate-900">${order.total_amount.toFixed(2)}</span>
-                    <Badge className={statusColors[order.status] || 'bg-slate-100 text-slate-700'}>
-                      {order.status}
-                    </Badge>
+                    <span className="text-sm font-bold text-slate-900">${(order.total_amount || 0).toFixed(2)}</span>
+                    <Badge className={statusColors[order.status] || 'bg-slate-100 text-slate-700'}>{order.status}</Badge>
                   </div>
                 </div>
               ))}

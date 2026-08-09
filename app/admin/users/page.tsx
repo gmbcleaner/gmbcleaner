@@ -2,9 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import { fetchCollection } from '@/lib/db';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Skeleton } from '@/components/ui/skeleton';
 import { Users, Search } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 
@@ -19,21 +18,12 @@ interface UserProfile {
 
 export default function AdminUsersPage() {
   const [users, setUsers] = useState<UserProfile[]>([]);
-  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
 
   useEffect(() => {
-    const fetchUsers = async () => {
-      try {
-        const data = await fetchCollection('profiles', undefined, 'created_at');
-        setUsers((data as UserProfile[]) || []);
-      } catch {
-        // Firebase unavailable
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchUsers();
+    fetchCollection('profiles', undefined, 'created_at')
+      .then((data) => setUsers((data as UserProfile[]) || []))
+      .catch(() => {});
   }, []);
 
   const filtered = users.filter(
@@ -61,20 +51,11 @@ export default function AdminUsersPage() {
         <CardHeader>
           <div className="flex items-center gap-3">
             <Search className="h-4 w-4 text-slate-400" />
-            <Input
-              placeholder="Search by email or code..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="max-w-sm"
-            />
+            <Input placeholder="Search by email or code..." value={search} onChange={(e) => setSearch(e.target.value)} className="max-w-sm" />
           </div>
         </CardHeader>
         <CardContent>
-          {loading ? (
-            <div className="space-y-3">
-              {[1, 2, 3, 4].map((i) => <Skeleton key={i} className="h-14 w-full" />)}
-            </div>
-          ) : filtered.length === 0 ? (
+          {filtered.length === 0 ? (
             <p className="py-8 text-center text-sm text-slate-500">No users found.</p>
           ) : (
             <div className="space-y-2">
@@ -91,9 +72,7 @@ export default function AdminUsersPage() {
                   </div>
                   <div className="flex items-center gap-3">
                     <span className="text-sm font-bold text-slate-900">${(u.wallet_balance ?? 0).toFixed(2)}</span>
-                    <Badge className={roleColors[u.role] || 'bg-slate-100 text-slate-700'}>
-                      {u.role}
-                    </Badge>
+                    <Badge className={roleColors[u.role] || 'bg-slate-100 text-slate-700'}>{u.role}</Badge>
                   </div>
                 </div>
               ))}

@@ -6,9 +6,8 @@ import { toast } from '@/hooks/use-toast';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Skeleton } from '@/components/ui/skeleton';
 import { Input } from '@/components/ui/input';
-import { DollarSign, CheckCircle2, XCircle, Clock, Loader2, ExternalLink } from 'lucide-react';
+import { DollarSign, CheckCircle2, XCircle, Clock } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 
 interface Deposit {
@@ -25,7 +24,6 @@ interface Deposit {
 
 export default function AdminDepositsPage() {
   const [deposits, setDeposits] = useState<Deposit[]>([]);
-  const [loading, setLoading] = useState(true);
   const [processing, setProcessing] = useState<string | null>(null);
   const [rejectDialog, setRejectDialog] = useState<Deposit | null>(null);
   const [rejectReason, setRejectReason] = useState('');
@@ -33,7 +31,6 @@ export default function AdminDepositsPage() {
   const fetchDeposits = async () => {
     try {
       const depositsData = await fetchCollection('deposits', undefined, 'created_at');
-
       const enriched = await Promise.all(
         (depositsData || []).map(async (dep: any) => {
           let user_email = '';
@@ -45,9 +42,7 @@ export default function AdminDepositsPage() {
         })
       );
       setDeposits(enriched);
-    } catch {} finally {
-      setLoading(false);
-    }
+    } catch {}
   };
 
   useEffect(() => { fetchDeposits(); }, []);
@@ -56,13 +51,10 @@ export default function AdminDepositsPage() {
     setProcessing(deposit.id);
     try {
       await updateDocument('deposits', deposit.id, { status: 'approved' });
-
       const profile = await getDocument('profiles', deposit.user_id);
       const currentBalance = profile?.wallet_balance || 0;
       const newBalance = currentBalance + deposit.amount;
-
       await updateDocument('profiles', deposit.user_id, { wallet_balance: newBalance });
-
       await addDocument('transactions', {
         user_id: deposit.user_id,
         type: 'deposit',
@@ -70,7 +62,6 @@ export default function AdminDepositsPage() {
         balance_after: newBalance,
         description: `Deposit via ${deposit.network.toUpperCase()} approved`,
       });
-
       await addDocument('notifications', {
         user_id: deposit.user_id,
         title: 'Deposit Approved',
@@ -78,7 +69,6 @@ export default function AdminDepositsPage() {
         type: 'deposit',
         is_read: false,
       });
-
       toast({ title: 'Deposit approved', description: `$${deposit.amount.toFixed(2)} added to user's wallet.` });
       fetchDeposits();
     } catch (err: any) {
@@ -151,9 +141,7 @@ export default function AdminDepositsPage() {
       <Card className="shadow-card">
         <CardHeader><CardTitle className="text-lg">All Deposits</CardTitle></CardHeader>
         <CardContent>
-          {loading ? (
-            <div className="space-y-3">{[1,2,3].map(i => <Skeleton key={i} className="h-16 w-full" />)}</div>
-          ) : deposits.length === 0 ? (
+          {deposits.length === 0 ? (
             <p className="py-8 text-center text-sm text-slate-500">No deposits yet.</p>
           ) : (
             <div className="space-y-3">
@@ -166,11 +154,11 @@ export default function AdminDepositsPage() {
                     <p className="text-[10px] text-slate-400">{new Date(d.created_at).toLocaleString()}</p>
                   </div>
                   <div className="flex items-center gap-3">
-                    <Badge className={statusColors[d.status]}>{d.status}</Badge>
+                    <Badge className={statusColors[d.status] || 'bg-slate-100 text-slate-700'}>{d.status}</Badge>
                     {d.status === 'pending' && (
                       <div className="flex gap-2">
                         <Button size="sm" className="bg-green-600 text-white hover:bg-green-700" onClick={() => approveDeposit(d)} disabled={processing === d.id}>
-                          {processing === d.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
+                          <CheckCircle2 className="h-4 w-4" />
                         </Button>
                         <Button size="sm" variant="destructive" onClick={() => { setRejectDialog(d); }} disabled={processing === d.id}>
                           <XCircle className="h-4 w-4" />

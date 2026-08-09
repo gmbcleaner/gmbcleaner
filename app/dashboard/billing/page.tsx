@@ -3,48 +3,21 @@
 import { useEffect, useState } from 'react';
 import { fetchCollection } from '@/lib/db';
 import { useAuth } from '@/components/providers/auth-provider';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Skeleton } from '@/components/ui/skeleton';
+import { Card, CardContent } from '@/components/ui/card';
 import { Receipt, ArrowUpRight, ArrowDownRight } from 'lucide-react';
 
-interface Transaction {
-  id: string;
-  type: string;
-  amount: number;
-  balance_after: number;
-  description: string;
-  created_at: string;
-}
+interface Transaction { id: string; type: string; amount: number; balance_after: number; description: string; created_at: string; }
 
 export default function BillingPage() {
   const { user } = useAuth();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (!user) return;
-    const fetchTransactions = async () => {
-      try {
-        const data = await fetchCollection(
-          'transactions',
-          [{ field: 'user_id', op: '==', value: user.uid }],
-          'created_at'
-        );
-        setTransactions(data as Transaction[]);
-      } catch {} finally {
-        setLoading(false);
-      }
-    };
-    fetchTransactions();
+    fetchCollection('transactions', [{ field: 'user_id', op: '==', value: user.uid }], 'created_at')
+      .then((data) => setTransactions(data as Transaction[]))
+      .catch(() => {});
   }, [user]);
-
-  const typeColors: Record<string, string> = {
-    deposit: 'bg-green-100 text-green-700',
-    order_payment: 'bg-red-100 text-red-700',
-    refund: 'bg-blue-100 text-blue-700',
-    adjustment: 'bg-amber-100 text-amber-700',
-  };
 
   return (
     <div className="space-y-6">
@@ -55,9 +28,7 @@ export default function BillingPage() {
 
       <Card className="shadow-card">
         <CardContent className="p-6">
-          {loading ? (
-            <div className="space-y-3">{[1, 2, 3, 4].map((i) => <Skeleton key={i} className="h-14 w-full" />)}</div>
-          ) : transactions.length === 0 ? (
+          {transactions.length === 0 ? (
             <div className="py-12 text-center">
               <Receipt className="mx-auto h-12 w-12 text-slate-300" />
               <p className="mt-3 text-sm text-slate-500">No transactions yet.</p>
@@ -76,9 +47,7 @@ export default function BillingPage() {
                     </div>
                   </div>
                   <div className="text-right">
-                    <p className={`text-sm font-bold ${tx.amount >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                      {tx.amount >= 0 ? '+' : ''}${Math.abs(tx.amount).toFixed(2)}
-                    </p>
+                    <p className={`text-sm font-bold ${tx.amount >= 0 ? 'text-green-600' : 'text-red-600'}`}>{tx.amount >= 0 ? '+' : ''}${Math.abs(tx.amount).toFixed(2)}</p>
                     <p className="text-[10px] text-slate-400">Balance: ${(tx.balance_after ?? 0).toFixed(2)}</p>
                   </div>
                 </div>

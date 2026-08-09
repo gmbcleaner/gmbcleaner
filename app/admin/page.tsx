@@ -4,7 +4,6 @@ import { useEffect, useState } from 'react';
 import { Users, ListOrdered, DollarSign, Activity } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Skeleton } from '@/components/ui/skeleton';
 
 interface Stats {
   totalUsers: number;
@@ -24,10 +23,8 @@ interface RecentOrder {
 export default function AdminDashboardPage() {
   const [stats, setStats] = useState<Stats>({ totalUsers: 0, totalOrders: 0, totalRevenue: 0, pendingOrders: 0 });
   const [recentOrders, setRecentOrders] = useState<RecentOrder[]>([]);
-  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    let cancelled = false;
     const fetchData = async () => {
       try {
         const { fetchCollection, countDocuments } = await import('@/lib/db');
@@ -39,8 +36,6 @@ export default function AdminDashboardPage() {
           fetchCollection('orders', undefined, 'created_at', 10).catch(() => []),
         ]);
 
-        if (cancelled) return;
-
         const totalRevenue = (completedOrders || []).reduce((sum: number, o: any) => sum + (o.total_amount || 0), 0);
 
         setStats({
@@ -51,15 +46,10 @@ export default function AdminDashboardPage() {
         });
 
         setRecentOrders((recentOrdersData as RecentOrder[]) || []);
-      } catch {
-        // Firebase unavailable or collections missing
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
+      } catch {}
     };
 
     fetchData();
-    return () => { cancelled = true; };
   }, []);
 
   const statCards = [
@@ -92,11 +82,7 @@ export default function AdminDashboardPage() {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm font-medium text-slate-500">{card.title}</p>
-                    {loading ? (
-                      <Skeleton className="mt-2 h-8 w-20" />
-                    ) : (
-                      <p className="mt-2 text-3xl font-bold text-slate-900">{card.value}</p>
-                    )}
+                    <p className="mt-2 text-3xl font-bold text-slate-900">{card.value}</p>
                   </div>
                   <div className={`flex h-12 w-12 items-center justify-center rounded-xl ${card.bg}`}>
                     <Icon className={`h-6 w-6 ${card.color}`} />
@@ -113,13 +99,7 @@ export default function AdminDashboardPage() {
           <CardTitle className="text-lg">Recent Orders</CardTitle>
         </CardHeader>
         <CardContent>
-          {loading ? (
-            <div className="space-y-3">
-              {[1, 2, 3].map((i) => (
-                <Skeleton key={i} className="h-12 w-full" />
-              ))}
-            </div>
-          ) : recentOrders.length === 0 ? (
+          {recentOrders.length === 0 ? (
             <p className="py-8 text-center text-sm text-slate-500">No orders yet.</p>
           ) : (
             <div className="space-y-3">

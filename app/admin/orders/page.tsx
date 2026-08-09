@@ -3,12 +3,11 @@
 import { useEffect, useState } from 'react';
 import { fetchCollection, updateDocument, addDocument, getDocument } from '@/lib/db';
 import { toast } from '@/hooks/use-toast';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Skeleton } from '@/components/ui/skeleton';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ListOrdered, Loader2, ChevronDown, ChevronUp } from 'lucide-react';
+import { ListOrdered, ChevronDown, ChevronUp } from 'lucide-react';
 
 interface Order {
   id: string;
@@ -31,15 +30,12 @@ interface Provider {
 export default function AdminOrdersPage() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [providers, setProviders] = useState<Provider[]>([]);
-  const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState<string | null>(null);
   const [updating, setUpdating] = useState<string | null>(null);
 
   const fetchOrders = async () => {
     try {
       const ordersData = await fetchCollection('orders', undefined, 'created_at');
-
-      // Fetch user emails and order items for each order
       const enrichedOrders = await Promise.all(
         (ordersData || []).map(async (order: any) => {
           let user_email = '';
@@ -52,12 +48,9 @@ export default function AdminOrdersPage() {
         })
       );
       setOrders(enrichedOrders);
-
       const provs = await fetchCollection('profiles', [{ field: 'role', op: '==', value: 'provider' }]);
       setProviders((provs as Provider[]) || []);
-    } catch {} finally {
-      setLoading(false);
-    }
+    } catch {}
   };
 
   useEffect(() => { fetchOrders(); }, []);
@@ -88,8 +81,6 @@ export default function AdminOrdersPage() {
   const assignProvider = async (orderId: string, providerId: string) => {
     try {
       await updateDocument('orders', orderId, { assigned_provider: providerId });
-
-      // Create provider tasks for each order item
       const order = orders.find(o => o.id === orderId);
       if (order?.order_items) {
         for (const item of order.order_items) {
@@ -102,7 +93,6 @@ export default function AdminOrdersPage() {
           });
         }
       }
-
       toast({ title: 'Provider assigned' });
       fetchOrders();
     } catch (err: any) {
@@ -127,9 +117,7 @@ export default function AdminOrdersPage() {
 
       <Card className="shadow-card">
         <CardContent className="p-6">
-          {loading ? (
-            <div className="space-y-3">{[1,2,3,4].map(i => <Skeleton key={i} className="h-16 w-full" />)}</div>
-          ) : orders.length === 0 ? (
+          {orders.length === 0 ? (
             <p className="py-8 text-center text-sm text-slate-500">No orders yet.</p>
           ) : (
             <div className="space-y-3">
@@ -146,12 +134,11 @@ export default function AdminOrdersPage() {
                       </div>
                     </div>
                     <div className="flex items-center gap-3">
-                      <span className="text-sm font-bold">${order.total_amount.toFixed(2)}</span>
-                      <Badge className={statusColors[order.status]}>{order.status}</Badge>
+                      <span className="text-sm font-bold">${(order.total_amount || 0).toFixed(2)}</span>
+                      <Badge className={statusColors[order.status] || 'bg-slate-100 text-slate-700'}>{order.status}</Badge>
                       {expanded === order.id ? <ChevronUp className="h-4 w-4 text-slate-400" /> : <ChevronDown className="h-4 w-4 text-slate-400" />}
                     </div>
                   </div>
-
                   {expanded === order.id && (
                     <div className="border-t border-slate-200 p-4 space-y-4 bg-slate-50/50">
                       <div className="flex flex-wrap gap-2">

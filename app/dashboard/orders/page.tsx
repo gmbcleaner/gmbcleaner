@@ -1,63 +1,19 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import {
-  ListOrdered,
-  ChevronDown,
-  ChevronRight,
-  Package,
-  Search,
-  ExternalLink,
-  Inbox,
-  Loader2,
-} from 'lucide-react';
+import { ListOrdered, ChevronDown, ChevronRight, Package, Search, ExternalLink, Inbox } from 'lucide-react';
 import { fetchCollection } from '@/lib/db';
 import { useAuth } from '@/components/providers/auth-provider';
 import { toast } from '@/hooks/use-toast';
-import {
-  Card,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-  CardContent,
-} from '@/components/ui/card';
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { Skeleton } from '@/components/ui/skeleton';
-import {
-  Table,
-  TableHeader,
-  TableBody,
-  TableRow,
-  TableHead,
-  TableCell,
-} from '@/components/ui/table';
-import {
-  Select,
-  SelectTrigger,
-  SelectValue,
-  SelectContent,
-  SelectItem,
-} from '@/components/ui/select';
+import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table';
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 
-interface OrderRow {
-  id: string;
-  order_code: string;
-  status: string;
-  total_amount: number;
-  item_count: number;
-  created_at: string;
-  notes: string | null;
-}
-
-interface OrderItemRow {
-  id: string;
-  review_url: string;
-  status: string;
-}
-
+interface OrderRow { id: string; order_code: string; status: string; total_amount: number; item_count: number; created_at: string; notes: string | null; }
+interface OrderItemRow { id: string; review_url: string; status: string; }
 type StatusFilter = 'all' | 'pending' | 'processing' | 'completed' | 'rejected';
 
 const STATUS_COLORS: Record<string, string> = {
@@ -80,25 +36,16 @@ const ITEMS_PER_PAGE = 10;
 
 function StatusBadge({ status }: { status: string }) {
   const colorClass = STATUS_COLORS[status?.toLowerCase()] || 'bg-slate-100 text-slate-600 border-slate-200';
-  return (
-    <Badge variant="outline" className={`capitalize ${colorClass}`}>
-      {status || 'pending'}
-    </Badge>
-  );
+  return <Badge variant="outline" className={`capitalize ${colorClass}`}>{status || 'pending'}</Badge>;
 }
 
 function ItemStatusBadge({ status }: { status: string }) {
   const colorClass = ITEM_STATUS_COLORS[status?.toLowerCase()] || 'bg-slate-100 text-slate-600 border-slate-200';
-  return (
-    <Badge variant="outline" className={`text-[10px] capitalize ${colorClass}`}>
-      {status || 'pending'}
-    </Badge>
-  );
+  return <Badge variant="outline" className={`text-[10px] capitalize ${colorClass}`}>{status || 'pending'}</Badge>;
 }
 
 export default function OrdersPage() {
   const { user } = useAuth();
-  const [loading, setLoading] = useState(true);
   const [orders, setOrders] = useState<OrderRow[]>([]);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [searchQuery, setSearchQuery] = useState('');
@@ -110,114 +57,58 @@ export default function OrdersPage() {
   const fetchOrders = useCallback(async () => {
     if (!user) return;
     try {
-      setLoading(true);
-      const data = await fetchCollection(
-        'orders',
-        [{ field: 'user_id', op: '==', value: user.uid }],
-        'created_at'
-      );
+      const data = await fetchCollection('orders', [{ field: 'user_id', op: '==', value: user.uid }], 'created_at');
       setOrders(data as OrderRow[]);
     } catch {
-      toast({
-        title: 'Error',
-        description: 'Failed to load orders.',
-        variant: 'destructive',
-      });
-    } finally {
-      setLoading(false);
+      toast({ title: 'Error', description: 'Failed to load orders.', variant: 'destructive' });
     }
   }, [user]);
 
-  useEffect(() => {
-    fetchOrders();
-  }, [fetchOrders]);
+  useEffect(() => { fetchOrders(); }, [fetchOrders]);
 
-  const fetchOrderItems = useCallback(
-    async (orderId: string) => {
-      setLoadingItems(orderId);
-      try {
-        const data = await fetchCollection('order_items', [
-          { field: 'order_id', op: '==', value: orderId },
-        ]);
-        setOrderItems((prev) => ({ ...prev, [orderId]: data as OrderItemRow[] }));
-      } catch {
-        toast({
-          title: 'Error',
-          description: 'Failed to load order items.',
-          variant: 'destructive',
-        });
-      } finally {
-        setLoadingItems(null);
-      }
-    },
-    []
-  );
+  const fetchOrderItems = useCallback(async (orderId: string) => {
+    setLoadingItems(orderId);
+    try {
+      const data = await fetchCollection('order_items', [{ field: 'order_id', op: '==', value: orderId }]);
+      setOrderItems((prev) => ({ ...prev, [orderId]: data as OrderItemRow[] }));
+    } catch {} finally { setLoadingItems(null); }
+  }, []);
 
   const toggleExpand = (orderId: string) => {
-    if (expandedId === orderId) {
-      setExpandedId(null);
-      return;
-    }
+    if (expandedId === orderId) { setExpandedId(null); return; }
     setExpandedId(orderId);
-    if (!orderItems[orderId]) {
-      fetchOrderItems(orderId);
-    }
+    if (!orderItems[orderId]) fetchOrderItems(orderId);
   };
 
   const filteredOrders = orders.filter((order) => {
-    const matchesStatus =
-      statusFilter === 'all' || order.status?.toLowerCase() === statusFilter;
-    const matchesSearch =
-      !searchQuery ||
-      order.order_code?.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesStatus = statusFilter === 'all' || order.status?.toLowerCase() === statusFilter;
+    const matchesSearch = !searchQuery || order.order_code?.toLowerCase().includes(searchQuery.toLowerCase());
     return matchesStatus && matchesSearch;
   });
 
   const totalPages = Math.ceil(filteredOrders.length / ITEMS_PER_PAGE) || 1;
-  const paginatedOrders = filteredOrders.slice(
-    (currentPage - 1) * ITEMS_PER_PAGE,
-    currentPage * ITEMS_PER_PAGE
-  );
+  const paginatedOrders = filteredOrders.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
 
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [statusFilter, searchQuery]);
+  useEffect(() => { setCurrentPage(1); }, [statusFilter, searchQuery]);
 
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold tracking-tight text-slate-900">Orders</h1>
-        <p className="mt-1 text-sm text-slate-500">
-          View and manage all your review dispute orders.
-        </p>
+        <p className="mt-1 text-sm text-slate-500">View and manage all your review dispute orders.</p>
       </div>
 
       <Card className="shadow-card">
         <CardHeader>
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <CardTitle className="text-lg">Order History</CardTitle>
-              <CardDescription>
-                {filteredOrders.length} order{filteredOrders.length !== 1 ? 's' : ''} found
-              </CardDescription>
-            </div>
+            <div><CardTitle className="text-lg">Order History</CardTitle><CardDescription>{filteredOrders.length} order{filteredOrders.length !== 1 ? 's' : ''} found</CardDescription></div>
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                <Input
-                  placeholder="Search by order code…"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-9 sm:w-56"
-                />
+                <Input placeholder="Search by order code…" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="pl-9 sm:w-56" />
               </div>
-              <Select
-                value={statusFilter}
-                onValueChange={(v) => setStatusFilter(v as StatusFilter)}
-              >
-                <SelectTrigger className="sm:w-40">
-                  <SelectValue placeholder="Filter by status" />
-                </SelectTrigger>
+              <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as StatusFilter)}>
+                <SelectTrigger className="sm:w-40"><SelectValue placeholder="Filter by status" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Statuses</SelectItem>
                   <SelectItem value="pending">Pending</SelectItem>
@@ -230,179 +121,65 @@ export default function OrdersPage() {
           </div>
         </CardHeader>
         <CardContent>
-          {loading ? (
-            <div className="space-y-3">
-              {Array.from({ length: 6 }).map((_, i) => (
-                <div key={i} className="flex items-center gap-4">
-                  <Skeleton className="h-5 w-5" />
-                  <Skeleton className="h-4 w-28" />
-                  <Skeleton className="h-4 w-24" />
-                  <Skeleton className="h-4 w-12" />
-                  <Skeleton className="h-4 w-16" />
-                  <Skeleton className="h-6 w-20 rounded-full" />
-                </div>
-              ))}
-            </div>
-          ) : paginatedOrders.length === 0 ? (
+          {paginatedOrders.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-16 text-center">
-              <div className="flex h-16 w-16 items-center justify-center rounded-full bg-slate-100">
-                <Inbox className="h-8 w-8 text-slate-400" />
-              </div>
-              <p className="mt-4 text-sm font-medium text-slate-900">
-                {searchQuery || statusFilter !== 'all'
-                  ? 'No orders match your filters'
-                  : 'No orders yet'}
-              </p>
-              <p className="mt-1 text-xs text-slate-500">
-                {searchQuery || statusFilter !== 'all'
-                  ? 'Try adjusting your search or filter.'
-                  : 'Create a new order to get started.'}
-              </p>
+              <div className="flex h-16 w-16 items-center justify-center rounded-full bg-slate-100"><Inbox className="h-8 w-8 text-slate-400" /></div>
+              <p className="mt-4 text-sm font-medium text-slate-900">{searchQuery || statusFilter !== 'all' ? 'No orders match your filters' : 'No orders yet'}</p>
+              <p className="mt-1 text-xs text-slate-500">{searchQuery || statusFilter !== 'all' ? 'Try adjusting your search or filter.' : 'Create a new order to get started.'}</p>
             </div>
           ) : (
             <>
               <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="w-8"></TableHead>
-                    <TableHead>Order Code</TableHead>
-                    <TableHead>Date</TableHead>
-                    <TableHead className="text-center">Items</TableHead>
-                    <TableHead className="text-right">Total</TableHead>
-                    <TableHead>Status</TableHead>
-                  </TableRow>
-                </TableHeader>
+                <TableHeader><TableRow><TableHead className="w-8"></TableHead><TableHead>Order Code</TableHead><TableHead>Date</TableHead><TableHead className="text-center">Items</TableHead><TableHead className="text-right">Total</TableHead><TableHead>Status</TableHead></TableRow></TableHeader>
                 <TableBody>
                   {paginatedOrders.map((order) => {
                     const isExpanded = expandedId === order.id;
                     const items = orderItems[order.id];
                     const isLoadingThisOrder = loadingItems === order.id;
                     return (
-                      <>
-                        <TableRow
-                          key={order.id}
-                          onClick={() => toggleExpand(order.id)}
-                          className="cursor-pointer"
-                        >
-                          <TableCell className="w-8">
-                            <div className="flex h-5 w-5 items-center justify-center">
-                              {isExpanded ? (
-                                <ChevronDown className="h-4 w-4 text-slate-400" />
-                              ) : (
-                                <ChevronRight className="h-4 w-4 text-slate-400" />
-                              )}
-                            </div>
-                          </TableCell>
-                          <TableCell className="font-mono text-xs font-semibold text-slate-700">
-                            {order.order_code}
-                          </TableCell>
-                          <TableCell className="text-sm text-slate-500">
-                            {new Date(order.created_at).toLocaleDateString(undefined, {
-                              month: 'short',
-                              day: 'numeric',
-                              year: 'numeric',
-                            })}
-                          </TableCell>
-                          <TableCell className="text-center text-sm text-slate-600">
-                            {order.item_count}
-                          </TableCell>
-                          <TableCell className="text-right text-sm font-semibold text-slate-900">
-                            ${order.total_amount.toFixed(2)}
-                          </TableCell>
-                          <TableCell>
-                            <StatusBadge status={order.status} />
-                          </TableCell>
-                        </TableRow>
-                        <AnimatePresence>
-                          {isExpanded && (
-                            <motion.tr
-                              key={`${order.id}-expanded`}
-                              initial={{ opacity: 0, height: 0 }}
-                              animate={{ opacity: 1, height: 'auto' }}
-                              exit={{ opacity: 0, height: 0 }}
-                              transition={{ duration: 0.2 }}
-                              className="border-b"
-                            >
-                              <TableCell colSpan={6} className="bg-slate-50 p-0">
-                                <div className="p-4">
-                                  {order.notes && (
-                                    <div className="mb-3 rounded-lg border border-slate-200 bg-white p-3">
-                                      <p className="text-xs font-medium text-slate-500">Notes</p>
-                                      <p className="mt-1 text-sm text-slate-700">{order.notes}</p>
-                                    </div>
-                                  )}
-
-                                  <p className="mb-2 text-xs font-medium text-slate-500">
-                                    Review Items ({order.item_count})
-                                  </p>
-                                  {isLoadingThisOrder ? (
-                                    <div className="flex items-center gap-2 py-4 text-sm text-slate-500">
-                                      <Loader2 className="h-4 w-4 animate-spin" />
-                                      Loading items…
-                                    </div>
-                                  ) : items && items.length > 0 ? (
-                                    <div className="space-y-2">
-                                      {items.map((item, idx) => (
-                                        <div
-                                          key={item.id}
-                                          className="flex items-center gap-3 rounded-lg border border-slate-200 bg-white p-3"
-                                        >
-                                          <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-slate-100 text-xs font-semibold text-slate-500">
-                                            {idx + 1}
-                                          </span>
-                                          <a
-                                            href={item.review_url}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            className="flex min-w-0 flex-1 items-center gap-1 text-sm text-teal-600 hover:text-teal-700 hover:underline"
-                                          >
-                                            <span className="truncate font-mono text-xs">
-                                              {item.review_url}
-                                            </span>
-                                            <ExternalLink className="h-3 w-3 shrink-0" />
-                                          </a>
-                                          <ItemStatusBadge status={item.status} />
-                                        </div>
-                                      ))}
-                                    </div>
-                                  ) : (
-                                    <p className="py-4 text-sm text-slate-500">
-                                      No items found for this order.
-                                    </p>
-                                  )}
-                                </div>
-                              </TableCell>
-                            </motion.tr>
-                          )}
-                        </AnimatePresence>
-                      </>
+                      <TableRow key={order.id}>
+                        <TableCell className="w-8" onClick={() => toggleExpand(order.id)}>
+                          <div className="flex h-5 w-5 items-center justify-center cursor-pointer">
+                            {isExpanded ? <ChevronDown className="h-4 w-4 text-slate-400" /> : <ChevronRight className="h-4 w-4 text-slate-400" />}
+                          </div>
+                        </TableCell>
+                        <TableCell className="font-mono text-xs font-semibold text-slate-700" onClick={() => toggleExpand(order.id)}>{order.order_code}</TableCell>
+                        <TableCell className="text-sm text-slate-500" onClick={() => toggleExpand(order.id)}>{new Date(order.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}</TableCell>
+                        <TableCell className="text-center text-sm text-slate-600" onClick={() => toggleExpand(order.id)}>{order.item_count}</TableCell>
+                        <TableCell className="text-right text-sm font-semibold text-slate-900" onClick={() => toggleExpand(order.id)}>${(order.total_amount || 0).toFixed(2)}</TableCell>
+                        <TableCell onClick={() => toggleExpand(order.id)}><StatusBadge status={order.status} /></TableCell>
+                      </TableRow>
                     );
                   })}
                 </TableBody>
               </Table>
-
+              {expandedId && (
+                <div className="mt-2 rounded-lg border border-slate-200 bg-slate-50 p-4">
+                  {loadingItems === expandedId ? (
+                    <p className="py-4 text-sm text-slate-500">Loading items...</p>
+                  ) : orderItems[expandedId]?.length > 0 ? (
+                    <div className="space-y-2">
+                      <p className="mb-2 text-xs font-medium text-slate-500">Review Items</p>
+                      {orderItems[expandedId].map((item, idx) => (
+                        <div key={item.id} className="flex items-center gap-3 rounded-lg border border-slate-200 bg-white p-3">
+                          <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-slate-100 text-xs font-semibold text-slate-500">{idx + 1}</span>
+                          <a href={item.review_url} target="_blank" rel="noopener noreferrer" className="flex min-w-0 flex-1 items-center gap-1 text-sm text-teal-600 hover:text-teal-700 hover:underline">
+                            <span className="truncate font-mono text-xs">{item.review_url}</span>
+                            <ExternalLink className="h-3 w-3 shrink-0" />
+                          </a>
+                          <ItemStatusBadge status={item.status} />
+                        </div>
+                      ))}
+                    </div>
+                  ) : <p className="py-4 text-sm text-slate-500">No items found.</p>}
+                </div>
+              )}
               {totalPages > 1 && (
                 <div className="mt-4 flex items-center justify-between">
-                  <p className="text-xs text-slate-500">
-                    Page {currentPage} of {totalPages}
-                  </p>
+                  <p className="text-xs text-slate-500">Page {currentPage} of {totalPages}</p>
                   <div className="flex gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                      disabled={currentPage === 1}
-                    >
-                      Previous
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-                      disabled={currentPage === totalPages}
-                    >
-                      Next
-                    </Button>
+                    <Button variant="outline" size="sm" onClick={() => setCurrentPage((p) => Math.max(1, p - 1))} disabled={currentPage === 1}>Previous</Button>
+                    <Button variant="outline" size="sm" onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages}>Next</Button>
                   </div>
                 </div>
               )}
