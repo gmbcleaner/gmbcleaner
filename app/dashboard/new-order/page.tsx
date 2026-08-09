@@ -167,7 +167,17 @@ export default function NewOrderPage() {
         status: 'pending',
       }));
 
-      await Promise.all(orderItems.map((item) => addDocument('order_items', item)));
+      const savedItemIds = await Promise.all(orderItems.map((item) => addDocument('order_items', item)));
+
+      await Promise.all(savedItemIds.map((itemId, idx) =>
+        addDocument('provider_tasks', {
+          order_id: orderId,
+          order_item_id: itemId,
+          provider_id: null,
+          status: 'pending',
+          review_url: validUrls[idx]?.url || '',
+        })
+      ));
 
       await updateDocument('profiles', user.uid, { wallet_balance: newBalance });
 

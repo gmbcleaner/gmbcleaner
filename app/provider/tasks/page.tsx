@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { fetchCollection, updateDocument, getDocument } from '@/lib/db';
+import { fetchCollection, updateDocument, getDocument, addDocument } from '@/lib/db';
 import { toast } from '@/hooks/use-toast';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -31,20 +31,10 @@ export default function ProviderTasksPage() {
 
   const fetchTasks = async () => {
     try {
-      const providerId = localStorage.getItem('gmb_provider_id');
-      let rawTasks;
-      if (providerId) {
-        rawTasks = await fetchCollection(
-          'provider_tasks',
-          [{ field: 'provider_id', op: '==', value: providerId }],
-          'created_at'
-        );
-      } else {
-        rawTasks = await fetchCollection('provider_tasks', undefined, 'created_at');
-      }
+      const allTasks = await fetchCollection('provider_tasks', undefined, 'created_at');
 
       const tasksWithOrders: ProviderTask[] = await Promise.all(
-        rawTasks.map(async (task: any) => {
+        allTasks.map(async (task: any) => {
           let orders = null;
           try {
             orders = await getDocument('orders', task.order_id);
@@ -60,6 +50,32 @@ export default function ProviderTasksPage() {
   };
 
   useEffect(() => { fetchTasks(); }, []);
+
+  useEffect(() => {
+    const ensureTasksForExistingOrders = async () => {
+      try {
+        const allOrders = await fetchCollection('orders');
+        const allTasks = await fetchCollection('provider_tasks');
+        const ordersWithTasks = new Set(allTasks.map((t: any) => t.order_id));
+
+        for (const order of allOrders) {
+          if (!ordersWithTasks.has(order.id)) {
+            const items = await fetchCollection('order_items', [{ field: 'order_id', op: '==', value: order.id }]);
+            for (const item of items) {
+              await addDocument('provider_tasks', {
+                order_id: order.id,
+                order_item_id: item.id,
+                provider_id: order.assigned_provider || null,
+                status: 'pending',
+                review_url: item.review_url || '',
+              });
+            }
+          }
+        }
+      } catch {}
+    };
+    ensureTasksForExistingOrders().then(() => fetchTasks());
+  }, []);
 
   const startTask = async (taskId: string) => {
     setUpdating(taskId);
