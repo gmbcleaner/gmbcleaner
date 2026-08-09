@@ -11,8 +11,8 @@ import {
   updatePassword as firebaseUpdatePassword,
   type User,
 } from 'firebase/auth';
-import { auth, db } from '@/lib/firebase';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { ref, get, set } from 'firebase/database';
+import { auth, rtdb } from '@/lib/firebase';
 
 interface AuthContextValue {
   user: User | null;
@@ -46,10 +46,10 @@ function generateUserCode(): string {
 
 async function ensureProfile(user: User) {
   try {
-    if (!db) return;
-    const snap = await getDoc(doc(db, 'profiles', user.uid));
+    if (!rtdb) return;
+    const snap = await get(ref(rtdb, `profiles/${user.uid}`));
     if (!snap.exists()) {
-      await setDoc(doc(db, 'profiles', user.uid), {
+      await set(ref(rtdb, `profiles/${user.uid}`), {
         email: user.email,
         role: 'user',
         user_code: generateUserCode(),
@@ -82,10 +82,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const fetchProfile = async (uid: string) => {
     try {
-      if (!db) return;
-      const snap = await getDoc(doc(db, 'profiles', uid));
+      if (!rtdb) return;
+      const snap = await get(ref(rtdb, `profiles/${uid}`));
       if (snap.exists()) {
-        setProfile({ id: snap.id, ...snap.data() } as UserProfile);
+        setProfile({ id: uid, ...snap.val() } as UserProfile);
       }
     } catch {}
   };
@@ -120,8 +120,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       if (!auth) return { error: 'Firebase Auth not configured' };
       const cred = await createUserWithEmailAndPassword(auth, email, password);
-      if (db) {
-        await setDoc(doc(db, 'profiles', cred.user.uid), {
+      if (rtdb) {
+        await set(ref(rtdb, `profiles/${cred.user.uid}`), {
           email,
           role: 'user',
           user_code: generateUserCode(),

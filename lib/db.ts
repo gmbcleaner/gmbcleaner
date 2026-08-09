@@ -1,18 +1,17 @@
 import {
-  collection,
-  getDocs,
-  addDoc,
-  updateDoc,
-  doc,
-  setDoc,
-  query,
-  where,
-  orderBy as fbOrderBy,
-  limit as fbLimit,
-  getDoc,
-  writeBatch,
-} from 'firebase/firestore';
-import { db } from './firebase';
+  ref,
+  push,
+  set,
+  update,
+  remove,
+  get,
+  child,
+  orderByChild,
+  equalTo,
+  query as rtdbQuery,
+  limitToFirst,
+} from 'firebase/database';
+import { rtdb } from './firebase';
 
 export interface QueryFilter {
   field: string;
@@ -21,7 +20,16 @@ export interface QueryFilter {
 }
 
 function checkDb() {
-  if (!db) throw new Error('Firestore not connected. Check Firebase config.');
+  if (!rtdb) throw new Error('Firebase Realtime Database not connected.');
+}
+
+function snapshotToArray(snapshot: any): any[] {
+  const data = snapshot.val();
+  if (!data) return [];
+  if (typeof data === 'object' && !Array.isArray(data)) {
+    return Object.entries(data).map(([id, val]: [string, any]) => ({ id, ...val }));
+  }
+  return data;
 }
 
 export async function fetchCollection(
@@ -31,65 +39,107 @@ export async function fetchCollection(
   limitCount?: number
 ) {
   checkDb();
-  const constraints: any[] = [];
+  const dbRef = ref(rtdb);
+
+  if (filters && filters.length === 1 && filters[0].op === '==') {
+    const f = filters[0];
+    let q: any = rtdbQuery(child(dbRef, colName), orderByChild(f.field), equalTo(f.value));
+    if (orderByField) {
+      q = rtdbQuery(child(dbRef, colName), orderByChild(f.field), equalTo(f.value));
+    }
+    if (limitCount) {
+      q = rtdbQuery(child(dbRef, colName), orderByChild(f.field), equalTo(f.value));
+    }
+    const snap = await get(q);
+    let results = snapshotToArray(snap);
+    if (orderByField) {
+      results.sort((a: any, b: any) => {
+        const aVal = a[orderByField] || '';
+        const bVal = b[orderByField] || '';
+        return bVal > aVal ? 1 : bVal < aVal ? -1 : 0;
+      });
+    }
+    if (limitCount) results = results.slice(0, limitCount);
+    return results;
+  }
+
+  const snap = await get(child(dbRef, colName));
+  let results = snapshotToArray(snap);
+
   if (filters) {
-    filters.forEach((f) => constraints.push(where(f.field, f.op, f.value)));
+    results = results.filter((item: any) => {
+      return filters.every((f) => {
+        const val = item[f.field];
+        switch (f.op) {
+          case '==': return val === f.value;
+          case '!=': return val !== f.value;
+          case '<': return val < f.value;
+          case '<=': return val <= f.value;
+          case '>': return val > f.value;
+          case '>=': return val >= f.value;
+          case 'in': return Array.isArray(f.value) && f.value.includes(val);
+          case 'array-contains': return Array.isArray(val) && val.includes(f.value);
+          default: return true;
+        }
+      });
+    });
   }
+
   if (orderByField) {
-    constraints.push(fbOrderBy(orderByField, 'desc'));
+    results.sort((a: any, b: any) => {
+      const aVal = a[orderByField] || '';
+      const bVal = b[orderByField] || '';
+      return bVal > aVal ? 1 : bVal < aVal ? -1 : 0;
+    });
   }
-  if (limitCount) {
-    constraints.push(fbLimit(limitCount));
-  }
-  const q = query(collection(db, colName), ...constraints);
-  const snapshot = await getDocs(q);
-  return snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
+
+  if (limitCount) results = results.slice(0, limitCount);
+
+  return results;
 }
 
 export async function addDocument(colName: string, data: Record<string, any>) {
   checkDb();
-  const docRef = await addDoc(collection(db, colName), {
+  const newRef = push(ref(rtdb, colName));
+  await set(newRef, {
     ...data,
-    is_deleted: false,
     created_at: new Date().toISOString(),
   });
-  return docRef.id;
+  return newRef.key!;
 }
 
 export async function addDocumentWithId(colName: string, id: string, data: Record<string, any>) {
   checkDb();
-  const docRef = doc(db, colName, id);
-  await setDoc(docRef, { ...data, id, is_deleted: false });
+  await set(ref(rtdb, `${colName}/${id}`), { ...data, id });
 }
 
 export async function updateDocument(colName: string, docId: string, data: Record<string, any>) {
   checkDb();
-  await updateDoc(doc(db, colName, docId), data);
+  await update(ref(rtdb, `${colName}/${docId}`), data);
 }
 
 export async function deleteDocument(colName: string, docId: string) {
   checkDb();
-  await updateDoc(doc(db, colName, docId), { is_deleted: true, deleted_at: new Date().toISOString() });
+  await update(ref(rtdb, `${colName}/${docId}`), { is_deleted: true, deleted_at: new Date().toISOString() });
 }
 
 export async function hardDeleteDocument(colName: string, docId: string) {
   checkDb();
-  const { deleteDoc } = await import('firebase/firestore');
-  await deleteDoc(doc(db, colName, docId));
+  await remove(ref(rtdb, `${colName}/${docId}`));
 }
 
 export async function getDocument(colName: string, docId: string) {
   checkDb();
-  const snap = await getDoc(doc(db, colName, docId));
+  const snap = await get(child(ref(rtdb), `${colName}/${docId}`));
   if (!snap.exists()) return null;
-  const data = snap.data();
+  const data = snap.val();
   if (data.is_deleted) return null;
-  return { id: snap.id, ...data };
+  return { id: docId, ...data };
 }
 
 export async function countDocuments(colName: string, filters?: QueryFilter[]) {
-  const allFilters = [...(filters || [])];
-  return fetchCollection(colName, allFilters.length > 0 ? allFilters : undefined).then(d => d.length);
+  const data = await fetchCollection(colName, filters);
+  return Array.isArray(data) ? data.length : 0;
 }
 
 export async function fetchSubcollection(
@@ -99,13 +149,17 @@ export async function fetchSubcollection(
   orderByField?: string
 ) {
   checkDb();
-  const constraints: any[] = [];
+  const path = `${colName}/${docId}/${subColName}`;
+  const snap = await get(child(ref(rtdb), path));
+  let results = snapshotToArray(snap);
   if (orderByField) {
-    constraints.push(fbOrderBy(orderByField, 'asc'));
+    results.sort((a: any, b: any) => {
+      const aVal = a[orderByField] || '';
+      const bVal = b[orderByField] || '';
+      return aVal > bVal ? 1 : aVal < bVal ? -1 : 0;
+    });
   }
-  const q = query(collection(db, colName, docId, subColName), ...constraints);
-  const snapshot = await getDocs(q);
-  return snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
+  return results;
 }
 
 export async function addSubcollectionDoc(
@@ -115,18 +169,19 @@ export async function addSubcollectionDoc(
   data: Record<string, any>
 ) {
   checkDb();
-  const docRef = await addDoc(collection(db, colName, docId, subColName), {
+  const newRef = push(ref(rtdb, `${colName}/${docId}/${subColName}`));
+  await set(newRef, {
     ...data,
     created_at: new Date().toISOString(),
   });
-  return docRef.id;
+  return newRef.key!;
 }
 
 export async function batchUpdate(updates: { col: string; id: string; data: Record<string, any> }[]) {
   checkDb();
-  const batch = writeBatch(db);
+  const updatesObj: Record<string, any> = {};
   updates.forEach(({ col, id, data }) => {
-    batch.update(doc(db, col, id), data);
+    updatesObj[`${col}/${id}`] = data;
   });
-  await batch.commit();
+  await update(ref(rtdb), updatesObj);
 }
