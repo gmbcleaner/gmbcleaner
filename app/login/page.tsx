@@ -95,12 +95,21 @@ export default function LoginPage() {
       }
 
       if (data.user) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', data.user.id)
+          .maybeSingle();
+
+        const role = profile?.role || 'user';
+        const redirectTo = role === 'admin' ? '/admin' : role === 'provider' ? '/provider' : '/dashboard';
+
         toast({
           title: 'Welcome back',
           description: 'You have been logged in successfully.',
         });
 
-        router.push('/dashboard');
+        router.push(redirectTo);
         router.refresh();
       }
     } catch {

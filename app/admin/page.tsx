@@ -1,0 +1,150 @@
+'use client';
+
+import { useEffect, useState } from 'react';
+import { motion } from 'framer-motion';
+import { Users, ListOrdered, DollarSign, TrendingUp, Activity } from 'lucide-react';
+import { supabase } from '@/lib/supabase';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Skeleton } from '@/components/ui/skeleton';
+
+interface Stats {
+  totalUsers: number;
+  totalOrders: number;
+  totalRevenue: number;
+  pendingOrders: number;
+}
+
+interface RecentOrder {
+  id: string;
+  order_code: string;
+  status: string;
+  total_amount: number;
+  created_at: string;
+  profiles?: { email: string } | null;
+}
+
+export default function AdminDashboardPage() {
+  const [stats, setStats] = useState<Stats | null>(null);
+  const [recentOrders, setRecentOrders] = useState<RecentOrder[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const [usersRes, ordersRes, revenueRes, pendingRes, recentRes] = await Promise.all([
+          supabase.from('profiles').select('id', { count: 'exact', head: true }),
+          supabase.from('orders').select('id', { count: 'exact', head: true }),
+          supabase.from('orders').select('total_amount').eq('status', 'completed'),
+          supabase.from('orders').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
+          supabase.from('orders').select('id, order_code, status, total_amount, created_at').order('created_at', { ascending: false }).limit(10),
+        ]);
+
+        const totalRevenue = revenueRes.data?.reduce((sum, o) => sum + (o.total_amount || 0), 0) || 0;
+
+        setStats({
+          totalUsers: usersRes.count || 0,
+          totalOrders: ordersRes.count || 0,
+          totalRevenue,
+          pendingOrders: pendingRes.count || 0,
+        });
+
+        setRecentOrders((recentRes.data as RecentOrder[]) || []);
+      } catch {
+        // Supabase unavailable
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, []);
+
+  const statCards = [
+    { title: 'Total Users', value: stats?.totalUsers ?? 0, icon: Users, color: 'text-blue-500', bg: 'bg-blue-50' },
+    { title: 'Total Orders', value: stats?.totalOrders ?? 0, icon: ListOrdered, color: 'text-teal-500', bg: 'bg-teal-50' },
+    { title: 'Revenue', value: `$${(stats?.totalRevenue ?? 0).toFixed(2)}`, icon: DollarSign, color: 'text-green-500', bg: 'bg-green-50' },
+    { title: 'Pending Orders', value: stats?.pendingOrders ?? 0, icon: Activity, color: 'text-amber-500', bg: 'bg-amber-50' },
+  ];
+
+  const statusColors: Record<string, string> = {
+    pending: 'bg-amber-100 text-amber-700',
+    processing: 'bg-blue-100 text-blue-700',
+    completed: 'bg-green-100 text-green-700',
+    cancelled: 'bg-red-100 text-red-700',
+  };
+
+  return (
+    <div className="space-y-8">
+      <div>
+        <h1 className="text-2xl font-bold tracking-tight text-slate-900">Admin Dashboard</h1>
+        <p className="text-sm text-slate-500">Overview of your platform.</p>
+      </div>
+
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        {statCards.map((card, i) => (
+          <motion.div
+            key={card.title}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: i * 0.1 }}
+          >
+            <Card className="shadow-card">
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-slate-500">{card.title}</p>
+                    {loading ? (
+                      <Skeleton className="mt-2 h-8 w-20" />
+                    ) : (
+                      <p className="mt-2 text-3xl font-bold text-slate-900">{card.value}</p>
+                    )}
+                  </div>
+                  <div className={`flex h-12 w-12 items-center justify-center rounded-xl ${card.bg}`}>
+                    <card.icon className={`h-6 w-6 ${card.color}`} />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </motion.div>
+        ))}
+      </div>
+
+      <Card className="shadow-card">
+        <CardHeader>
+          <CardTitle className="text-lg">Recent Orders</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {loading ? (
+            <div className="space-y-3">
+              {[1, 2, 3].map((i) => (
+                <Skeleton key={i} className="h-12 w-full" />
+              ))}
+            </div>
+          ) : recentOrders.length === 0 ? (
+            <p className="py-8 text-center text-sm text-slate-500">No orders yet.</p>
+          ) : (
+            <div className="space-y-3">
+              {recentOrders.map((order) => (
+                <div key={order.id} className="flex items-center justify-between rounded-lg border border-slate-200 p-3">
+                  <div className="flex items-center gap-3">
+                    <div>
+                      <p className="text-sm font-semibold text-slate-900">{order.order_code}</p>
+                      <p className="text-xs text-slate-500">{new Date(order.created_at).toLocaleDateString()}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <span className="text-sm font-bold text-slate-900">${order.total_amount.toFixed(2)}</span>
+                    <Badge className={statusColors[order.status] || 'bg-slate-100 text-slate-700'}>
+                      {order.status}
+                    </Badge>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
