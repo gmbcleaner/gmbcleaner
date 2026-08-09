@@ -69,12 +69,24 @@ function estimateReadTime(content: string): string {
 }
 
 export async function generateStaticParams() {
-  const { data: posts } = await supabase
-    .from('blog_posts')
-    .select('slug')
-    .eq('is_published', true);
+  try {
+    const { data: posts } = await supabase
+      .from('blog_posts')
+      .select('slug')
+      .eq('is_published', true);
 
-  if (!posts || posts.length === 0) {
+    if (!posts || posts.length === 0) {
+      return [
+        { slug: 'how-to-identify-fake-reviews' },
+        { slug: 'protect-online-reputation' },
+        { slug: 'listing-spam-attack-response' },
+        { slug: 'how-review-moderation-works' },
+        { slug: 'responding-to-negative-reviews' },
+      ];
+    }
+
+    return posts.map((post: { slug: string }) => ({ slug: post.slug }));
+  } catch {
     return [
       { slug: 'how-to-identify-fake-reviews' },
       { slug: 'protect-online-reputation' },
@@ -83,8 +95,6 @@ export async function generateStaticParams() {
       { slug: 'responding-to-negative-reviews' },
     ];
   }
-
-  return posts.map((post: { slug: string }) => ({ slug: post.slug }));
 }
 
 export async function generateMetadata({
@@ -92,29 +102,36 @@ export async function generateMetadata({
 }: {
   params: { slug: string };
 }): Promise<Metadata> {
-  const { data: post } = await supabase
-    .from('blog_posts')
-    .select('title, excerpt, category, author')
-    .eq('slug', params.slug)
-    .eq('is_published', true)
-    .single();
+  try {
+    const { data: post } = await supabase
+      .from('blog_posts')
+      .select('title, excerpt, category, author')
+      .eq('slug', params.slug)
+      .eq('is_published', true)
+      .single();
 
-  if (!post) {
+    if (!post) {
+      return {
+        title: 'Article Not Found | GMBCLEANER',
+        description: 'The requested article could not be found.',
+      };
+    }
+
     return {
-      title: 'Article Not Found | GMBCLEANER',
-      description: 'The requested article could not be found.',
+      title: `${post.title} | GMBCLEANER Blog`,
+      description: post.excerpt,
+      openGraph: {
+        title: post.title,
+        description: post.excerpt,
+        type: 'article',
+      },
+    };
+  } catch {
+    return {
+      title: 'Blog | GMBCLEANER',
+      description: 'Read the latest insights from GMBCLEANER.',
     };
   }
-
-  return {
-    title: `${post.title} | GMBCLEANER Blog`,
-    description: post.excerpt,
-    openGraph: {
-      title: post.title,
-      description: post.excerpt,
-      type: 'article',
-    },
-  };
 }
 
 export default async function BlogPostPage({
@@ -122,12 +139,18 @@ export default async function BlogPostPage({
 }: {
   params: { slug: string };
 }) {
-  const { data: post } = await supabase
-    .from('blog_posts')
-    .select('*')
-    .eq('slug', params.slug)
-    .eq('is_published', true)
-    .single();
+  let post = null;
+  try {
+    const result = await supabase
+      .from('blog_posts')
+      .select('*')
+      .eq('slug', params.slug)
+      .eq('is_published', true)
+      .single();
+    post = result.data;
+  } catch {
+    // Supabase unavailable at build time
+  }
 
   if (!post) {
     notFound();
@@ -135,16 +158,19 @@ export default async function BlogPostPage({
 
   const postData = (post as BlogPost) || fallbackPost;
 
-  // Fetch related posts (same category or just other posts, excluding current)
-  const { data: relatedData } = await supabase
-    .from('blog_posts')
-    .select('id, title, slug, excerpt, category, published_at, author')
-    .eq('is_published', true)
-    .neq('slug', params.slug)
-    .order('published_at', { ascending: false })
-    .limit(3);
-
-  const relatedPosts: RelatedPost[] = (relatedData as RelatedPost[]) || [];
+  let relatedPosts: RelatedPost[] = [];
+  try {
+    const { data: relatedData } = await supabase
+      .from('blog_posts')
+      .select('id, title, slug, excerpt, category, published_at, author')
+      .eq('is_published', true)
+      .neq('slug', params.slug)
+      .order('published_at', { ascending: false })
+      .limit(3);
+    relatedPosts = (relatedData as RelatedPost[]) || [];
+  } catch {
+    // Supabase unavailable
+  }
 
   // Split content into paragraphs for styled rendering
   const contentParagraphs = postData.content

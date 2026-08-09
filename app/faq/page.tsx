@@ -1,6 +1,3 @@
-'use client';
-
-import { motion } from 'framer-motion';
 import { Navbar } from '@/components/shared/navbar';
 import { Footer } from '@/components/shared/footer';
 import { PageHeader, CTABanner } from '@/components/shared/sections';
@@ -87,11 +84,17 @@ const fallbackFaqs: Faq[] = [
 const categoryOrder = ['general', 'pricing', 'security', 'payments'];
 
 export default async function FaqPage() {
-  const { data: faqs } = await supabase
-    .from('faqs')
-    .select('*')
-    .eq('is_published', true)
-    .order('sort_order');
+  let faqs = null;
+  try {
+    const result = await supabase
+      .from('faqs')
+      .select('*')
+      .eq('is_published', true)
+      .order('sort_order');
+    faqs = result.data;
+  } catch {
+    // Supabase unavailable at build time
+  }
 
   const allFaqs: Faq[] = faqs && faqs.length > 0 ? faqs : fallbackFaqs;
 

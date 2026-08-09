@@ -1,7 +1,4 @@
-'use client';
-
 import Link from 'next/link';
-import { motion } from 'framer-motion';
 import { Navbar } from '@/components/shared/navbar';
 import { Footer } from '@/components/shared/footer';
 import { PageHeader, CTABanner } from '@/components/shared/sections';
@@ -104,11 +101,17 @@ function getCategoryColor(category: string): string {
 }
 
 export default async function BlogPage() {
-  const { data: posts } = await supabase
-    .from('blog_posts')
-    .select('id, title, slug, excerpt, category, published_at, author')
-    .eq('is_published', true)
-    .order('published_at', { ascending: false });
+  let posts = null;
+  try {
+    const result = await supabase
+      .from('blog_posts')
+      .select('id, title, slug, excerpt, category, published_at, author')
+      .eq('is_published', true)
+      .order('published_at', { ascending: false });
+    posts = result.data;
+  } catch {
+    // Supabase unavailable at build time
+  }
 
   const allPosts = posts && posts.length > 0 ? (posts as BlogPost[]) : fallbackPosts;
 
@@ -131,7 +134,7 @@ export default async function BlogPage() {
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
             <Stagger className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
               {allPosts.map((post, i) => (
-                <motion.div key={post.id} variants={staggerItem}>
+                <div key={post.id}>
                   <Link href={`/blog/${post.slug}`} className="group block h-full">
                     <Card className="h-full border border-slate-200 hover:border-teal-300 hover:shadow-card transition-all duration-300 overflow-hidden">
                       {/* Gradient header */}
@@ -177,7 +180,7 @@ export default async function BlogPage() {
                       </CardContent>
                     </Card>
                   </Link>
-                </motion.div>
+                </div>
               ))}
             </Stagger>
           </div>
