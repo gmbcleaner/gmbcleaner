@@ -46,6 +46,7 @@ function generateUserCode(): string {
 
 async function ensureProfile(user: User) {
   try {
+    if (!db) return;
     const snap = await getDoc(doc(db, 'profiles', user.uid));
     if (!snap.exists()) {
       await setDoc(doc(db, 'profiles', user.uid), {
@@ -81,6 +82,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const fetchProfile = async (uid: string) => {
     try {
+      if (!db) return;
       const snap = await getDoc(doc(db, 'profiles', uid));
       if (snap.exists()) {
         setProfile({ id: snap.id, ...snap.data() } as UserProfile);
@@ -93,30 +95,41 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-      setUser(firebaseUser);
-      if (firebaseUser) {
-        await fetchProfile(firebaseUser.uid);
-      } else {
-        setProfile(null);
-      }
+    if (!auth) {
       setLoading(false);
-    });
-    return () => unsubscribe();
+      return;
+    }
+    try {
+      const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+        setUser(firebaseUser);
+        if (firebaseUser) {
+          await fetchProfile(firebaseUser.uid);
+        } else {
+          setProfile(null);
+        }
+        setLoading(false);
+      });
+      return () => unsubscribe();
+    } catch {
+      setLoading(false);
+    }
   }, []);
 
   const signUp = async (email: string, password: string, meta?: Record<string, any>): Promise<{ error?: string }> => {
     try {
+      if (!auth) return { error: 'Firebase Auth not configured' };
       const cred = await createUserWithEmailAndPassword(auth, email, password);
-      await setDoc(doc(db, 'profiles', cred.user.uid), {
-        email,
-        role: 'user',
-        user_code: generateUserCode(),
-        wallet_balance: 0,
-        full_name: meta?.full_name || null,
-        company: meta?.company || null,
-        created_at: new Date().toISOString(),
-      });
+      if (db) {
+        await setDoc(doc(db, 'profiles', cred.user.uid), {
+          email,
+          role: 'user',
+          user_code: generateUserCode(),
+          wallet_balance: 0,
+          full_name: meta?.full_name || null,
+          company: meta?.company || null,
+          created_at: new Date().toISOString(),
+        });
+      }
       return {};
     } catch (err: any) {
       return { error: err.message || 'Sign up failed' };
@@ -125,6 +138,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signIn = async (email: string, password: string): Promise<{ error?: string }> => {
     try {
+      if (!auth) return { error: 'Firebase Auth not configured' };
       await signInWithEmailAndPassword(auth, email, password);
       return {};
     } catch (err: any) {
@@ -134,6 +148,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signInWithGoogle = async (): Promise<{ error?: string }> => {
     try {
+      if (!auth) return { error: 'Firebase Auth not configured' };
       const provider = new GoogleAuthProvider();
       const cred = await signInWithPopup(auth, provider);
       await ensureProfile(cred.user);
@@ -145,12 +160,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signOut = async () => {
-    await firebaseSignOut(auth);
+    if (auth) await firebaseSignOut(auth);
     setProfile(null);
   };
 
   const updatePassword = async (newPassword: string) => {
-    if (!auth.currentUser) throw new Error('Not authenticated');
+    if (!auth || !auth.currentUser) throw new Error('Not authenticated');
     await firebaseUpdatePassword(auth.currentUser, newPassword);
   };
 

@@ -28,7 +28,6 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 
 interface NavItem {
   label: string;
@@ -51,7 +50,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const router = useRouter();
   const pathname = usePathname();
   const [authChecked, setAuthChecked] = useState(false);
-  const [mobileOpen, setMobileOpen] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   useEffect(() => {
     try {
@@ -66,6 +65,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     }
     setAuthChecked(true);
   }, [router]);
+
+  useEffect(() => {
+    setSidebarOpen(false);
+  }, [pathname]);
 
   const handleLogout = () => {
     try { localStorage.removeItem('gmb_admin_auth'); } catch {}
@@ -110,7 +113,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             <Link
               key={item.href}
               href={item.href}
-              onClick={() => setMobileOpen(false)}
               className={`group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all ${
                 active
                   ? 'bg-gradient-to-r from-red-500 to-orange-500 text-white shadow-md shadow-red-500/20'
@@ -140,23 +142,21 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         <SidebarContent />
       </aside>
 
-      <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
-        <SheetContent side="left" className="w-72 p-0 lg:hidden">
-          <SheetHeader className="sr-only">
-            <SheetTitle>Admin Navigation</SheetTitle>
-          </SheetHeader>
-          <SidebarContent />
-        </SheetContent>
-      </Sheet>
+      {sidebarOpen && (
+        <div className="fixed inset-0 z-40 lg:hidden">
+          <div className="fixed inset-0 bg-black/50" onClick={() => setSidebarOpen(false)} />
+          <aside className="fixed inset-y-0 left-0 z-50 w-72 border-r border-slate-200 bg-white">
+            <SidebarContent />
+          </aside>
+        </div>
+      )}
 
       <div className="flex flex-1 flex-col lg:pl-64">
         <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-slate-200 bg-white/80 px-4 backdrop-blur-xl lg:px-8">
           <div className="flex items-center gap-3 lg:hidden">
-            <SheetTrigger asChild>
-              <Button variant="ghost" size="icon" onClick={() => setMobileOpen(true)} className="h-9 w-9">
-                <Menu className="h-5 w-5" />
-              </Button>
-            </SheetTrigger>
+            <Button variant="ghost" size="icon" onClick={() => setSidebarOpen(true)} className="h-9 w-9">
+              <Menu className="h-5 w-5" />
+            </Button>
             <span className="text-sm font-bold text-slate-900">GMB<span className="text-red-500">ADMIN</span></span>
           </div>
 
