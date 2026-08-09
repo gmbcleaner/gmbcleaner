@@ -32,14 +32,15 @@ export default function AddFundsPage() {
   const [screenshotPreview, setScreenshotPreview] = useState('');
   const [copied, setCopied] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [dbError, setDbError] = useState('');
   const fileRef = useRef<HTMLInputElement>(null);
 
   const fetchData = useCallback(async () => {
     try {
       const [c, n, w, p] = await Promise.all([
-        fetchCollection('currencies').catch(() => []),
-        fetchCollection('networks').catch(() => []),
-        fetchCollection('wallet_addresses').catch(() => []),
+        fetchCollection('currencies'),
+        fetchCollection('networks'),
+        fetchCollection('wallet_addresses'),
         fetchCollection('pricing_settings').catch(() => []),
       ]);
       const activeCurrencies = ((c as Currency[]) || []).filter(c => c.is_active);
@@ -47,7 +48,10 @@ export default function AddFundsPage() {
       setNetworks((n as Network[]) || []);
       setWallets((w as WalletAddress[]) || []);
       if (p && p.length > 0) setMinDeposit(p[0].min_deposit || 20);
-    } catch {}
+      setDbError('');
+    } catch (err: any) {
+      setDbError(err.message || 'Failed to load data. Check database rules.');
+    }
   }, []);
 
   useEffect(() => {
@@ -166,6 +170,14 @@ export default function AddFundsPage() {
         <h1 className="text-2xl font-bold tracking-tight text-slate-900">Add Funds</h1>
         <p className="text-sm text-slate-500">Deposit cryptocurrency to fund your wallet. Minimum deposit: ${minDeposit}</p>
       </div>
+
+      {dbError && (
+        <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+          <p className="font-semibold">Database Error</p>
+          <p>{dbError}</p>
+          <p className="mt-2 text-xs">Make sure Firebase Realtime Database rules are set to allow read/write.</p>
+        </div>
+      )}
 
       <div className="flex items-center gap-2 text-xs text-slate-500">
         {['Amount', 'Currency', 'Network', 'Address', 'Proof'].map((label, i) => (

@@ -65,6 +65,7 @@ export async function fetchCollection(
 
   const snap = await get(child(dbRef, colName));
   let results = snapshotToArray(snap);
+  console.log(`[RTDB] fetchCollection('${colName}'): ${results.length} items before filter`);
 
   if (filters) {
     results = results.filter((item: any) => {
@@ -101,10 +102,13 @@ export async function fetchCollection(
 export async function addDocument(colName: string, data: Record<string, any>) {
   checkDb();
   const newRef = push(ref(rtdb, colName));
-  await set(newRef, {
+  const payload = {
     ...data,
     created_at: new Date().toISOString(),
-  });
+  };
+  console.log(`[RTDB] addDocument('${colName}'):`, payload);
+  await set(newRef, payload);
+  console.log(`[RTDB] addDocument('${colName}') SUCCESS, id: ${newRef.key}`);
   return newRef.key!;
 }
 
