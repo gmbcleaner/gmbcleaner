@@ -9,14 +9,10 @@ import {
   ListOrdered,
   Settings,
   LogOut,
-  ShieldCheck,
+  Wrench,
   Menu,
   ChevronDown,
-  Wrench,
 } from 'lucide-react';
-import { supabase } from '@/lib/supabase';
-import { useAuth } from '@/components/providers/auth-provider';
-import { toast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
@@ -45,27 +41,21 @@ const navItems: NavItem[] = [
 export default function ProviderLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
-  const { user, profile, loading } = useAuth();
   const [authChecked, setAuthChecked] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
 
   useEffect(() => {
-    if (loading) return;
-    if (!user) {
-      router.replace('/login');
-      return;
-    }
-    if (profile && profile.role !== 'provider') {
-      router.replace('/dashboard');
+    const isProvider = localStorage.getItem('gmb_provider_auth');
+    if (!isProvider) {
+      router.replace('/atik');
       return;
     }
     setAuthChecked(true);
-  }, [user, loading, profile, router]);
+  }, [router]);
 
-  const handleLogout = async () => {
-    await supabase.auth.signOut();
-    toast({ title: 'Logged out', description: 'You have been signed out.' });
-    router.replace('/login');
+  const handleLogout = () => {
+    localStorage.removeItem('gmb_provider_auth');
+    router.replace('/atik');
   };
 
   const isActive = (href: string) => {
@@ -73,10 +63,7 @@ export default function ProviderLayout({ children }: { children: React.ReactNode
     return pathname.startsWith(href);
   };
 
-  const displayName = profile?.email?.split('@')[0] || user?.email?.split('@')[0] || 'Provider';
-  const initials = displayName.charAt(0).toUpperCase();
-
-  if (loading || !authChecked) {
+  if (!authChecked) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-slate-50">
         <div className="flex flex-col items-center gap-4">
@@ -126,7 +113,7 @@ export default function ProviderLayout({ children }: { children: React.ReactNode
       <div className="px-3 pb-4">
         <div className="rounded-xl border border-slate-200 bg-gradient-to-br from-slate-900 to-slate-800 p-4">
           <p className="text-xs font-medium text-slate-400">Logged in as</p>
-          <p className="mt-1 text-sm font-bold text-white">{displayName}</p>
+          <p className="mt-1 text-sm font-bold text-white">Provider</p>
           <p className="text-[10px] text-blue-400 mt-0.5">Service Provider</p>
         </div>
       </div>
@@ -171,12 +158,12 @@ export default function ProviderLayout({ children }: { children: React.ReactNode
                 <button className="flex items-center gap-2 rounded-lg px-2 py-1.5 transition-colors hover:bg-slate-100">
                   <Avatar className="h-8 w-8">
                     <AvatarFallback className="bg-gradient-to-br from-blue-500 to-indigo-500 text-xs font-semibold text-white">
-                      {initials}
+                      P
                     </AvatarFallback>
                   </Avatar>
                   <div className="hidden text-left sm:block">
-                    <p className="text-xs font-semibold text-slate-900">{displayName}</p>
-                    <p className="text-[10px] text-blue-500">Provider</p>
+                    <p className="text-xs font-semibold text-slate-900">Provider</p>
+                    <p className="text-[10px] text-blue-500">Service Provider</p>
                   </div>
                   <ChevronDown className="hidden h-4 w-4 text-slate-400 sm:block" />
                 </button>
