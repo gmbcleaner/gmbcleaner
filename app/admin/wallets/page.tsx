@@ -58,7 +58,7 @@ export default function AdminWalletsPage() {
   const addCurrency = async () => {
     if (!newCurName) return;
     try {
-      const id = await addDocument('currencies', {
+      await addDocument('currencies', {
         name: newCurName.trim(),
         symbol: newCurName.trim().toUpperCase(),
         logo_url: newCurLogo || '',
