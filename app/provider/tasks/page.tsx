@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { Loader2, ClipboardList, ExternalLink } from 'lucide-react';
+import { ClipboardList, ExternalLink } from 'lucide-react';
 
 interface ProviderTask {
   id: string;

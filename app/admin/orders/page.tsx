@@ -62,7 +62,7 @@ export default function AdminOrdersPage() {
       const order = orders.find(o => o.id === orderId);
       if (order) {
         await addDocument('notifications', {
-          user_id: order.id,
+          user_id: order.user_id,
           title: 'Order Updated',
           message: `Your order ${order.order_code} status changed to ${status}.`,
           type: 'order',

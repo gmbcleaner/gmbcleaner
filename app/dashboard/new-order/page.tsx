@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
 import {
@@ -9,7 +9,7 @@ import {
   AlertTriangle,
   CheckCircle2,
   Wallet,
-  Loader2,
+
   ClipboardPaste,
   FileText,
   ShoppingBag,
@@ -91,7 +91,7 @@ export default function NewOrderPage() {
   const [pricePerItem, setPricePerItem] = useState(DEFAULT_PRICE_PER_ITEM);
   const [minDeposit, setMinDeposit] = useState(DEFAULT_MIN_DEPOSIT);
 
-  useState(() => {
+  useEffect(() => {
     fetchCollection('pricing_settings')
       .then((data) => {
         if (data && data.length > 0) {
@@ -101,7 +101,7 @@ export default function NewOrderPage() {
         }
       })
       .catch(() => {});
-  });
+  }, []);
 
   const parsedUrls = useMemo(() => parseUrls(urlInput), [urlInput]);
   const validUrls = useMemo(() => parsedUrls.filter((u) => u.valid), [parsedUrls]);

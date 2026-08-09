@@ -10,7 +10,6 @@ import { FloatingShape } from '@/components/animation/floating';
 import { Card, CardContent } from '@/components/ui/card';
 import { fetchCollection } from '@/lib/db';
 import { ArrowLeft, ArrowRight, Calendar, User, Tag, Clock } from 'lucide-react';
-import { Loader2 } from 'lucide-react';
 
 interface BlogPost {
   id: string;

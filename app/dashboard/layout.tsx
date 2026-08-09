@@ -17,7 +17,7 @@ import {
   ChevronDown,
   ShieldCheck,
 } from 'lucide-react';
-import { fetchCollection, batchUpdate } from '@/lib/db';
+import { fetchCollection, batchUpdate, getDocument } from '@/lib/db';
 import { useAuth } from '@/components/providers/auth-provider';
 import { toast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
@@ -88,8 +88,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const fetchExtendedProfile = useCallback(async () => {
     if (!user) return;
     try {
-      const data = await fetchCollection('profiles', [{ field: 'id', op: '==', value: user.uid }]);
-      if (data.length > 0) setExtendedProfile(data[0] as ExtendedProfile);
+      const data = await getDocument('profiles', user.uid);
+      if (data) setExtendedProfile(data as ExtendedProfile);
     } catch {}
   }, [user]);
 

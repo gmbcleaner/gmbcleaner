@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
-import { Loader2, User, Lock, Shield } from 'lucide-react';
+import { User, Lock, Shield } from 'lucide-react';
 
 export default function SettingsPage() {
   const { user, profile, refreshProfile, updatePassword } = useAuth();
