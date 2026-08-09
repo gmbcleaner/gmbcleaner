@@ -109,7 +109,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
         setLoading(false);
       });
-      return () => unsubscribe();
+      const timeout = setTimeout(() => setLoading(false), 5000);
+      return () => { unsubscribe(); clearTimeout(timeout); };
     } catch {
       setLoading(false);
     }

@@ -148,8 +148,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     return pathname.startsWith(href);
   };
 
-  if (loading) return null;
-
   const displayName =
     extendedProfile?.full_name ||
     profile?.email?.split('@')[0] ||
