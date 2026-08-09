@@ -62,7 +62,8 @@ const trustItems = [
 export default function SignUpPage() {
   const router = useRouter();
   const { toast } = useToast();
-  const { signUp } = useAuth();
+  const { signUp, signInWithGoogle } = useAuth();
+  const [googleLoading, setGoogleLoading] = useState(false);
 
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
@@ -86,21 +87,21 @@ export default function SignUpPage() {
     setLoading(true);
 
     try {
-      const { error } = await signUp(email, password, {
-        fullName,
+      const result = await signUp(email, password, {
+        full_name: fullName,
         company: company || undefined,
       });
 
-      if (error) {
+      if (result.error) {
         let title = 'Sign up failed';
-        let description = error;
+        let description = result.error;
 
-        if (error.toLowerCase().includes('already') || error.toLowerCase().includes('registered')) {
+        if (result.error.toLowerCase().includes('already') || result.error.toLowerCase().includes('registered')) {
           title = 'Email already registered';
           description = 'An account with this email already exists. Try logging in instead.';
-        } else if (error.toLowerCase().includes('weak') || error.toLowerCase().includes('password')) {
+        } else if (result.error.toLowerCase().includes('weak') || result.error.toLowerCase().includes('password')) {
           title = 'Weak password';
-          description = 'Please choose a stronger password (at least 8 characters with a mix of letters and numbers).';
+          description = 'Please choose a stronger password (at least 8 characters).';
         }
 
         toast({ title, description, variant: 'destructive' });
@@ -114,7 +115,7 @@ export default function SignUpPage() {
       });
 
       setTimeout(() => {
-        router.push('/login');
+        router.push('/user-login');
       }, 2000);
     } catch {
       toast({
@@ -336,10 +337,43 @@ export default function SignUpPage() {
                     )}
                   </Button>
 
+                  <div className="relative w-full">
+                    <div className="absolute inset-0 flex items-center">
+                      <span className="w-full border-t" />
+                    </div>
+                    <div className="relative flex justify-center text-xs uppercase">
+                      <span className="bg-white px-2 text-muted-foreground">Or</span>
+                    </div>
+                  </div>
+
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="lg"
+                    className="w-full"
+                    disabled={loading || googleLoading}
+                    onClick={async () => {
+                      setGoogleLoading(true);
+                      const result = await signInWithGoogle();
+                      if (result.error) {
+                        toast({ title: 'Google sign-up failed', description: result.error, variant: 'destructive' });
+                        setGoogleLoading(false);
+                        return;
+                      }
+                      setSuccess(true);
+                      setTimeout(() => router.push('/dashboard'), 1500);
+                    }}
+                  >
+                    {googleLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : (
+                      <svg className="mr-2 h-4 w-4" viewBox="0 0 24 24"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 01-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
+                    )}
+                    Sign up with Google
+                  </Button>
+
                   <p className="text-center text-sm text-muted-foreground">
                     Already have an account?{' '}
                     <a
-                      href="/login"
+                      href="/user-login"
                       className="font-semibold text-teal-600 underline-offset-4 hover:underline"
                     >
                       Log in

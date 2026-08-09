@@ -95,7 +95,7 @@ export default function DashboardLayout({
   useEffect(() => {
     if (loading) return;
     if (!user) {
-      router.replace('/login');
+      router.replace('/user-login');
       return;
     }
     setAuthChecked(true);

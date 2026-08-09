@@ -5,6 +5,8 @@ import {
   onAuthStateChanged,
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
+  signInWithPopup,
+  GoogleAuthProvider,
   signOut as firebaseSignOut,
   updatePassword as firebaseUpdatePassword,
   type User,
@@ -17,8 +19,9 @@ interface AuthContextValue {
   loading: boolean;
   profile: UserProfile | null;
   refreshProfile: () => Promise<void>;
-  signUp: (email: string, password: string, meta?: Record<string, any>) => Promise<void>;
-  signIn: (email: string, password: string) => Promise<void>;
+  signUp: (email: string, password: string, meta?: Record<string, any>) => Promise<{ error?: string }>;
+  signIn: (email: string, password: string) => Promise<{ error?: string }>;
+  signInWithGoogle: () => Promise<{ error?: string }>;
   signOut: () => Promise<void>;
   updatePassword: (newPassword: string) => Promise<void>;
 }
@@ -41,13 +44,32 @@ function generateUserCode(): string {
   return code;
 }
 
+async function ensureProfile(user: User) {
+  try {
+    const snap = await getDoc(doc(db, 'profiles', user.uid));
+    if (!snap.exists()) {
+      await setDoc(doc(db, 'profiles', user.uid), {
+        email: user.email,
+        role: 'user',
+        user_code: generateUserCode(),
+        wallet_balance: 0,
+        full_name: user.displayName || null,
+        company: null,
+        avatar_url: user.photoURL || null,
+        created_at: new Date().toISOString(),
+      });
+    }
+  } catch {}
+}
+
 const AuthContext = createContext<AuthContextValue>({
   user: null,
   loading: true,
   profile: null,
   refreshProfile: async () => {},
-  signUp: async () => {},
-  signIn: async () => {},
+  signUp: async () => ({}),
+  signIn: async () => ({}),
+  signInWithGoogle: async () => ({}),
   signOut: async () => {},
   updatePassword: async () => {},
 });
@@ -63,9 +85,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (snap.exists()) {
         setProfile({ id: snap.id, ...snap.data() } as UserProfile);
       }
-    } catch {
-      // doc may not exist yet
-    }
+    } catch {}
   };
 
   const refreshProfile = async () => {
@@ -85,21 +105,43 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => unsubscribe();
   }, []);
 
-  const signUp = async (email: string, password: string, meta?: Record<string, any>) => {
-    const cred = await createUserWithEmailAndPassword(auth, email, password);
-    await setDoc(doc(db, 'profiles', cred.user.uid), {
-      email,
-      role: 'user',
-      user_code: generateUserCode(),
-      wallet_balance: 0,
-      full_name: meta?.full_name || null,
-      company: meta?.company || null,
-      created_at: new Date().toISOString(),
-    });
+  const signUp = async (email: string, password: string, meta?: Record<string, any>): Promise<{ error?: string }> => {
+    try {
+      const cred = await createUserWithEmailAndPassword(auth, email, password);
+      await setDoc(doc(db, 'profiles', cred.user.uid), {
+        email,
+        role: 'user',
+        user_code: generateUserCode(),
+        wallet_balance: 0,
+        full_name: meta?.full_name || null,
+        company: meta?.company || null,
+        created_at: new Date().toISOString(),
+      });
+      return {};
+    } catch (err: any) {
+      return { error: err.message || 'Sign up failed' };
+    }
   };
 
-  const signIn = async (email: string, password: string) => {
-    await signInWithEmailAndPassword(auth, email, password);
+  const signIn = async (email: string, password: string): Promise<{ error?: string }> => {
+    try {
+      await signInWithEmailAndPassword(auth, email, password);
+      return {};
+    } catch (err: any) {
+      return { error: err.message || 'Sign in failed' };
+    }
+  };
+
+  const signInWithGoogle = async (): Promise<{ error?: string }> => {
+    try {
+      const provider = new GoogleAuthProvider();
+      const cred = await signInWithPopup(auth, provider);
+      await ensureProfile(cred.user);
+      await fetchProfile(cred.user.uid);
+      return {};
+    } catch (err: any) {
+      return { error: err.message || 'Google sign-in failed' };
+    }
   };
 
   const signOut = async () => {
@@ -113,7 +155,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, profile, refreshProfile, signUp, signIn, signOut, updatePassword }}>
+    <AuthContext.Provider value={{ user, loading, profile, refreshProfile, signUp, signIn, signInWithGoogle, signOut, updatePassword }}>
       {children}
     </AuthContext.Provider>
   );

@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from 'react';
 import { Users, ListOrdered, DollarSign, Activity } from 'lucide-react';
-import { fetchCollection, countDocuments } from '@/lib/db';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -31,12 +30,13 @@ export default function AdminDashboardPage() {
     let cancelled = false;
     const fetchData = async () => {
       try {
+        const { fetchCollection, countDocuments } = await import('@/lib/db');
         const [totalUsers, totalOrders, completedOrders, pendingOrders, recentOrdersData] = await Promise.all([
-          countDocuments('profiles'),
-          countDocuments('orders'),
-          fetchCollection('orders', [{ field: 'status', op: '==', value: 'completed' }]),
-          countDocuments('orders', [{ field: 'status', op: '==', value: 'pending' }]),
-          fetchCollection('orders', undefined, 'created_at', 10),
+          countDocuments('profiles').catch(() => 0),
+          countDocuments('orders').catch(() => 0),
+          fetchCollection('orders', [{ field: 'status', op: '==', value: 'completed' }]).catch(() => []),
+          countDocuments('orders', [{ field: 'status', op: '==', value: 'pending' }]).catch(() => 0),
+          fetchCollection('orders', undefined, 'created_at', 10).catch(() => []),
         ]);
 
         if (cancelled) return;
