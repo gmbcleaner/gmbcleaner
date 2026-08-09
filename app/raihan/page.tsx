@@ -7,8 +7,6 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
 import { ShieldCheck, Lock, ArrowRight } from 'lucide-react';
-import { auth } from '@/lib/firebase';
-import { signInAnonymously } from 'firebase/auth';
 
 const ADMIN_PASSWORD = '2080';
 
@@ -22,7 +20,6 @@ export default function AdminLoginPage() {
     setError('');
 
     if (password === ADMIN_PASSWORD) {
-      try { if (auth && !auth.currentUser) await signInAnonymously(auth); } catch {}
       localStorage.setItem('gmb_admin_auth', 'true');
       localStorage.removeItem('gmb_provider_auth');
       router.push('/admin');

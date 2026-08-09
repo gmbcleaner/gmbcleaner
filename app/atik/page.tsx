@@ -9,8 +9,6 @@ import { Label } from '@/components/ui/label';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
 import { FloatingShape } from '@/components/animation/floating';
 import { Wrench, Lock, ArrowRight, LockKeyhole, BadgeCheck, Shield } from 'lucide-react';
-import { auth } from '@/lib/firebase';
-import { signInAnonymously } from 'firebase/auth';
 
 const PROVIDER_PASSWORD = '3040';
 
@@ -24,7 +22,6 @@ export default function AtikLoginPage() {
     setError('');
 
     if (password === PROVIDER_PASSWORD) {
-      try { if (auth && !auth.currentUser) await signInAnonymously(auth); } catch {}
       localStorage.setItem('gmb_provider_auth', 'true');
       localStorage.removeItem('gmb_admin_auth');
       router.push('/provider');

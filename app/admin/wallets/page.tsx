@@ -1,8 +1,7 @@
 'use client';
 
 import { useEffect, useState, useRef } from 'react';
-import { db, ensureAuth } from '@/lib/firebase';
-import { collection, addDoc, getDocs, deleteDoc, updateDoc, doc, query, orderBy } from 'firebase/firestore';
+import { fetchCollection, addDocument, deleteDocument, updateDocument } from '@/lib/db';
 import { toast } from '@/hooks/use-toast';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -13,9 +12,6 @@ import { Plus, Trash2, ChevronDown, ChevronRight, Upload, X, AlertCircle } from 
 interface Currency { id: string; name: string; logo_url: string; is_active: boolean; }
 interface Network { id: string; currency_id: string; name: string; is_active: boolean; }
 interface WalletAddress { id: string; currency_id: string; network_id: string; address: string; label: string; }
-
-let _id = 0;
-function tempId() { return 'temp_' + (++_id) + '_' + Date.now(); }
 
 export default function AdminWalletsPage() {
   const [currencies, setCurrencies] = useState<Currency[]>([]);
@@ -33,22 +29,22 @@ export default function AdminWalletsPage() {
   const [newAddrLabel, setNewAddrLabel] = useState('');
   const logoRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => { if (!db) setDbError('Firestore not connected.'); }, []);
+  const fetchData = async () => {
+    try {
+      const [c, n, w] = await Promise.all([
+        fetchCollection('currencies').catch(() => []),
+        fetchCollection('networks').catch(() => []),
+        fetchCollection('wallet_addresses').catch(() => []),
+      ]);
+      setCurrencies(Array.isArray(c) ? c : []);
+      setNetworks(Array.isArray(n) ? n : []);
+      setWallets(Array.isArray(w) ? w : []);
+    } catch (e: any) {
+      setDbError(e.message || 'Failed to load data');
+    }
+  };
 
-  useEffect(() => {
-    if (!db) return;
-    (async () => {
-      await ensureAuth();
-      try {
-        const [c, n, w] = await Promise.all([
-          getDocs(query(collection(db, 'currencies'), orderBy('created_at', 'desc'))).then(s => s.docs.map(d => ({ id: d.id, ...d.data() } as Currency))),
-          getDocs(query(collection(db, 'networks'), orderBy('created_at', 'desc'))).then(s => s.docs.map(d => ({ id: d.id, ...d.data() } as Network))),
-          getDocs(query(collection(db, 'wallet_addresses'), orderBy('created_at', 'desc'))).then(s => s.docs.map(d => ({ id: d.id, ...d.data() } as WalletAddress))),
-        ]);
-        setCurrencies(c); setNetworks(n); setWallets(w);
-      } catch (e: any) { console.error(e); }
-    })();
-  }, []);
+  useEffect(() => { fetchData(); }, []);
 
   const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -61,91 +57,98 @@ export default function AdminWalletsPage() {
 
   const addCurrency = async () => {
     if (!newCurName) return;
-    if (!db) { toast({ title: 'Firestore not connected', variant: 'destructive' }); return; }
-    const tid = tempId();
-    const cur: Currency = { id: tid, name: newCurName.trim(), logo_url: newCurLogo || '', is_active: true };
-    setCurrencies(prev => [cur, ...prev]);
-    setNewCurName(''); setNewCurLogo('');
-    if (logoRef.current) logoRef.current.value = '';
-    setExpandedCurrency(tid);
     try {
-      await ensureAuth();
-      const ref = await addDoc(collection(db, 'currencies'), { ...cur, symbol: cur.name.toUpperCase(), sort_order: 0, created_at: new Date().toISOString() });
-      setCurrencies(prev => prev.map(c => c.id === tid ? { ...c, id: ref.id } : c));
+      const id = await addDocument('currencies', {
+        name: newCurName.trim(),
+        symbol: newCurName.trim().toUpperCase(),
+        logo_url: newCurLogo || '',
+        is_active: true,
+        sort_order: currencies.length,
+      });
+      toast({ title: 'Currency added' });
+      setNewCurName(''); setNewCurLogo('');
+      if (logoRef.current) logoRef.current.value = '';
+      fetchData();
     } catch (e: any) {
-      setCurrencies(prev => prev.filter(c => c.id !== tid));
       toast({ title: 'Error', description: e.message, variant: 'destructive' });
     }
   };
 
   const toggleCurrency = async (id: string, active: boolean) => {
     setCurrencies(prev => prev.map(c => c.id === id ? { ...c, is_active: active } : c));
-    if (db) { await ensureAuth(); updateDoc(doc(db, 'currencies', id), { is_active: active }).catch(() => {}); }
+    updateDocument('currencies', id, { is_active: active }).catch(() => {});
   };
 
   const removeCurrency = async (id: string) => {
-    if (id.startsWith('temp_')) { setCurrencies(prev => prev.filter(c => c.id !== id)); return; }
     setCurrencies(prev => prev.filter(c => c.id !== id));
     setNetworks(prev => prev.filter(n => n.currency_id !== id));
     setWallets(prev => prev.filter(w => w.currency_id !== id));
-    if (!db) return;
-    await ensureAuth();
-    const dels: Promise<any>[] = [deleteDoc(doc(db, 'currencies', id))];
-    networks.filter(n => n.currency_id === id).forEach(n => dels.push(deleteDoc(doc(db, 'networks', n.id))));
-    wallets.filter(w => w.currency_id === id).forEach(w => dels.push(deleteDoc(doc(db, 'wallet_addresses', w.id))));
-    Promise.all(dels).catch(() => {});
+    try {
+      const curNets = networks.filter(n => n.currency_id === id);
+      const curWallets = wallets.filter(w => w.currency_id === id);
+      await Promise.all([
+        deleteDocument('currencies', id),
+        ...curNets.map(n => deleteDocument('networks', n.id)),
+        ...curWallets.map(w => deleteDocument('wallet_addresses', w.id)),
+      ]);
+    } catch {}
   };
 
   const addNetwork = async (currencyId: string) => {
-    if (!newNetName || !db) return;
-    const tid = tempId();
-    const net: Network = { id: tid, currency_id: currencyId, name: newNetName.trim(), is_active: true };
-    setNetworks(prev => [net, ...prev]);
-    setNewNetName(''); setAddNetFor('');
+    if (!newNetName) return;
     try {
-      await ensureAuth();
-      const ref = await addDoc(collection(db, 'networks'), { ...net, symbol: net.name.toUpperCase(), sort_order: 0, created_at: new Date().toISOString() });
-      setNetworks(prev => prev.map(n => n.id === tid ? { ...n, id: ref.id } : n));
+      await addDocument('networks', {
+        currency_id: currencyId,
+        name: newNetName.trim(),
+        symbol: newNetName.trim().toUpperCase(),
+        is_active: true,
+        sort_order: networks.filter(n => n.currency_id === currencyId).length,
+      });
+      toast({ title: 'Network added' });
+      setNewNetName(''); setAddNetFor('');
+      fetchData();
     } catch (e: any) {
-      setNetworks(prev => prev.filter(n => n.id !== tid));
       toast({ title: 'Error', description: e.message, variant: 'destructive' });
     }
   };
 
   const toggleNetwork = async (id: string, active: boolean) => {
     setNetworks(prev => prev.map(n => n.id === id ? { ...n, is_active: active } : n));
-    if (db) { await ensureAuth(); updateDoc(doc(db, 'networks', id), { is_active: active }).catch(() => {}); }
+    updateDocument('networks', id, { is_active: active }).catch(() => {});
   };
 
   const removeNetwork = async (id: string) => {
     setNetworks(prev => prev.filter(n => n.id !== id));
     setWallets(prev => prev.filter(w => w.network_id !== id));
-    if (!db) return;
-    await ensureAuth();
-    const dels: Promise<any>[] = [deleteDoc(doc(db, 'networks', id))];
-    wallets.filter(w => w.network_id === id).forEach(w => dels.push(deleteDoc(doc(db, 'wallet_addresses', w.id))));
-    Promise.all(dels).catch(() => {});
+    try {
+      const netWallets = wallets.filter(w => w.network_id === id);
+      await Promise.all([
+        deleteDocument('networks', id),
+        ...netWallets.map(w => deleteDocument('wallet_addresses', w.id)),
+      ]);
+    } catch {}
   };
 
   const addWallet = async (currencyId: string, networkId: string) => {
-    if (!newAddr || !db) return;
-    const tid = tempId();
-    const w: WalletAddress = { id: tid, currency_id: currencyId, network_id: networkId, address: newAddr.trim(), label: newAddrLabel.trim() || '' };
-    setWallets(prev => [w, ...prev]);
-    setNewAddr(''); setNewAddrLabel(''); setAddAddrFor('');
+    if (!newAddr) return;
     try {
-      await ensureAuth();
-      const ref = await addDoc(collection(db, 'wallet_addresses'), { ...w, created_at: new Date().toISOString() });
-      setWallets(prev => prev.map(x => x.id === tid ? { ...x, id: ref.id } : x));
+      await addDocument('wallet_addresses', {
+        currency_id: currencyId,
+        network_id: networkId,
+        address: newAddr.trim(),
+        label: newAddrLabel.trim() || '',
+      });
+      toast({ title: 'Wallet address added' });
+      setNewAddr(''); setNewAddrLabel(''); setAddAddrFor('');
+      fetchData();
     } catch (e: any) {
-      setWallets(prev => prev.filter(x => x.id !== tid));
       toast({ title: 'Error', description: e.message, variant: 'destructive' });
     }
   };
 
   const removeWallet = async (id: string) => {
     setWallets(prev => prev.filter(w => w.id !== id));
-    if (db) { await ensureAuth(); deleteDoc(doc(db, 'wallet_addresses', id)).catch(() => {}); }
+    deleteDocument('wallet_addresses', id).catch(() => {});
   };
 
   return (
