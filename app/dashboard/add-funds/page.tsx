@@ -43,7 +43,7 @@ export default function AddFundsPage() {
         fetchCollection('wallet_addresses'),
         fetchCollection('pricing_settings').catch(() => []),
       ]);
-      const activeCurrencies = ((c as Currency[]) || []).filter(c => c.is_active);
+      const activeCurrencies = ((c as Currency[]) || []);
       setCurrencies(activeCurrencies);
       setNetworks((n as Network[]) || []);
       setWallets((w as WalletAddress[]) || []);
@@ -67,7 +67,7 @@ export default function AddFundsPage() {
 
   const parsedAmount = parseFloat(amount) || 0;
   const isValidAmount = parsedAmount >= minDeposit;
-  const networksForCurrency = networks.filter(n => n.currency_id === selectedCurrency?.id && n.is_active);
+  const networksForCurrency = networks.filter(n => n.currency_id === selectedCurrency?.id);
   const walletsForNetwork = wallets.filter(w => w.network_id === selectedNetwork?.id && w.currency_id === selectedCurrency?.id);
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
