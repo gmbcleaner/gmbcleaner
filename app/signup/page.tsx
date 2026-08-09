@@ -115,7 +115,7 @@ export default function SignUpPage() {
       });
 
       setTimeout(() => {
-        router.push('/user-login');
+        router.push('/login');
       }, 2000);
     } catch {
       toast({
@@ -370,15 +370,15 @@ export default function SignUpPage() {
                     Sign up with Google
                   </Button>
 
-                  <p className="text-center text-sm text-muted-foreground">
-                    Already have an account?{' '}
-                    <a
-                      href="/user-login"
-                      className="font-semibold text-teal-600 underline-offset-4 hover:underline"
-                    >
-                      Log in
-                    </a>
-                  </p>
+              <p className="text-center text-sm text-muted-foreground">
+                Already have an account?{' '}
+                <a
+                  href="/login"
+                  className="font-semibold text-teal-600 underline-offset-4 hover:underline"
+                >
+                  Log in
+                </a>
+              </p>
                 </CardFooter>
               </form>
             )}

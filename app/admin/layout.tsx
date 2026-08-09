@@ -56,7 +56,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     try {
       const isAdmin = localStorage.getItem('gmb_admin_auth');
       if (!isAdmin) {
-        router.replace('/login');
+        router.replace('/raihan');
         return;
       }
     } catch {}
@@ -69,7 +69,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   const handleLogout = () => {
     try { localStorage.removeItem('gmb_admin_auth'); } catch {}
-    router.replace('/login');
+    router.replace('/raihan');
   };
 
   const isActive = (href: string) => {

@@ -69,7 +69,7 @@ export function Navbar() {
           </div>
 
           <div className="hidden lg:flex items-center gap-2">
-            <Link href="/user-login">
+            <Link href="/login">
               <Button variant="ghost" size="sm">
                 Sign In
               </Button>
@@ -110,7 +110,7 @@ export function Navbar() {
                 </Link>
               ))}
               <div className="pt-2 flex gap-2">
-                <Link href="/user-login" className="flex-1">
+                <Link href="/login" className="flex-1">
                   <Button variant="outline" size="sm" className="w-full">Sign In</Button>
                 </Link>
                 <Link href="/signup" className="flex-1">

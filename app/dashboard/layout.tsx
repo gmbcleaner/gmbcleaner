@@ -81,7 +81,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   useEffect(() => {
     if (loading) return;
     if (!user) {
-      router.replace('/user-login');
+      router.replace('/login');
     }
   }, [user, loading, router]);
 
@@ -128,7 +128,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const handleLogout = async () => {
     await signOut();
     toast({ title: 'Logged out', description: 'You have been signed out successfully.' });
-    router.replace('/user-login');
+    router.replace('/login');
   };
 
   const markAllRead = async () => {
