@@ -24,7 +24,6 @@ interface Deposit {
 
 export default function AdminDepositsPage() {
   const [deposits, setDeposits] = useState<Deposit[]>([]);
-  const [processing, setProcessing] = useState<string | null>(null);
   const [rejectDialog, setRejectDialog] = useState<Deposit | null>(null);
   const [rejectReason, setRejectReason] = useState('');
 
@@ -48,7 +47,7 @@ export default function AdminDepositsPage() {
   useEffect(() => { fetchDeposits(); }, []);
 
   const approveDeposit = async (deposit: Deposit) => {
-    setProcessing(deposit.id);
+    setDeposits(prev => prev.map(d => d.id === deposit.id ? { ...d, status: 'approved' } : d));
     try {
       await updateDocument('deposits', deposit.id, { status: 'approved' });
       const profile = await getDocument('profiles', deposit.user_id);
@@ -65,39 +64,36 @@ export default function AdminDepositsPage() {
       await addDocument('notifications', {
         user_id: deposit.user_id,
         title: 'Deposit Approved',
-        message: `Your $${deposit.amount.toFixed(2)} deposit has been approved. Balance updated.`,
+        message: `Your $${deposit.amount.toFixed(2)} deposit has been approved.`,
         type: 'deposit',
         is_read: false,
       });
       toast({ title: 'Deposit approved', description: `$${deposit.amount.toFixed(2)} added to user's wallet.` });
-      fetchDeposits();
     } catch (err: any) {
+      setDeposits(prev => prev.map(d => d.id === deposit.id ? { ...d, status: 'pending' } : d));
       toast({ title: 'Error', description: err.message, variant: 'destructive' });
-    } finally {
-      setProcessing(null);
     }
   };
 
   const rejectDeposit = async () => {
     if (!rejectDialog) return;
-    setProcessing(rejectDialog.id);
+    const dep = rejectDialog;
+    setDeposits(prev => prev.map(d => d.id === dep.id ? { ...d, status: 'rejected' } : d));
+    setRejectDialog(null);
+    setRejectReason('');
     try {
-      await updateDocument('deposits', rejectDialog.id, { status: 'rejected' });
+      await updateDocument('deposits', dep.id, { status: 'rejected' });
       await addDocument('notifications', {
-        user_id: rejectDialog.user_id,
+        user_id: dep.user_id,
         title: 'Deposit Rejected',
-        message: `Your $${rejectDialog.amount.toFixed(2)} deposit was rejected. ${rejectReason || ''}`,
+        message: `Your $${dep.amount.toFixed(2)} deposit was rejected. ${rejectReason || ''}`,
         type: 'deposit',
         is_read: false,
       });
       toast({ title: 'Deposit rejected' });
-      setRejectDialog(null);
-      setRejectReason('');
-      fetchDeposits();
     } catch (err: any) {
+      setDeposits(prev => prev.map(d => d.id === dep.id ? { ...d, status: 'pending' } : d));
       toast({ title: 'Error', description: err.message, variant: 'destructive' });
-    } finally {
-      setProcessing(null);
     }
   };
 
@@ -155,12 +151,12 @@ export default function AdminDepositsPage() {
                   </div>
                   <div className="flex items-center gap-3">
                     <Badge className={statusColors[d.status] || 'bg-slate-100 text-slate-700'}>{d.status}</Badge>
-                    {d.status === 'pending' && (
+                      {d.status === 'pending' && (
                       <div className="flex gap-2">
-                        <Button size="sm" className="bg-green-600 text-white hover:bg-green-700" onClick={() => approveDeposit(d)} disabled={processing === d.id}>
+                        <Button size="sm" className="bg-green-600 text-white hover:bg-green-700" onClick={() => approveDeposit(d)}>
                           <CheckCircle2 className="h-4 w-4" />
                         </Button>
-                        <Button size="sm" variant="destructive" onClick={() => { setRejectDialog(d); }} disabled={processing === d.id}>
+                        <Button size="sm" variant="destructive" onClick={() => { setRejectDialog(d); }}>
                           <XCircle className="h-4 w-4" />
                         </Button>
                       </div>
@@ -182,7 +178,7 @@ export default function AdminDepositsPage() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setRejectDialog(null)}>Cancel</Button>
-            <Button variant="destructive" onClick={rejectDeposit} disabled={processing === rejectDialog?.id}>Reject</Button>
+            <Button variant="destructive" onClick={rejectDeposit}>Reject</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

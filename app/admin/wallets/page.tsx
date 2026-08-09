@@ -9,8 +9,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Plus, Trash2, ChevronDown, ChevronRight, Upload, X, AlertCircle } from 'lucide-react';
 
-interface Currency { id: string; name: string; logo_url: string; is_active: boolean; }
-interface Network { id: string; currency_id: string; name: string; is_active: boolean; }
+interface Currency { id: string; name: string; symbol: string; logo_url: string; is_active: boolean; }
+interface Network { id: string; currency_id: string; name: string; symbol: string; is_active: boolean; }
 interface WalletAddress { id: string; currency_id: string; network_id: string; address: string; label: string; }
 
 export default function AdminWalletsPage() {
@@ -57,19 +57,29 @@ export default function AdminWalletsPage() {
 
   const addCurrency = async () => {
     if (!newCurName) return;
+    const tempId = 'temp_' + Date.now();
+    const optimistic: Currency = {
+      id: tempId,
+      name: newCurName.trim(),
+      symbol: newCurName.trim().toUpperCase(),
+      logo_url: newCurLogo || '',
+      is_active: true,
+    };
+    setCurrencies(prev => [...prev, optimistic]);
+    setNewCurName(''); setNewCurLogo('');
+    if (logoRef.current) logoRef.current.value = '';
     try {
-      await addDocument('currencies', {
-        name: newCurName.trim(),
-        symbol: newCurName.trim().toUpperCase(),
-        logo_url: newCurLogo || '',
+      const realId = await addDocument('currencies', {
+        name: optimistic.name,
+        symbol: optimistic.symbol,
+        logo_url: optimistic.logo_url,
         is_active: true,
         sort_order: currencies.length,
       });
+      setCurrencies(prev => prev.map(c => c.id === tempId ? { ...c, id: realId } : c));
       toast({ title: 'Currency added' });
-      setNewCurName(''); setNewCurLogo('');
-      if (logoRef.current) logoRef.current.value = '';
-      fetchData();
     } catch (e: any) {
+      setCurrencies(prev => prev.filter(c => c.id !== tempId));
       toast({ title: 'Error', description: e.message, variant: 'destructive' });
     }
   };
@@ -96,18 +106,28 @@ export default function AdminWalletsPage() {
 
   const addNetwork = async (currencyId: string) => {
     if (!newNetName) return;
+    const tempId = 'temp_' + Date.now();
+    const optimistic: Network = {
+      id: tempId,
+      currency_id: currencyId,
+      name: newNetName.trim(),
+      symbol: newNetName.trim().toUpperCase(),
+      is_active: true,
+    };
+    setNetworks(prev => [...prev, optimistic]);
+    setNewNetName(''); setAddNetFor('');
     try {
-      await addDocument('networks', {
+      const realId = await addDocument('networks', {
         currency_id: currencyId,
-        name: newNetName.trim(),
-        symbol: newNetName.trim().toUpperCase(),
+        name: optimistic.name,
+        symbol: optimistic.symbol,
         is_active: true,
         sort_order: networks.filter(n => n.currency_id === currencyId).length,
       });
+      setNetworks(prev => prev.map(n => n.id === tempId ? { ...n, id: realId } : n));
       toast({ title: 'Network added' });
-      setNewNetName(''); setAddNetFor('');
-      fetchData();
     } catch (e: any) {
+      setNetworks(prev => prev.filter(n => n.id !== tempId));
       toast({ title: 'Error', description: e.message, variant: 'destructive' });
     }
   };
@@ -131,17 +151,27 @@ export default function AdminWalletsPage() {
 
   const addWallet = async (currencyId: string, networkId: string) => {
     if (!newAddr) return;
+    const tempId = 'temp_' + Date.now();
+    const optimistic: WalletAddress = {
+      id: tempId,
+      currency_id: currencyId,
+      network_id: networkId,
+      address: newAddr.trim(),
+      label: newAddrLabel.trim() || '',
+    };
+    setWallets(prev => [...prev, optimistic]);
+    setNewAddr(''); setNewAddrLabel(''); setAddAddrFor('');
     try {
-      await addDocument('wallet_addresses', {
+      const realId = await addDocument('wallet_addresses', {
         currency_id: currencyId,
         network_id: networkId,
-        address: newAddr.trim(),
-        label: newAddrLabel.trim() || '',
+        address: optimistic.address,
+        label: optimistic.label,
       });
+      setWallets(prev => prev.map(w => w.id === tempId ? { ...w, id: realId } : w));
       toast({ title: 'Wallet address added' });
-      setNewAddr(''); setNewAddrLabel(''); setAddAddrFor('');
-      fetchData();
     } catch (e: any) {
+      setWallets(prev => prev.filter(w => w.id !== tempId));
       toast({ title: 'Error', description: e.message, variant: 'destructive' });
     }
   };

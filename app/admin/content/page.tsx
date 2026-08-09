@@ -21,12 +21,10 @@ export default function AdminContentPage() {
   const [faqs, setFaqs] = useState<FAQ[]>([]);
   const [testimonials, setTestimonials] = useState<Testimonial[]>([]);
   const [posts, setPosts] = useState<BlogPost[]>([]);
-  const [loading, setLoading] = useState(true);
   const [faqDialog, setFaqDialog] = useState(false);
   const [faqQ, setFaqQ] = useState('');
   const [faqA, setFaqA] = useState('');
   const [faqCat, setFaqCat] = useState('general');
-  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     const fetchAll = async () => {
@@ -39,28 +37,30 @@ export default function AdminContentPage() {
         setFaqs((f as FAQ[]) || []);
         setTestimonials((t as Testimonial[]) || []);
         setPosts((b as BlogPost[]) || []);
-      } catch {} finally {
-        setLoading(false);
-      }
+      } catch {}
     };
     fetchAll();
   }, []);
 
   const addFaq = async () => {
-    setSaving(true);
+    const tempId = 'temp_' + Date.now();
+    const optimistic: FAQ = { id: tempId, question: faqQ, answer: faqA, category: faqCat, is_published: true };
+    setFaqs(prev => [...prev, optimistic]);
+    setFaqDialog(false); setFaqQ(''); setFaqA('');
     try {
-      await addDocument('faqs', { question: faqQ, answer: faqA, category: faqCat, is_published: true, sort_order: faqs.length });
+      const realId = await addDocument('faqs', { question: faqQ, answer: faqA, category: faqCat, is_published: true, sort_order: faqs.length });
+      setFaqs(prev => prev.map(f => f.id === tempId ? { ...f, id: realId } : f));
       toast({ title: 'FAQ added' });
-      setFaqDialog(false); setFaqQ(''); setFaqA('');
-      const data = await fetchCollection('faqs');
-      setFaqs((data as FAQ[]) || []);
-    } catch (err: any) { toast({ title: 'Error', description: err.message, variant: 'destructive' }); }
-    finally { setSaving(false); }
+    } catch (err: any) {
+      setFaqs(prev => prev.filter(f => f.id !== tempId));
+      toast({ title: 'Error', description: err.message, variant: 'destructive' });
+    }
   };
 
   const deleteFaq = async (id: string) => {
-    await deleteDocument('faqs', id);
-    setFaqs(faqs.filter(f => f.id !== id));
+    const prev = faqs;
+    setFaqs(prev.filter(f => f.id !== id));
+    try { await deleteDocument('faqs', id); } catch { setFaqs(prev); }
   };
 
   const toggleFaq = async (faq: FAQ) => {

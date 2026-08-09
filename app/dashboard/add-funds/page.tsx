@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { Wallet, Copy, CheckCircle2, AlertTriangle, Upload, X, ArrowRight, ArrowLeft } from 'lucide-react';
 import { addDocument, fetchCollection } from '@/lib/db';
 import { useAuth } from '@/components/providers/auth-provider';
@@ -9,11 +9,10 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { sendTelegramMessage } from '@/lib/telegram';
 
-interface Currency { id: string; name: string; symbol: string; logo_url: string; is_active: boolean; sort_order: number; }
-interface Network { id: string; currency_id: string; name: string; symbol: string; is_active: boolean; sort_order: number; }
+interface Currency { id: string; name: string; symbol: string; logo_url: string; is_active: boolean; }
+interface Network { id: string; currency_id: string; name: string; symbol: string; is_active: boolean; }
 interface WalletAddress { id: string; currency_id: string; network_id: string; address: string; label: string; }
 
 export default function AddFundsPage() {
@@ -35,20 +34,32 @@ export default function AddFundsPage() {
   const [submitting, setSubmitting] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => {
-    Promise.all([
-      fetchCollection('currencies').catch(() => []),
-      fetchCollection('networks').catch(() => []),
-      fetchCollection('wallet_addresses').catch(() => []),
-      fetchCollection('pricing_settings').catch(() => []),
-    ]).then(([c, n, w, p]) => {
+  const fetchData = useCallback(async () => {
+    try {
+      const [c, n, w, p] = await Promise.all([
+        fetchCollection('currencies').catch(() => []),
+        fetchCollection('networks').catch(() => []),
+        fetchCollection('wallet_addresses').catch(() => []),
+        fetchCollection('pricing_settings').catch(() => []),
+      ]);
       const activeCurrencies = ((c as Currency[]) || []).filter(c => c.is_active);
       setCurrencies(activeCurrencies);
       setNetworks((n as Network[]) || []);
       setWallets((w as WalletAddress[]) || []);
       if (p && p.length > 0) setMinDeposit(p[0].min_deposit || 20);
-    });
+    } catch {}
   }, []);
+
+  useEffect(() => {
+    fetchData();
+    const onFocus = () => fetchData();
+    window.addEventListener('focus', onFocus);
+    return () => window.removeEventListener('focus', onFocus);
+  }, [fetchData]);
+
+  useEffect(() => {
+    if (step === 'currency') fetchData();
+  }, [step, fetchData]);
 
   const parsedAmount = parseFloat(amount) || 0;
   const isValidAmount = parsedAmount >= minDeposit;
@@ -104,7 +115,6 @@ export default function AddFundsPage() {
         is_read: false,
       });
 
-      // Send to Telegram
       const telegramMsg = [
         '💰 <b>New Deposit Request</b>',
         '',
@@ -129,7 +139,7 @@ export default function AddFundsPage() {
         await sendTelegramMessage(telegramMsg);
       }
 
-      toast({ title: 'Deposit submitted', description: 'Your deposit is pending admin approval. You will be notified once reviewed.' });
+      toast({ title: 'Deposit submitted', description: 'Your deposit is pending admin approval.' });
       await refreshProfile();
       setStep('amount');
       setAmount(''); setTxHash(''); setSenderWallet('');
@@ -157,7 +167,6 @@ export default function AddFundsPage() {
         <p className="text-sm text-slate-500">Deposit cryptocurrency to fund your wallet. Minimum deposit: ${minDeposit}</p>
       </div>
 
-      {/* Step Indicator */}
       <div className="flex items-center gap-2 text-xs text-slate-500">
         {['Amount', 'Currency', 'Network', 'Address', 'Proof'].map((label, i) => (
           <div key={label} className="flex items-center gap-2">
@@ -189,7 +198,6 @@ export default function AddFundsPage() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            {/* Step 1: Amount */}
             {step === 'amount' && (
               <>
                 <div className="space-y-2">
@@ -208,12 +216,11 @@ export default function AddFundsPage() {
               </>
             )}
 
-            {/* Step 2: Currency */}
             {step === 'currency' && (
               <>
                 <div className="space-y-2">
                   {currencies.length === 0 ? (
-                    <p className="text-sm text-slate-500 text-center py-6">No currencies available.</p>
+                    <p className="text-sm text-slate-500 text-center py-6">No currencies available. Contact admin to add currencies.</p>
                   ) : (
                     <div className="grid gap-2">
                       {currencies.map((cur) => (
@@ -238,7 +245,6 @@ export default function AddFundsPage() {
               </>
             )}
 
-            {/* Step 3: Network */}
             {step === 'network' && (
               <>
                 <div className="space-y-2">
@@ -260,7 +266,6 @@ export default function AddFundsPage() {
               </>
             )}
 
-            {/* Step 4: Address */}
             {step === 'address' && (
               <>
                 {walletsForNetwork.length === 0 ? (
@@ -281,12 +286,11 @@ export default function AddFundsPage() {
                 )}
                 <div className="flex gap-2">
                   <Button variant="outline" onClick={() => setStep('network')} className="flex-1"><ArrowLeft className="mr-2 h-4 w-4" />Back</Button>
-                  <Button onClick={() => setStep('proof')} disabled={walletsForNetwork.length === 0} className="flex-1">I've sent payment <ArrowRight className="ml-2 h-4 w-4" /></Button>
+                  <Button onClick={() => setStep('proof')} disabled={walletsForNetwork.length === 0} className="flex-1">I&apos;ve sent payment <ArrowRight className="ml-2 h-4 w-4" /></Button>
                 </div>
               </>
             )}
 
-            {/* Step 5: Proof */}
             {step === 'proof' && (
               <>
                 <div className="space-y-2">
