@@ -6,10 +6,6 @@ import {
   remove,
   get,
   child,
-  orderByChild,
-  equalTo,
-  query as rtdbQuery,
-  limitToFirst,
 } from 'firebase/database';
 import { rtdb } from './firebase';
 
@@ -40,32 +36,8 @@ export async function fetchCollection(
 ) {
   checkDb();
   const dbRef = ref(rtdb);
-
-  if (filters && filters.length === 1 && filters[0].op === '==') {
-    const f = filters[0];
-    let q: any = rtdbQuery(child(dbRef, colName), orderByChild(f.field), equalTo(f.value));
-    if (orderByField) {
-      q = rtdbQuery(child(dbRef, colName), orderByChild(f.field), equalTo(f.value));
-    }
-    if (limitCount) {
-      q = rtdbQuery(child(dbRef, colName), orderByChild(f.field), equalTo(f.value));
-    }
-    const snap = await get(q);
-    let results = snapshotToArray(snap);
-    if (orderByField) {
-      results.sort((a: any, b: any) => {
-        const aVal = a[orderByField] || '';
-        const bVal = b[orderByField] || '';
-        return bVal > aVal ? 1 : bVal < aVal ? -1 : 0;
-      });
-    }
-    if (limitCount) results = results.slice(0, limitCount);
-    return results;
-  }
-
   const snap = await get(child(dbRef, colName));
   let results = snapshotToArray(snap);
-  console.log(`[RTDB] fetchCollection('${colName}'): ${results.length} items before filter`);
 
   if (filters) {
     results = results.filter((item: any) => {

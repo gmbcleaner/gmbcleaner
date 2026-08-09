@@ -73,11 +73,11 @@ export default function DashboardHomePage() {
     try {
       const filters = [{ field: 'user_id', op: '==' as const, value: user.uid }];
       const [ordersData, completedItemsData, notifData, totalOrders, activeOrders] = await Promise.all([
-        fetchCollection('orders', filters, 'created_at', 5),
-        fetchCollection('order_items', [...filters, { field: 'status', op: '==' as const, value: 'completed' }]),
-        fetchCollection('notifications', filters, 'created_at', 5),
-        countDocuments('orders', filters),
-        countDocuments('orders', [...filters, { field: 'status', op: 'in' as const, value: ['pending', 'processing'] }]),
+        fetchCollection('orders', filters, 'created_at', 5).catch(() => []),
+        fetchCollection('order_items', [...filters, { field: 'status', op: '==' as const, value: 'completed' }]).catch(() => []),
+        fetchCollection('notifications', filters, 'created_at', 5).catch(() => []),
+        countDocuments('orders', filters).catch(() => 0),
+        countDocuments('orders', [...filters, { field: 'status', op: 'in' as const, value: ['pending', 'processing'] }]).catch(() => 0),
       ]);
       setRecentOrders(ordersData as OrderRow[]);
       setRecentNotifications(notifData as NotificationRow[]);
