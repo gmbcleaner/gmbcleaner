@@ -253,7 +253,7 @@ export default function AddFundsPage() {
                         <button key={cur.id} onClick={() => { setSelectedCurrency(cur); setStep('network'); }}
                           className={`flex items-center gap-3 rounded-lg border p-3 text-left transition-all hover:bg-slate-50 ${selectedCurrency?.id === cur.id ? 'border-teal-500 bg-teal-50' : 'border-slate-200'}`}>
                           {cur.logo_url ? (
-                            cur.logo_url.startsWith('http') ? (
+                            cur.logo_url.startsWith('http') || cur.logo_url.startsWith('data:') ? (
                               <img src={cur.logo_url} alt="" className="h-8 w-8 rounded-lg object-cover" />
                             ) : (
                               <span className="text-2xl">{cur.logo_url}</span>
