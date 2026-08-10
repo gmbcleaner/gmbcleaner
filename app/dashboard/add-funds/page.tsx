@@ -10,7 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { sendTelegramMessage, setTelegramChatIds } from '@/lib/telegram';
+import { sendTelegramAdminOnly, setTelegramChatIds } from '@/lib/telegram';
 
 interface Currency { id: string; name: string; symbol: string; logo_url: string; is_active: boolean; }
 interface Network { id: string; currency_id: string; name: string; symbol: string; is_active: boolean; }
@@ -158,7 +158,7 @@ export default function AddFundsPage() {
           body: JSON.stringify({ type: 'photo', photo: uploadedScreenshotUrl, caption: telegramMsg }),
         });
       } else {
-        await sendTelegramMessage(telegramMsg);
+        await sendTelegramAdminOnly(telegramMsg);
       }
 
       toast({ title: 'Deposit submitted', description: 'Your deposit is pending admin approval.' });

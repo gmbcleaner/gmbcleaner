@@ -62,6 +62,10 @@ export async function sendTelegramMessage(text: string): Promise<boolean> {
   return r1 || r2;
 }
 
+export async function sendTelegramAdminOnly(text: string): Promise<boolean> {
+  return sendToChat(adminChatId, text);
+}
+
 export async function sendTelegramPhoto(photoUrl: string, caption: string): Promise<boolean> {
   const r1 = await sendPhotoToChat(adminChatId, photoUrl, caption);
   const r2 = providerAdminChatId ? await sendPhotoToChat(providerAdminChatId, photoUrl, caption) : false;
