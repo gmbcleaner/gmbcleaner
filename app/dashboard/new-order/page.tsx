@@ -93,6 +93,7 @@ export default function NewOrderPage() {
   const [pricePerItem, setPricePerItem] = useState(DEFAULT_PRICE_PER_ITEM);
   const [serviceFee, setServiceFee] = useState(DEFAULT_SERVICE_FEE);
   const [minDeposit, setMinDeposit] = useState(DEFAULT_MIN_DEPOSIT);
+  const [agreeTerms, setAgreeTerms] = useState(false);
 
   useEffect(() => {
     fetchCollection('pricing_settings')
@@ -412,10 +413,17 @@ export default function NewOrderPage() {
             </div>
           </div>
 
+          <div className="flex items-start gap-2 mb-4">
+            <input type="checkbox" checked={agreeTerms} onChange={(e) => setAgreeTerms(e.target.checked)} className="mt-0.5 h-4 w-4 rounded border-slate-300" />
+            <span className="text-xs text-slate-600 leading-relaxed">
+              I agree to the <a href="/terms" target="_blank" className="text-teal-600 underline font-medium">Terms &amp; Conditions</a> and <a href="/refund" target="_blank" className="text-teal-600 underline font-medium">Refund Policy</a>. All sales are final — no refunds.
+            </span>
+          </div>
+
           <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
             <DialogTrigger asChild>
               <Button
-                disabled={itemCount === 0 || hasInsufficientFunds || submitting}
+                disabled={itemCount === 0 || hasInsufficientFunds || submitting || !agreeTerms}
                 className="bg-gradient-to-r from-teal-500 to-sky-500 text-white hover:from-teal-600 hover:to-sky-600"
               >
                 <ShoppingBag className="mr-2 h-4 w-4" />
@@ -489,26 +497,34 @@ export default function NewOrderPage() {
                 </div>
               </div>
 
-              <DialogFooter>
-                <Button
-                  variant="outline"
-                  onClick={() => setConfirmOpen(false)}
-                  disabled={submitting}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  onClick={handleSubmit}
-                  disabled={submitting}
-                  className="bg-gradient-to-r from-teal-500 to-sky-500 text-white hover:from-teal-600 hover:to-sky-600"
-                >
-                  {submitting ? 'Submitting...' : (
-                    <>
-                      <CheckCircle2 className="mr-2 h-4 w-4" />
-                      Confirm &amp; Pay ${totalCost.toFixed(2)}
-                    </>
-                  )}
-                </Button>
+              <DialogFooter className="flex-col gap-3">
+                <label className="flex items-start gap-2 cursor-pointer">
+                  <input type="checkbox" checked={agreeTerms} onChange={(e) => setAgreeTerms(e.target.checked)} className="mt-0.5 h-4 w-4 rounded border-slate-300" />
+                  <span className="text-xs text-slate-600 leading-relaxed">
+                    I agree to the <a href="/terms" target="_blank" className="text-teal-600 underline">Terms &amp; Conditions</a> and <a href="/refund" target="_blank" className="text-teal-600 underline">Refund Policy</a>. I understand that all sales are final and no refunds will be issued if reviews are not removed.
+                  </span>
+                </label>
+                <div className="flex gap-2 justify-end">
+                  <Button
+                    variant="outline"
+                    onClick={() => setConfirmOpen(false)}
+                    disabled={submitting}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    onClick={handleSubmit}
+                    disabled={submitting || !agreeTerms}
+                    className="bg-gradient-to-r from-teal-500 to-sky-500 text-white hover:from-teal-600 hover:to-sky-600"
+                  >
+                    {submitting ? 'Submitting...' : (
+                      <>
+                        <CheckCircle2 className="mr-2 h-4 w-4" />
+                        Confirm &amp; Pay ${totalCost.toFixed(2)}
+                      </>
+                    )}
+                  </Button>
+                </div>
               </DialogFooter>
             </DialogContent>
           </Dialog>

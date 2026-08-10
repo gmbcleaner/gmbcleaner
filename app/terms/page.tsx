@@ -6,7 +6,7 @@ import { PageHeader } from '@/components/shared/sections';
 export const metadata: Metadata = {
   title: 'Terms & Conditions',
   description:
-    'Read the Terms & Conditions governing your use of GMBCLEANER, including user responsibilities, acceptable use, crypto payment terms, order processing, limitation of liability, and dispute resolution.',
+    'Read the Terms & Conditions governing your use of GMBCLEANER, including our strict no-refund policy, crypto payment terms, order processing, limitation of liability, and dispute resolution.',
 };
 
 export default function TermsPage() {
@@ -34,7 +34,21 @@ export default function TermsPage() {
                   and agree to be bound by these Terms. If you do not agree, you must not access or use the Service.
                 </p>
                 <p className="mt-4 text-sm font-medium text-navy-900">
-                  Last updated: August 1, 2025
+                  Last updated: August 10, 2026
+                </p>
+              </div>
+
+              {/* CRITICAL: NO REFUND POLICY BANNER */}
+              <div className="rounded-2xl border-2 border-red-300 bg-red-50 p-6">
+                <h2 className="text-lg font-bold tracking-tight text-red-700 uppercase">
+                  Important: No Refund Policy
+                </h2>
+                <p className="mt-3 text-sm font-semibold text-red-800 leading-relaxed">
+                  ALL PAYMENTS ARE FINAL. Once a deposit is made or an order is placed, NO REFUNDS will be issued
+                  under any circumstances. If a review is NOT removed by the platform, the funds used for that order
+                  will NOT be added back to your wallet balance. You are paying for the dispute service, NOT for
+                  guaranteed removal. By using GMBCLEANER, you expressly acknowledge and agree to this no-refund
+                  policy.
                 </p>
               </div>
 
@@ -171,10 +185,10 @@ export default function TermsPage() {
                   insufficient gas or network fees on your end.
                 </p>
                 <p className="text-navy-600 leading-relaxed">
-                  All cryptocurrency transactions are final once confirmed on the relevant blockchain network. We do
-                  not control the blockchain and cannot reverse, cancel, or modify a transaction once it has been
-                  confirmed. Wallet funding credits are denominated in US dollars and applied at the exchange rate in
-                  effect at the time of confirmation, as determined by our payment processor.
+                  All cryptocurrency transactions are final and irreversible once confirmed on the relevant blockchain
+                  network. We do not control the blockchain and cannot reverse, cancel, or modify a transaction once it
+                  has been confirmed. Wallet funding credits are denominated in US dollars and applied at the exchange
+                  rate in effect at the time of confirmation, as determined by our payment processor.
                 </p>
 
                 <h3 className="text-xl font-semibold text-navy-900 pt-2">4.3 Minimum Funding</h3>
@@ -251,10 +265,46 @@ export default function TermsPage() {
                 </p>
               </section>
 
-              {/* 7. Limitation of Liability */}
+              {/* 7. No Refunds — All Sales Final */}
+              <section className="space-y-4">
+                <h2 className="text-2xl font-bold tracking-tight text-red-700">
+                  7. No Refunds — All Sales Final
+                </h2>
+                <div className="rounded-2xl border border-red-200 bg-red-50 p-6 space-y-4">
+                  <p className="text-navy-800 leading-relaxed font-semibold">
+                    All payments are final. No refunds will be issued under any circumstances, including but not
+                    limited to:
+                  </p>
+                  <ul className="space-y-2.5 text-navy-800 leading-relaxed pl-6 list-disc marker:text-red-500">
+                    <li className="font-medium">
+                      Deposits: Once you fund your wallet, the transaction is final. Wallet deposits are
+                      non-refundable. You may only use deposited funds toward orders on the platform.
+                    </li>
+                    <li className="font-medium">
+                      Orders: Once an order is placed and the fee is deducted from your wallet, the fee is
+                      non-refundable. This applies regardless of whether the host platform removes the review or not.
+                    </li>
+                    <li className="font-medium">
+                      Unfavorable Outcomes: If a review is NOT removed by the platform, the funds used for that order
+                      will NOT be added back to your wallet balance. You are paying for the dispute service — not for
+                      guaranteed removal.
+                    </li>
+                    <li className="font-medium">
+                      Crypto Payments: All cryptocurrency transactions are final and irreversible. We cannot reverse,
+                      cancel, or refund any confirmed blockchain transaction.
+                    </li>
+                  </ul>
+                  <p className="text-navy-800 leading-relaxed font-semibold">
+                    By placing an order or funding your wallet, you expressly waive any right to a refund and
+                    acknowledge that GMBCLEANER is not obligated to issue refunds, credits, or reversals of any kind.
+                  </p>
+                </div>
+              </section>
+
+              {/* 8. Limitation of Liability */}
               <section className="space-y-4">
                 <h2 className="text-2xl font-bold tracking-tight text-navy-900">
-                  7. Limitation of Liability
+                  8. Limitation of Liability
                 </h2>
                 <p className="text-navy-600 leading-relaxed">
                   To the maximum extent permitted by applicable law, in no event shall GMBCLEANER, its officers,
@@ -279,17 +329,17 @@ export default function TermsPage() {
                 </p>
               </section>
 
-              {/* 8. Account Termination */}
+              {/* 9. Account Termination */}
               <section className="space-y-4">
                 <h2 className="text-2xl font-bold tracking-tight text-navy-900">
-                  8. Account Termination
+                  9. Account Termination
                 </h2>
                 <p className="text-navy-600 leading-relaxed">
                   You may close your account at any time by contacting support. Upon closure, any remaining wallet
                   balance will be handled in accordance with our Refund Policy.
                 </p>
                 <p className="text-navy-600 leading-relaxed">
-                  We may suspend or terminate your account, without notice, if you:
+                  We reserve the right to suspend or terminate your account, without prior notice, if you:
                 </p>
                 <ul className="space-y-2.5 text-navy-600 leading-relaxed pl-6 list-disc marker:text-teal-500">
                   <li>Violate these Terms or our Acceptable Use Policy.</li>
@@ -300,8 +350,8 @@ export default function TermsPage() {
                 </ul>
                 <p className="text-navy-600 leading-relaxed">
                   Upon termination by us for cause, any wallet balance associated with fraudulent or abusive activity
-                  may be forfeited. Upon termination for any other reason, remaining balances will be processed in
-                  accordance with our Refund Policy.
+                  may be forfeited without refund. Upon termination for any other reason, remaining balances will be
+                  processed in accordance with our Refund Policy.
                 </p>
                 <p className="text-navy-600 leading-relaxed">
                   The provisions of these Terms that by their nature should survive termination will continue to
@@ -309,13 +359,13 @@ export default function TermsPage() {
                 </p>
               </section>
 
-              {/* 9. Dispute Resolution */}
+              {/* 10. Dispute Resolution */}
               <section className="space-y-4">
                 <h2 className="text-2xl font-bold tracking-tight text-navy-900">
-                  9. Dispute Resolution
+                  10. Dispute Resolution
                 </h2>
 
-                <h3 className="text-xl font-semibold text-navy-900 pt-2">9.1 Good Faith Negotiation</h3>
+                <h3 className="text-xl font-semibold text-navy-900 pt-2">10.1 Good Faith Negotiation</h3>
                 <p className="text-navy-600 leading-relaxed">
                   If a dispute arises out of or relates to these Terms or the Service, the parties agree to first
                   attempt to resolve it through good-faith negotiation. The complaining party must send a written
@@ -323,7 +373,7 @@ export default function TermsPage() {
                   matter within thirty (30) days.
                 </p>
 
-                <h3 className="text-xl font-semibold text-navy-900 pt-2">9.2 Binding Arbitration</h3>
+                <h3 className="text-xl font-semibold text-navy-900 pt-2">10.2 Binding Arbitration</h3>
                 <p className="text-navy-600 leading-relaxed">
                   If the dispute is not resolved through negotiation within thirty (30) days, the dispute shall be
                   finally resolved by binding arbitration administered by a single arbitrator under the applicable
@@ -336,14 +386,14 @@ export default function TermsPage() {
                   arbitrator may award reasonable costs to the prevailing party where permitted by law.
                 </p>
 
-                <h3 className="text-xl font-semibold text-navy-900 pt-2">9.3 Class Action Waiver</h3>
+                <h3 className="text-xl font-semibold text-navy-900 pt-2">10.3 Class Action Waiver</h3>
                 <p className="text-navy-600 leading-relaxed">
                   You and GMBCLEANER agree that any arbitration or legal proceeding shall be conducted on an
                   individual basis only, and not as a class action or other representative proceeding. Neither party
                   may join or consolidate claims with those of any other person or entity.
                 </p>
 
-                <h3 className="text-xl font-semibold text-navy-900 pt-2">9.4 Equitable Relief</h3>
+                <h3 className="text-xl font-semibold text-navy-900 pt-2">10.4 Equitable Relief</h3>
                 <p className="text-navy-600 leading-relaxed">
                   Nothing in this section prevents either party from seeking injunctive or other equitable relief from
                   a court of competent jurisdiction to protect intellectual property, confidentiality, or other
@@ -351,10 +401,10 @@ export default function TermsPage() {
                 </p>
               </section>
 
-              {/* 10. Governing Law */}
+              {/* 11. Governing Law */}
               <section className="space-y-4">
                 <h2 className="text-2xl font-bold tracking-tight text-navy-900">
-                  10. Governing Law
+                  11. Governing Law
                 </h2>
                 <p className="text-navy-600 leading-relaxed">
                   These Terms and any dispute arising out of or relating to them shall be governed by and construed in
@@ -368,10 +418,10 @@ export default function TermsPage() {
                 </p>
               </section>
 
-              {/* 11. Changes to These Terms */}
+              {/* 12. Changes to These Terms */}
               <section className="space-y-4">
                 <h2 className="text-2xl font-bold tracking-tight text-navy-900">
-                  11. Changes to These Terms
+                  12. Changes to These Terms
                 </h2>
                 <p className="text-navy-600 leading-relaxed">
                   We may update these Terms from time to time. When we do, we will revise the &quot;Last updated&quot;
@@ -386,10 +436,10 @@ export default function TermsPage() {
                 </p>
               </section>
 
-              {/* 12. Contact */}
+              {/* 13. Contact */}
               <section className="space-y-4">
                 <h2 className="text-2xl font-bold tracking-tight text-navy-900">
-                  12. Contact Us
+                  13. Contact Us
                 </h2>
                 <p className="text-navy-600 leading-relaxed">
                   If you have any questions about these Terms, you may contact us at:
