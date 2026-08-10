@@ -44,7 +44,8 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 
-const DEFAULT_PRICE_PER_ITEM = 1.15;
+const DEFAULT_PRICE_PER_ITEM = 1.00;
+const DEFAULT_SERVICE_FEE = 0.15;
 const DEFAULT_MIN_DEPOSIT = 20;
 
 interface ParsedUrl {
@@ -90,6 +91,7 @@ export default function NewOrderPage() {
   const [submitting, setSubmitting] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [pricePerItem, setPricePerItem] = useState(DEFAULT_PRICE_PER_ITEM);
+  const [serviceFee, setServiceFee] = useState(DEFAULT_SERVICE_FEE);
   const [minDeposit, setMinDeposit] = useState(DEFAULT_MIN_DEPOSIT);
 
   useEffect(() => {
@@ -97,7 +99,8 @@ export default function NewOrderPage() {
       .then((data) => {
         if (data && data.length > 0) {
           const p = data[0];
-          setPricePerItem((p.base_price || 1) + (p.service_fee || 0.15));
+          setPricePerItem(p.base_price ?? 1);
+          setServiceFee(p.service_fee ?? 0.15);
           setMinDeposit(p.min_deposit || 20);
         }
       })
@@ -108,7 +111,7 @@ export default function NewOrderPage() {
   const validUrls = useMemo(() => parsedUrls.filter((u) => u.valid), [parsedUrls]);
   const invalidUrls = useMemo(() => parsedUrls.filter((u) => !u.valid), [parsedUrls]);
   const itemCount = validUrls.length;
-  const totalCost = itemCount * pricePerItem;
+  const totalCost = itemCount * pricePerItem + (itemCount > 0 ? serviceFee : 0);
   const walletBalance = profile?.wallet_balance ?? 0;
   const hasInsufficientFunds = itemCount > 0 && totalCost > walletBalance;
 
@@ -237,7 +240,7 @@ export default function NewOrderPage() {
       <div>
         <h1 className="text-2xl font-bold tracking-tight text-slate-900">New Order</h1>
         <p className="mt-1 text-sm text-slate-500">
-          Submit review URLs for dispute. Each review costs ${pricePerItem.toFixed(2)}.
+          Submit review URLs for dispute. Each review costs ${pricePerItem.toFixed(2)} + ${serviceFee.toFixed(2)} service fee.
         </p>
       </div>
 
@@ -385,12 +388,17 @@ export default function NewOrderPage() {
             </div>
             <Separator orientation="vertical" className="h-10" />
             <div>
-              <p className="text-xs text-slate-500">Price / item</p>
+              <p className="text-xs text-slate-500">Base / item</p>
               <p className="text-lg font-bold text-slate-900">${pricePerItem.toFixed(2)}</p>
             </div>
             <Separator orientation="vertical" className="h-10" />
             <div>
-              <p className="text-xs text-slate-500">Total</p>
+              <p className="text-xs text-slate-500">Service fee</p>
+              <p className="text-lg font-bold text-slate-900">${serviceFee.toFixed(2)}</p>
+            </div>
+            <Separator orientation="vertical" className="h-10" />
+            <div>
+              <p className="text-xs text-slate-500">Total ({itemCount} item{itemCount !== 1 ? 's' : ''})</p>
               <p className="text-lg font-bold text-teal-600">${totalCost.toFixed(2)}</p>
             </div>
           </div>
@@ -425,8 +433,12 @@ export default function NewOrderPage() {
                       <span className="font-semibold text-slate-900">{itemCount}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-slate-500">Price per item</span>
-                      <span className="font-semibold text-slate-900">${pricePerItem.toFixed(2)}</span>
+                      <span className="text-slate-500">Base price</span>
+                      <span className="font-semibold text-slate-900">${pricePerItem.toFixed(2)} × {itemCount} = ${(pricePerItem * itemCount).toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-slate-500">Service fee</span>
+                      <span className="font-semibold text-slate-900">${serviceFee.toFixed(2)}</span>
                     </div>
                     <Separator />
                     <div className="flex justify-between text-base">
