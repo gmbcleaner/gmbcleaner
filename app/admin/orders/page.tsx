@@ -1,13 +1,24 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { fetchCollection, updateDocument, addDocument, getDocument, deleteDocument } from '@/lib/db';
+import { sendTelegramAdminOnly, setTelegramChatIds } from '@/lib/telegram';
 import { toast } from '@/hooks/use-toast';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ListOrdered, ChevronDown, ChevronUp, Trash2 } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { ListOrdered, ChevronDown, ChevronUp, Trash2, ExternalLink, Search, Filter, Edit, Package } from 'lucide-react';
+
+interface OrderItem {
+  id: string;
+  review_url: string;
+  status: string;
+}
 
 interface Order {
   id: string;
@@ -18,8 +29,9 @@ interface Order {
   notes: string | null;
   assigned_provider: string | null;
   created_at: string;
+  user_id?: string;
   user_email?: string;
-  order_items?: { id: string; review_url: string; status: string }[];
+  order_items?: OrderItem[];
 }
 
 interface Provider {
@@ -27,61 +39,117 @@ interface Provider {
   email: string;
 }
 
+const STATUS_OPTIONS = ['pending', 'processing', 'completed', 'rejected', 'on_hold'] as const;
+
+const STATUS_COLORS: Record<string, string> = {
+  pending: 'bg-amber-100 text-amber-700',
+  processing: 'bg-blue-100 text-blue-700',
+  completed: 'bg-green-100 text-green-700',
+  rejected: 'bg-red-100 text-red-700',
+  on_hold: 'bg-slate-100 text-slate-700',
+};
+
+const STATUS_LABELS: Record<string, string> = {
+  pending: 'Pending',
+  processing: 'Processing',
+  completed: 'Completed',
+  rejected: 'Rejected',
+  on_hold: 'On Hold',
+};
+
 export default function AdminOrdersPage() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [providers, setProviders] = useState<Provider[]>([]);
   const [expanded, setExpanded] = useState<string | null>(null);
-  const [updating, setUpdating] = useState<string | null>(null);
+  const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [loading, setLoading] = useState(true);
+  const [updatingId, setUpdatingId] = useState<string | null>(null);
 
-  const fetchOrders = async () => {
+  const [editOrder, setEditOrder] = useState<Order | null>(null);
+  const [editNotes, setEditNotes] = useState('');
+  const [editAmount, setEditAmount] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  const loadTelegramSettings = useCallback(async () => {
+    try {
+      const data = await fetchCollection('admin_settings');
+      if (data && data.length > 0) {
+        const s = data[0];
+        setTelegramChatIds(s.admin_telegram_id || '', s.provider_telegram_id || '');
+      }
+    } catch {}
+  }, []);
+
+  const fetchOrders = useCallback(async () => {
     try {
       const ordersData = await fetchCollection('orders', undefined, 'created_at');
-      const enrichedOrders = await Promise.all(
+      const enriched = await Promise.all(
         (ordersData || []).map(async (order: any) => {
           let user_email = '';
           if (order.user_id) {
             const profile = await getDocument('profiles', order.user_id);
             user_email = profile?.email || '';
           }
-          const orderItems = await fetchCollection('order_items', [{ field: 'order_id', op: '==', value: order.id }]);
+          const orderItems = await fetchCollection('order_items', [
+            { field: 'order_id', op: '==', value: order.id },
+          ]);
           return { ...order, user_email, order_items: orderItems || [] } as Order;
         })
       );
-      setOrders(enrichedOrders);
-      const provs = await fetchCollection('profiles', [{ field: 'role', op: '==', value: 'provider' }]);
-      setProviders((provs as Provider[]) || []);
-    } catch {}
-  };
+      setOrders(enriched);
+    } catch {} finally {
+      setLoading(false);
+    }
+  }, []);
 
-  useEffect(() => { fetchOrders(); }, []);
-
-  const updateStatus = async (orderId: string, status: string) => {
-    setUpdating(orderId);
+  const fetchProviders = useCallback(async () => {
     try {
-      await updateDocument('orders', orderId, { status });
-      const order = orders.find(o => o.id === orderId);
+      const data = await fetchCollection('profiles', [{ field: 'role', op: '==', value: 'provider' }]);
+      setProviders((data as Provider[]) || []);
+    } catch {}
+  }, []);
+
+  useEffect(() => {
+    loadTelegramSettings();
+    fetchOrders();
+    fetchProviders();
+  }, [loadTelegramSettings, fetchOrders, fetchProviders]);
+
+  const updateStatus = async (orderId: string, newStatus: string) => {
+    setUpdatingId(orderId);
+    try {
+      await updateDocument('orders', orderId, { status: newStatus });
+      const order = orders.find((o) => o.id === orderId);
       if (order) {
         await addDocument('notifications', {
           user_id: order.user_id,
           title: 'Order Updated',
-          message: `Your order ${order.order_code} status changed to ${status}.`,
+          message: `Your order ${order.order_code} status changed to ${STATUS_LABELS[newStatus] || newStatus}.`,
           type: 'order',
           is_read: false,
         });
+        const msg = `📦 <b>Order Status Updated</b>\n\n` +
+          `<b>Order:</b> ${order.order_code}\n` +
+          `<b>Status:</b> ${STATUS_LABELS[newStatus] || newStatus}\n` +
+          `<b>User:</b> ${order.user_email || 'Unknown'}\n` +
+          `<b>Amount:</b> $${(order.total_amount || 0).toFixed(2)}`;
+        sendTelegramAdminOnly(msg);
       }
-      toast({ title: 'Order updated' });
+      toast({ title: 'Status updated' });
       fetchOrders();
     } catch (err: any) {
       toast({ title: 'Error', description: err.message, variant: 'destructive' });
     } finally {
-      setUpdating(null);
+      setUpdatingId(null);
     }
   };
 
   const assignProvider = async (orderId: string, providerId: string) => {
+    setUpdatingId(orderId);
     try {
       await updateDocument('orders', orderId, { assigned_provider: providerId });
-      const order = orders.find(o => o.id === orderId);
+      const order = orders.find((o) => o.id === orderId);
       if (order?.order_items) {
         for (const item of order.order_items) {
           await addDocument('provider_tasks', {
@@ -93,25 +161,44 @@ export default function AdminOrdersPage() {
           });
         }
       }
+      const provider = providers.find((p) => p.id === providerId);
+      if (order && provider) {
+        const msg = `👤 <b>Provider Assigned</b>\n\n` +
+          `<b>Order:</b> ${order.order_code}\n` +
+          `<b>Provider:</b> ${provider.email}\n` +
+          `<b>Items:</b> ${order.order_items?.length || 0}`;
+        sendTelegramAdminOnly(msg);
+      }
       toast({ title: 'Provider assigned' });
       fetchOrders();
     } catch (err: any) {
       toast({ title: 'Error', description: err.message, variant: 'destructive' });
+    } finally {
+      setUpdatingId(null);
     }
   };
 
   const deleteOrder = async (orderId: string) => {
     try {
+      const order = orders.find((o) => o.id === orderId);
       await deleteDocument('orders', orderId);
-      const order = orders.find(o => o.id === orderId);
       if (order?.order_items) {
         for (const item of order.order_items) {
           await deleteDocument('order_items', item.id);
         }
       }
-      const tasks = await fetchCollection('provider_tasks', [{ field: 'order_id', op: '==', value: orderId }]);
+      const tasks = await fetchCollection('provider_tasks', [
+        { field: 'order_id', op: '==', value: orderId },
+      ]);
       for (const task of tasks) {
         await deleteDocument('provider_tasks', task.id);
+      }
+      if (order) {
+        const msg = `🗑️ <b>Order Deleted</b>\n\n` +
+          `<b>Order:</b> ${order.order_code}\n` +
+          `<b>User:</b> ${order.user_email || 'Unknown'}\n` +
+          `<b>Amount:</b> $${(order.total_amount || 0).toFixed(2)}`;
+        sendTelegramAdminOnly(msg);
       }
       toast({ title: 'Order moved to trash' });
       fetchOrders();
@@ -120,86 +207,223 @@ export default function AdminOrdersPage() {
     }
   };
 
-  const statusColors: Record<string, string> = {
-    pending: 'bg-amber-100 text-amber-700',
-    processing: 'bg-blue-100 text-blue-700',
-    completed: 'bg-green-100 text-green-700',
-    rejected: 'bg-red-100 text-red-700',
-    on_hold: 'bg-slate-100 text-slate-700',
+  const openEditDialog = (order: Order) => {
+    setEditOrder(order);
+    setEditNotes(order.notes || '');
+    setEditAmount(String(order.total_amount || 0));
   };
+
+  const saveOrderEdits = async () => {
+    if (!editOrder) return;
+    setSaving(true);
+    try {
+      await updateDocument('orders', editOrder.id, {
+        notes: editNotes.trim(),
+        total_amount: parseFloat(editAmount) || 0,
+      });
+      toast({ title: 'Order updated' });
+      setEditOrder(null);
+      fetchOrders();
+    } catch (err: any) {
+      toast({ title: 'Error', description: err.message, variant: 'destructive' });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const filtered = orders.filter((order) => {
+    const matchSearch =
+      !search ||
+      order.order_code?.toLowerCase().includes(search.toLowerCase()) ||
+      order.user_email?.toLowerCase().includes(search.toLowerCase()) ||
+      order.notes?.toLowerCase().includes(search.toLowerCase());
+    const matchStatus = statusFilter === 'all' || order.status === statusFilter;
+    return matchSearch && matchStatus;
+  });
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight text-slate-900">Order Management</h1>
-        <p className="text-sm text-slate-500">Manage orders, assign providers, update statuses.</p>
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight text-slate-900">Order Management</h1>
+          <p className="text-sm text-slate-500">Manage orders, assign providers, update statuses.</p>
+        </div>
+        <Badge variant="outline" className="w-fit">{orders.length} orders</Badge>
+      </div>
+
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+          <Input
+            placeholder="Search by order code, user email, or notes..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="pl-9"
+          />
+        </div>
+        <div className="flex items-center gap-2">
+          <Filter className="h-4 w-4 text-slate-400" />
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger className="w-40">
+              <SelectValue placeholder="All Statuses" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Statuses</SelectItem>
+              {STATUS_OPTIONS.map((s) => (
+                <SelectItem key={s} value={s}>{STATUS_LABELS[s]}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
       <Card className="shadow-card">
         <CardContent className="p-6">
-          {orders.length === 0 ? (
-            <p className="py-8 text-center text-sm text-slate-500">No orders yet.</p>
+          {loading ? (
+            <p className="py-8 text-center text-sm text-slate-500">Loading orders...</p>
+          ) : filtered.length === 0 ? (
+            <p className="py-8 text-center text-sm text-slate-500">No orders found.</p>
           ) : (
             <div className="space-y-3">
-              {orders.map((order) => (
-                <div key={order.id} className="rounded-lg border border-slate-200">
-                  <div className="flex items-center justify-between p-4 cursor-pointer hover:bg-slate-50" onClick={() => setExpanded(expanded === order.id ? null : order.id)}>
-                    <div className="flex items-center gap-4">
-                      <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-100">
+              {filtered.map((order) => (
+                <div key={order.id} className="rounded-lg border border-slate-200 overflow-hidden">
+                  <div
+                    className="flex items-center justify-between p-4 cursor-pointer hover:bg-slate-50 transition-colors"
+                    onClick={() => setExpanded(expanded === order.id ? null : order.id)}
+                  >
+                    <div className="flex items-center gap-4 min-w-0 flex-1">
+                      <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-100 shrink-0">
                         <ListOrdered className="h-5 w-5 text-slate-600" />
                       </div>
-                      <div>
-                        <p className="text-sm font-semibold text-slate-900">{order.order_code}</p>
-                        <p className="text-xs text-slate-500">{order.user_email || 'Unknown'} &middot; {order.item_count} items &middot; {new Date(order.created_at).toLocaleDateString()}</p>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2">
+                          <p className="text-sm font-semibold text-slate-900">{order.order_code}</p>
+                          {updatingId === order.id && (
+                            <span className="text-[10px] text-blue-500 animate-pulse">Updating...</span>
+                          )}
+                        </div>
+                        <p className="text-xs text-slate-500 truncate">
+                          {order.user_email || 'Unknown'} &middot; {order.item_count || order.order_items?.length || 0} items &middot; {new Date(order.created_at).toLocaleDateString()}
+                        </p>
                       </div>
                     </div>
-                    <div className="flex items-center gap-3">
-                      <span className="text-sm font-bold">${(order.total_amount || 0).toFixed(2)}</span>
-                      <Badge className={statusColors[order.status] || 'bg-slate-100 text-slate-700'}>{order.status}</Badge>
-                      {expanded === order.id ? <ChevronUp className="h-4 w-4 text-slate-400" /> : <ChevronDown className="h-4 w-4 text-slate-400" />}
+                    <div className="flex items-center gap-3 shrink-0 ml-3">
+                      <span className="text-sm font-bold text-slate-900">${(order.total_amount || 0).toFixed(2)}</span>
+                      <Badge className={`${STATUS_COLORS[order.status] || 'bg-slate-100 text-slate-700'} text-[10px]`}>
+                        {STATUS_LABELS[order.status] || order.status}
+                      </Badge>
+                      {expanded === order.id ? (
+                        <ChevronUp className="h-4 w-4 text-slate-400" />
+                      ) : (
+                        <ChevronDown className="h-4 w-4 text-slate-400" />
+                      )}
                     </div>
                   </div>
+
                   {expanded === order.id && (
                     <div className="border-t border-slate-200 p-4 space-y-4 bg-slate-50/50">
-                      <div className="flex flex-wrap gap-2">
-                        <Select value={order.status} onValueChange={(v) => updateStatus(order.id, v)}>
-                          <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="pending">Pending</SelectItem>
-                            <SelectItem value="processing">Processing</SelectItem>
-                            <SelectItem value="completed">Completed</SelectItem>
-                            <SelectItem value="rejected">Rejected</SelectItem>
-                            <SelectItem value="on_hold">On Hold</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <Select value={order.assigned_provider || ''} onValueChange={(v) => assignProvider(order.id, v)}>
-                          <SelectTrigger className="w-48"><SelectValue placeholder="Assign Provider" /></SelectTrigger>
-                          <SelectContent>
-                            {providers.map(p => <SelectItem key={p.id} value={p.id}>{p.email}</SelectItem>)}
-                          </SelectContent>
-                        </Select>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="text-red-600 border-red-200 hover:bg-red-50"
-                          onClick={() => deleteOrder(order.id)}
-                        >
-                          <Trash2 className="mr-1 h-3 w-3" />
-                          Delete
-                        </Button>
-                      </div>
-                      {order.order_items && order.order_items.length > 0 && (
-                        <div className="space-y-2">
-                          <p className="text-xs font-medium text-slate-500">Order Items:</p>
-                          {order.order_items.map((item) => (
-                            <div key={item.id} className="flex items-center justify-between rounded-lg bg-white border border-slate-200 p-2">
-                              <span className="text-xs font-mono text-slate-600 truncate max-w-md">{item.review_url}</span>
-                              <Badge variant="outline" className="text-[10px]">{item.status}</Badge>
-                            </div>
-                          ))}
+                      <div className="flex flex-wrap gap-3">
+                        <div className="space-y-1">
+                          <Label className="text-[10px] uppercase text-slate-400">Status</Label>
+                          <Select value={order.status} onValueChange={(v) => updateStatus(order.id, v)}>
+                            <SelectTrigger className="w-40 h-8 text-xs">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {STATUS_OPTIONS.map((s) => (
+                                <SelectItem key={s} value={s}>{STATUS_LABELS[s]}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
                         </div>
-                      )}
-                      {order.notes && <p className="text-xs text-slate-500"><strong>Notes:</strong> {order.notes}</p>}
+                        <div className="space-y-1">
+                          <Label className="text-[10px] uppercase text-slate-400">Assign Provider</Label>
+                          <Select value={order.assigned_provider || ''} onValueChange={(v) => assignProvider(order.id, v)}>
+                            <SelectTrigger className="w-48 h-8 text-xs">
+                              <SelectValue placeholder="Select provider" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {providers.map((p) => (
+                                <SelectItem key={p.id} value={p.id}>{p.email}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="flex items-end gap-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-8 text-xs"
+                            onClick={() => openEditDialog(order)}
+                          >
+                            <Edit className="mr-1 h-3 w-3" />
+                            Edit
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-8 text-xs text-red-600 border-red-200 hover:bg-red-50"
+                            onClick={() => deleteOrder(order.id)}
+                          >
+                            <Trash2 className="mr-1 h-3 w-3" />
+                            Delete
+                          </Button>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                        <div className="space-y-2">
+                          <p className="text-[10px] font-medium uppercase text-slate-400">Details</p>
+                          <div className="rounded-lg border border-slate-200 bg-white p-3 space-y-1">
+                            <p className="text-xs text-slate-600"><strong>User:</strong> {order.user_email || 'Unknown'}</p>
+                            <p className="text-xs text-slate-600"><strong>Amount:</strong> ${(order.total_amount || 0).toFixed(2)}</p>
+                            <p className="text-xs text-slate-600"><strong>Created:</strong> {new Date(order.created_at).toLocaleString()}</p>
+                            {order.assigned_provider && (
+                              <p className="text-xs text-slate-600">
+                                <strong>Provider:</strong> {providers.find((p) => p.id === order.assigned_provider)?.email || order.assigned_provider}
+                              </p>
+                            )}
+                            {order.notes && (
+                              <p className="text-xs text-slate-600"><strong>Notes:</strong> {order.notes}</p>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="space-y-2">
+                          <p className="text-[10px] font-medium uppercase text-slate-400">
+                            Order Items ({order.order_items?.length || 0})
+                          </p>
+                          {order.order_items && order.order_items.length > 0 ? (
+                            <div className="space-y-1">
+                              {order.order_items.map((item) => (
+                                <div
+                                  key={item.id}
+                                  className="flex items-center justify-between rounded-lg bg-white border border-slate-200 p-2"
+                                >
+                                  <div className="flex items-center gap-2 min-w-0 flex-1">
+                                    <Package className="h-3 w-3 text-slate-400 shrink-0" />
+                                    <a
+                                      href={item.review_url}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="text-xs font-mono text-blue-600 hover:underline truncate flex items-center gap-1"
+                                      onClick={(e) => e.stopPropagation()}
+                                    >
+                                      {item.review_url}
+                                      <ExternalLink className="h-2.5 w-2.5 shrink-0" />
+                                    </a>
+                                  </div>
+                                  <Badge variant="outline" className="text-[10px] shrink-0 ml-2">
+                                    {item.status}
+                                  </Badge>
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <p className="text-xs text-slate-400">No items.</p>
+                          )}
+                        </div>
+                      </div>
                     </div>
                   )}
                 </div>
@@ -208,6 +432,44 @@ export default function AdminOrdersPage() {
           )}
         </CardContent>
       </Card>
+
+      <Dialog open={!!editOrder} onOpenChange={() => setEditOrder(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Order — {editOrder?.order_code}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label>Total Amount (USD)</Label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
+                <Input
+                  type="number"
+                  step="0.01"
+                  value={editAmount}
+                  onChange={(e) => setEditAmount(e.target.value)}
+                  className="pl-8"
+                />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label>Notes</Label>
+              <Textarea
+                placeholder="Order notes..."
+                value={editNotes}
+                onChange={(e) => setEditNotes(e.target.value)}
+                rows={3}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditOrder(null)}>Cancel</Button>
+            <Button onClick={saveOrderEdits} disabled={saving} className="bg-gradient-to-r from-teal-500 to-sky-500 text-white">
+              {saving ? 'Saving...' : 'Save Changes'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
