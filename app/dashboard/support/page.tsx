@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { fetchCollection, addDocument, addSubcollectionDoc, fetchSubcollection } from '@/lib/db';
 import { useAuth } from '@/components/providers/auth-provider';
 import { toast } from '@/hooks/use-toast';
@@ -28,6 +28,7 @@ export default function SupportPage() {
   const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
   const [reply, setReply] = useState('');
   const [replying, setReplying] = useState(false);
+  const messagesEnd = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!user) return;
@@ -39,6 +40,21 @@ export default function SupportPage() {
       }
     }).catch(() => {});
   }, [user]);
+
+  useEffect(() => {
+    if (!selectedTicket) return;
+    const interval = setInterval(() => {
+      fetchSubcollection('support_tickets', selectedTicket.id, 'ticket_messages', 'created_at').then((msgs) => {
+        setSelectedTicket((prev) => prev ? { ...prev, ticket_messages: msgs as any } : prev);
+        setTickets((prev) => prev.map(t => t.id === selectedTicket.id ? { ...t, ticket_messages: msgs as any } : t));
+      }).catch(() => {});
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [selectedTicket?.id]);
+
+  useEffect(() => {
+    messagesEnd.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [selectedTicket?.ticket_messages]);
 
   const fetchTickets = async () => {
     if (!user) return;
@@ -165,13 +181,14 @@ export default function SupportPage() {
       <Dialog open={!!selectedTicket} onOpenChange={() => setSelectedTicket(null)}>
         <DialogContent className="max-w-lg">
           <DialogHeader><DialogTitle>{selectedTicket?.subject}</DialogTitle></DialogHeader>
-          <div className="max-h-80 space-y-3 overflow-y-auto">
+          <div className="max-h-80 space-y-3 overflow-y-auto p-1">
             {selectedTicket?.ticket_messages?.map((msg) => (
               <div key={msg.id} className={`rounded-lg p-3 ${msg.is_admin ? 'bg-slate-100' : 'bg-teal-50 border border-teal-200'}`}>
                 <p className="text-[10px] font-medium text-slate-500 mb-1">{msg.is_admin ? 'Admin' : 'You'} &middot; {new Date(msg.created_at).toLocaleString()}</p>
                 <p className="text-sm text-slate-700">{msg.message}</p>
               </div>
             ))}
+            <div ref={messagesEnd} />
           </div>
           {selectedTicket?.status !== 'closed' ? (
             <div className="flex gap-2">
