@@ -82,21 +82,6 @@ export default function AdminSupportPage() {
         await updateDocument('support_tickets', selected.id, { status: 'in_progress' });
       }
 
-      // Forward admin reply to Telegram
-      const telegramMsg = [
-        '💬 <b>Admin Reply (Support)</b>',
-        '',
-        `📋 Ticket: ${selected.subject}`,
-        `👤 User: ${selected.user_email || selected.user_id}`,
-        '',
-        reply.trim(),
-      ].join('\n');
-      fetch('/api/telegram', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: telegramMsg }),
-      }).catch(() => {});
-
       setReply('');
       fetchTickets();
       // Refresh selected ticket

@@ -13,6 +13,7 @@ import { Badge } from '@/components/ui/badge';
 import { LifeBuoy, Plus, Send, MessageSquare } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { sendTelegramSupportNotification, setTelegramChatIds } from '@/lib/telegram';
 
 interface Ticket { id: string; subject: string; status: string; priority: string; created_at: string; ticket_messages?: { id: string; message: string; is_admin: boolean; created_at: string }[]; }
 
@@ -31,6 +32,12 @@ export default function SupportPage() {
   useEffect(() => {
     if (!user) return;
     fetchTickets();
+    fetchCollection('admin_settings').then((data) => {
+      if (data && data.length > 0) {
+        const s = data[0];
+        setTelegramChatIds(s.admin_telegram_id || '', s.provider_telegram_id || '');
+      }
+    }).catch(() => {});
   }, [user]);
 
   const fetchTickets = async () => {
@@ -51,7 +58,7 @@ export default function SupportPage() {
     if (!user || !subject.trim() || !message.trim()) return;
     setSubmitting(true);
     try {
-      const ticketId = await addDocument('support_tickets', { user_id: user.uid, subject: subject.trim(), status: 'open', priority });
+      const ticketId = await addDocument('support_tickets', { user_id: user.uid, user_email: user.email, subject: subject.trim(), status: 'open', priority });
       await addSubcollectionDoc('support_tickets', ticketId, 'ticket_messages', { user_id: user.uid, message: message.trim(), is_admin: false });
       await addDocument('notifications', {
         user_id: user.uid,
@@ -61,7 +68,6 @@ export default function SupportPage() {
         is_read: false,
       });
 
-      // Forward to Telegram
       const telegramMsg = [
         '🎫 <b>New Support Ticket</b>',
         '',
@@ -72,11 +78,7 @@ export default function SupportPage() {
         `💬 Message:`,
         message.trim(),
       ].join('\n');
-      fetch('/api/telegram', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: telegramMsg }),
-      }).catch(() => {});
+      sendTelegramSupportNotification(user.uid, telegramMsg).catch(() => {});
 
       toast({ title: 'Ticket created', description: 'We will respond shortly.' });
       setNewOpen(false); setSubject(''); setMessage(''); setPriority('medium');
@@ -92,7 +94,6 @@ export default function SupportPage() {
     try {
       await addSubcollectionDoc('support_tickets', selectedTicket.id, 'ticket_messages', { user_id: user.uid, message: reply.trim(), is_admin: false });
 
-      // Forward reply to Telegram
       const telegramMsg = [
         '💬 <b>User Reply (Support)</b>',
         '',
@@ -101,11 +102,7 @@ export default function SupportPage() {
         '',
         reply.trim(),
       ].join('\n');
-      fetch('/api/telegram', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: telegramMsg }),
-      }).catch(() => {});
+      sendTelegramSupportNotification(user.uid, telegramMsg).catch(() => {});
 
       setReply('');
       fetchTickets();
@@ -176,11 +173,13 @@ export default function SupportPage() {
               </div>
             ))}
           </div>
-          {selectedTicket?.status !== 'closed' && (
+          {selectedTicket?.status !== 'closed' ? (
             <div className="flex gap-2">
               <Input placeholder="Type your reply..." value={reply} onChange={(e) => setReply(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && sendReply()} />
               <Button size="icon" onClick={sendReply} disabled={!reply.trim() || replying}><Send className="h-4 w-4" /></Button>
             </div>
+          ) : (
+            <p className="text-sm text-slate-500 text-center py-2">This ticket is closed. <button className="text-teal-600 font-medium hover:underline" onClick={() => {}}>Create a new ticket</button> for further help.</p>
           )}
         </DialogContent>
       </Dialog>

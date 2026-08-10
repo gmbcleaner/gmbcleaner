@@ -21,11 +21,7 @@ async function sendToChat(chatId: string, text: string): Promise<boolean> {
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          chat_id: chatId,
-          text,
-          parse_mode: 'HTML',
-        }),
+        body: JSON.stringify({ chat_id: chatId, text, parse_mode: 'HTML' }),
       }
     );
     return res.ok;
@@ -42,18 +38,31 @@ async function sendPhotoToChat(chatId: string, photoUrl: string, caption: string
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          chat_id: chatId,
-          photo: photoUrl,
-          caption,
-          parse_mode: 'HTML',
-        }),
+        body: JSON.stringify({ chat_id: chatId, photo: photoUrl, caption, parse_mode: 'HTML' }),
       }
     );
     return res.ok;
   } catch {
     return false;
   }
+}
+
+function canSendNotification(userId: string): boolean {
+  try {
+    const key = `tg_notif_${userId}`;
+    const last = localStorage.getItem(key);
+    if (!last) return true;
+    const hoursSince = (Date.now() - parseInt(last)) / (1000 * 60 * 60);
+    return hoursSince >= 24;
+  } catch {
+    return true;
+  }
+}
+
+function markNotificationSent(userId: string) {
+  try {
+    localStorage.setItem(`tg_notif_${userId}`, String(Date.now()));
+  } catch {}
 }
 
 export async function sendTelegramMessage(text: string): Promise<boolean> {
@@ -66,30 +75,8 @@ export async function sendTelegramAdminOnly(text: string): Promise<boolean> {
   return sendToChat(adminChatId, text);
 }
 
-export async function sendTelegramPhoto(photoUrl: string, caption: string): Promise<boolean> {
-  const r1 = await sendPhotoToChat(adminChatId, photoUrl, caption);
-  const r2 = providerAdminChatId ? await sendPhotoToChat(providerAdminChatId, photoUrl, caption) : false;
-  return r1 || r2;
-}
-
-export async function sendTelegramDocument(documentUrl: string, caption: string): Promise<boolean> {
-  if (!adminChatId) return false;
-  try {
-    const res = await fetch(
-      `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendDocument`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          chat_id: adminChatId,
-          document: documentUrl,
-          caption,
-          parse_mode: 'HTML',
-        }),
-      }
-    );
-    return res.ok;
-  } catch {
-    return false;
-  }
+export async function sendTelegramSupportNotification(userId: string, text: string): Promise<boolean> {
+  if (!canSendNotification(userId)) return false;
+  markNotificationSent(userId);
+  return sendToChat(adminChatId, text);
 }

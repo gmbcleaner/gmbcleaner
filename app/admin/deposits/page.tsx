@@ -86,7 +86,7 @@ export default function AdminDepositsPage() {
       await addDocument('notifications', {
         user_id: dep.user_id,
         title: 'Deposit Rejected',
-        message: `Your $${dep.amount.toFixed(2)} deposit was rejected. ${rejectReason || ''}`,
+        message: `Your $${dep.amount.toFixed(2)} deposit was rejected. ${rejectReason ? rejectReason + ' ' : ''}Please contact support for assistance.`,
         type: 'deposit',
         is_read: false,
       });
