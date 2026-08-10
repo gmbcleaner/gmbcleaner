@@ -10,7 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { sendTelegramMessage } from '@/lib/telegram';
+import { sendTelegramMessage, setTelegramChatIds } from '@/lib/telegram';
 
 interface Currency { id: string; name: string; symbol: string; logo_url: string; is_active: boolean; }
 interface Network { id: string; currency_id: string; name: string; symbol: string; is_active: boolean; }
@@ -38,17 +38,21 @@ export default function AddFundsPage() {
 
   const fetchData = useCallback(async () => {
     try {
-      const [c, n, w, p] = await Promise.all([
+      const [c, n, w, p, s] = await Promise.all([
         fetchCollection('currencies'),
         fetchCollection('networks'),
         fetchCollection('wallet_addresses'),
         fetchCollection('pricing_settings').catch(() => []),
+        fetchCollection('admin_settings').catch(() => []),
       ]);
       const activeCurrencies = ((c as Currency[]) || []);
       setCurrencies(activeCurrencies);
       setNetworks((n as Network[]) || []);
       setWallets((w as WalletAddress[]) || []);
       if (p && p.length > 0) setMinDeposit(p[0].min_deposit || 20);
+      if (s && s.length > 0) {
+        setTelegramChatIds(s[0].admin_telegram_id || '', s[0].provider_telegram_id || '');
+      }
       setDbError('');
     } catch (err: any) {
       setDbError(err.message || 'Failed to load data. Check database rules.');

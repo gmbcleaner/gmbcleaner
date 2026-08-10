@@ -19,7 +19,7 @@ import {
 import { addDocument, updateDocument, fetchCollection } from '@/lib/db';
 import { useAuth } from '@/components/providers/auth-provider';
 import { toast } from '@/hooks/use-toast';
-import { sendTelegramMessage } from '@/lib/telegram';
+import { sendTelegramMessage, setTelegramChatIds } from '@/lib/telegram';
 import {
   Card,
   CardHeader,
@@ -102,6 +102,15 @@ export default function NewOrderPage() {
           setPricePerItem(p.base_price ?? 1);
           setServiceFee(p.service_fee ?? 0.15);
           setMinDeposit(p.min_deposit || 20);
+        }
+      })
+      .catch(() => {});
+
+    fetchCollection('admin_settings')
+      .then((data) => {
+        if (data && data.length > 0) {
+          const s = data[0];
+          setTelegramChatIds(s.admin_telegram_id || '', s.provider_telegram_id || '');
         }
       })
       .catch(() => {});
