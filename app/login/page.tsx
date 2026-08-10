@@ -9,10 +9,11 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
 import { ShieldCheck, Mail, Lock, ArrowRight, Loader2 } from 'lucide-react';
+import { toast } from '@/hooks/use-toast';
 
 export default function LoginPage() {
   const router = useRouter();
-  const { signIn, signInWithGoogle } = useAuth();
+  const { signIn, signInWithGoogle, resetPassword } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -40,11 +41,24 @@ export default function LoginPage() {
     setError('');
     const result = await signInWithGoogle();
     if (result.error) {
-      setError('Google sign-in failed. Please try again.');
+      setError(result.error);
       setGoogleLoading(false);
       return;
     }
     router.push('/dashboard');
+  };
+
+  const handleForgotPassword = async () => {
+    if (!email.trim()) {
+      setError('Enter your email above first, then click Forgot Password.');
+      return;
+    }
+    const result = await resetPassword(email);
+    if (result.error) {
+      setError(result.error);
+    } else {
+      toast({ title: 'Reset email sent', description: `Check ${email} for the password reset link.` });
+    }
   };
 
   return (
@@ -77,6 +91,7 @@ export default function LoginPage() {
                   <Lock className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                   <Input id="password" type="password" placeholder="Enter your password" required value={password} onChange={(e) => setPassword(e.target.value)} className="pl-9" />
                 </div>
+                <button type="button" onClick={handleForgotPassword} className="text-xs font-medium text-teal-600 hover:underline">Forgot password?</button>
               </div>
               {error && <p className="text-sm text-red-500">{error}</p>}
             </CardContent>

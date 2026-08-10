@@ -9,6 +9,7 @@ import {
   GoogleAuthProvider,
   signOut as firebaseSignOut,
   updatePassword as firebaseUpdatePassword,
+  sendPasswordResetEmail,
   type User,
 } from 'firebase/auth';
 import { ref, get, set } from 'firebase/database';
@@ -24,6 +25,7 @@ interface AuthContextValue {
   signInWithGoogle: () => Promise<{ error?: string }>;
   signOut: () => Promise<void>;
   updatePassword: (newPassword: string) => Promise<void>;
+  resetPassword: (email: string) => Promise<{ error?: string }>;
 }
 
 interface UserProfile {
@@ -73,6 +75,7 @@ const AuthContext = createContext<AuthContextValue>({
   signInWithGoogle: async () => ({}),
   signOut: async () => {},
   updatePassword: async () => {},
+  resetPassword: async () => ({}),
 });
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -148,16 +151,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signIn = async (email: string, password: string): Promise<{ error?: string }> => {
     try {
       if (!auth) return { error: 'Firebase Auth not configured' };
-      const cred = await signInWithEmailAndPassword(auth, email, password);
 
       if (rtdb) {
-        const snap = await get(ref(rtdb, `profiles/${cred.user.uid}`));
-        if (snap.exists() && snap.val().is_blocked) {
-          await firebaseSignOut(auth);
-          return { error: 'Your account has been blocked. Please contact support.' };
+        const emailSnap = await get(ref(rtdb, 'profiles'));
+        if (emailSnap.exists()) {
+          const profiles = emailSnap.val();
+          const entry = Object.entries(profiles).find(([, v]: [string, any]) => v.email === email);
+          if (entry) {
+            const [, profileData] = entry as [string, any];
+            if (profileData.is_blocked) {
+              return { error: 'Your account has been blocked. Please contact support.' };
+            }
+          }
         }
       }
 
+      await signInWithEmailAndPassword(auth, email, password);
       return {};
     } catch (err: any) {
       return { error: err.message || 'Sign in failed' };
@@ -196,8 +205,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await firebaseUpdatePassword(auth.currentUser, newPassword);
   };
 
+  const resetPassword = async (email: string): Promise<{ error?: string }> => {
+    try {
+      if (!auth) return { error: 'Firebase Auth not configured' };
+      await sendPasswordResetEmail(auth, email);
+      return {};
+    } catch (err: any) {
+      return { error: err.message || 'Failed to send reset email' };
+    }
+  };
+
   return (
-    <AuthContext.Provider value={{ user, loading, profile, refreshProfile, signUp, signIn, signInWithGoogle, signOut, updatePassword }}>
+    <AuthContext.Provider value={{ user, loading, profile, refreshProfile, signUp, signIn, signInWithGoogle, signOut, updatePassword, resetPassword }}>
       {children}
     </AuthContext.Provider>
   );
