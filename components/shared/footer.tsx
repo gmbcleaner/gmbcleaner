@@ -1,5 +1,6 @@
 import Link from 'next/link';
-import { ShieldCheck, Mail, MapPin, Twitter, Linkedin, Facebook } from 'lucide-react';
+import { Mail, MapPin, Twitter, Linkedin, Facebook } from 'lucide-react';
+import { LogoIcon } from '@/components/shared/logo';
 
 const footerSections = [
   {
@@ -47,9 +48,7 @@ export function Footer() {
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-8">
           <div className="col-span-2">
             <Link href="/" className="flex items-center gap-2 mb-4">
-              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-teal-500 to-sky-500">
-                <ShieldCheck className="h-5 w-5 text-white" />
-              </div>
+              <LogoIcon className="h-9 w-9" />
               <span className="text-lg font-bold text-white">
                 GMB<span className="text-teal-400">CLEANER</span>
               </span>

@@ -4,9 +4,10 @@ import Link from 'next/link';
 import { useState, useEffect } from 'react';
 import { usePathname } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Menu, X, ShieldCheck, ChevronDown } from 'lucide-react';
+import { Menu, X, ChevronDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { Logo, LogoIcon } from '@/components/shared/logo';
 
 const navLinks = [
   { href: '/about', label: 'About' },
@@ -43,9 +44,7 @@ export function Navbar() {
       <nav className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="flex h-16 items-center justify-between">
           <Link href="/" className="flex items-center gap-2 group">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-teal-500 to-sky-500 shadow-glow">
-              <ShieldCheck className="h-5 w-5 text-white" />
-            </div>
+            <LogoIcon className="h-9 w-9" />
             <span className="text-lg font-bold tracking-tight text-navy-900">
               GMB<span className="gradient-text">CLEANER</span>
             </span>
