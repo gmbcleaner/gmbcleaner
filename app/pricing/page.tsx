@@ -70,29 +70,6 @@ const includedItems = [
   },
 ];
 
-const pricingFaqs = [
-  {
-    question: 'How does the per-case pricing work?',
-    answer:
-      'Each review dispute case costs $1.00 plus a $0.15 service fee, for a total of $1.15 per item. You fund your wallet with a minimum deposit of $20, and each case you submit deducts $1.15 from your balance. There are no subscriptions or recurring fees — you only pay for the cases you actually submit.',
-  },
-  {
-    question: 'Why is there a service fee on top of the base price?',
-    answer:
-      'The service fee covers payment processing, platform maintenance, and case management infrastructure. It keeps the base case price low and transparent while ensuring we can maintain secure systems, comply with data protection regulations, and provide reliable status tracking for every dispute.',
-  },
-  {
-    question: 'What happens if my wallet balance runs out mid-case?',
-    answer:
-      'You need sufficient balance before submitting a new case. If your balance is too low, you will be prompted to add funds before the case is submitted. Cases already in progress are not affected — they continue through the platform review process regardless of your wallet balance.',
-  },
-  {
-    question: 'Do I get a refund if a review is not removed?',
-    answer:
-      'No. We charge for the preparation and submission of dispute cases, not for the outcome. Platform decisions are outside our control, and we do not guarantee removal of any review. All sales are final — no refunds will be issued under any circumstances.',
-  },
-];
-
 export default function PricingPage() {
   const [price, setPrice] = useState(DEFAULT_PRICE);
   const [fee, setFee] = useState(DEFAULT_FEE);
@@ -110,6 +87,28 @@ export default function PricingPage() {
   }, []);
 
   const total = price + fee;
+
+  const pricingFaqs = [
+    {
+      question: 'How does the per-case pricing work?',
+      answer: `Each review dispute case costs $${price.toFixed(2)} plus a $${fee.toFixed(2)} service fee, for a total of $${total.toFixed(2)} per item. You fund your wallet with a minimum deposit of $${min.toFixed(2)}, and each case you submit deducts $${total.toFixed(2)} from your balance. There are no subscriptions or recurring fees — you only pay for the cases you actually submit.`,
+    },
+    {
+      question: 'Why is there a service fee on top of the base price?',
+      answer:
+        'The service fee covers payment processing, platform maintenance, and case management infrastructure. It keeps the base case price low and transparent while ensuring we can maintain secure systems, comply with data protection regulations, and provide reliable status tracking for every dispute.',
+    },
+    {
+      question: 'What happens if my wallet balance runs out mid-case?',
+      answer:
+        'You need sufficient balance before submitting a new case. If your balance is too low, you will be prompted to add funds before the case is submitted. Cases already in progress are not affected — they continue through the platform review process regardless of your wallet balance.',
+    },
+    {
+      question: 'Do I get a refund if a review is not removed?',
+      answer:
+        'No. We charge for the preparation and submission of dispute cases, not for the outcome. Platform decisions are outside our control, and we do not guarantee removal of any review. All sales are final — no refunds will be issued under any circumstances.',
+    },
+  ];
 
   return (
     <>

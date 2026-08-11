@@ -2,34 +2,48 @@
 
 import { motion } from 'framer-motion';
 import { UserPlus, Wallet, FileText, Bell } from 'lucide-react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { SectionHeading } from '@/components/shared/sections';
 import { Reveal } from '@/components/animation/reveal';
+import { fetchCollection } from '@/lib/db';
 
-const steps = [
-  {
-    icon: UserPlus,
-    title: 'Create Your Account',
-    desc: 'Sign up in seconds and get your unique user ID and dashboard.',
-  },
-  {
-    icon: Wallet,
-    title: 'Add Funds',
-    desc: 'Fund your wallet with crypto. Minimum deposit is $20.',
-  },
-  {
-    icon: FileText,
-    title: 'Submit Review URLs',
-    desc: 'Add one or more review URLs you want disputed. Pay from your balance.',
-  },
-  {
-    icon: Bell,
-    title: 'Track & Get Notified',
-    desc: 'Watch status updates in real-time and receive completion notifications.',
-  },
-];
+const DEFAULT_MIN = 20;
 
 export function HowItWorksPreview() {
+  const [min, setMin] = useState(DEFAULT_MIN);
+
+  useEffect(() => {
+    fetchCollection('pricing_settings').then((data) => {
+      if (data && data.length > 0) {
+        setMin(data[0].min_deposit ?? DEFAULT_MIN);
+      }
+    }).catch(() => {});
+  }, []);
+
+  const steps = [
+    {
+      icon: UserPlus,
+      title: 'Create Your Account',
+      desc: 'Sign up in seconds and get your unique user ID and dashboard.',
+    },
+    {
+      icon: Wallet,
+      title: 'Add Funds',
+      desc: `Fund your wallet with crypto. Minimum deposit is $${min.toFixed(2)}.`,
+    },
+    {
+      icon: FileText,
+      title: 'Submit Review URLs',
+      desc: 'Add one or more negative review URLs you want removed. Pay from your balance.',
+    },
+    {
+      icon: Bell,
+      title: 'Track & Get Notified',
+      desc: 'Watch status updates in real-time and receive completion notifications.',
+    },
+  ];
+
   return (
     <section className="py-24 bg-gradient-to-b from-slate-50 to-white">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">

@@ -98,8 +98,20 @@ const categoryOrder = ['general', 'pricing', 'security', 'payments'];
 export default function FaqPage() {
   const [faqs, setFaqs] = useState<Faq[]>([]);
   const [loading, setLoading] = useState(true);
+  const [price, setPrice] = useState(1.00);
+  const [fee, setFee] = useState(0.15);
+  const [min, setMin] = useState(20);
 
   useEffect(() => {
+    fetchCollection('pricing_settings').then((data) => {
+      if (data && data.length > 0) {
+        const p = data[0];
+        setPrice(p.base_price ?? 1.00);
+        setFee(p.service_fee ?? 0.15);
+        setMin(p.min_deposit ?? 20);
+      }
+    }).catch(() => {});
+
     const fetchFaqs = async () => {
       try {
         const data = await fetchCollection(
@@ -121,7 +133,12 @@ export default function FaqPage() {
     fetchFaqs();
   }, []);
 
-  const allFaqs: Faq[] = faqs.length > 0 ? faqs : fallbackFaqs;
+  const allFaqs: Faq[] = faqs.length > 0 ? faqs : [
+    ...fallbackFaqs.map(f => f.id === 'f4' ? {
+      ...f,
+      answer: `Each negative review dispute case costs $${price.toFixed(2)} plus a $${fee.toFixed(2)} service fee per item. You fund your wallet and pay from your account balance. The minimum deposit is $${min.toFixed(2)}.`
+    } : f)
+  ];
 
   const grouped: Record<string, Faq[]> = {};
   for (const faq of allFaqs) {
