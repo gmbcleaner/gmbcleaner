@@ -1,47 +1,66 @@
 'use client';
 
-export function Logo({ className = '' }: { className?: string }) {
+export function Logo({ className = '', dark = false }: { className?: string; dark?: boolean }) {
   return (
-    <svg viewBox="0 0 280 60" fill="none" xmlns="http://www.w3.org/2000/svg" className={className}>
+    <svg viewBox="0 0 320 64" fill="none" xmlns="http://www.w3.org/2000/svg" className={className}>
       <defs>
-        <linearGradient id="shield-grad" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0%" stopColor="#06b6d4" />
-          <stop offset="100%" stopColor="#0ea5e9" />
+        <linearGradient id="sg1" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stopColor="#00e5ff"/>
+          <stop offset="50%" stopColor="#00bcd4"/>
+          <stop offset="100%" stopColor="#0288d1"/>
         </linearGradient>
-        <linearGradient id="check-grad" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0%" stopColor="#06b6d4" />
-          <stop offset="100%" stopColor="#38bdf8" />
+        <linearGradient id="sg2" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stopColor="#00e5ff"/>
+          <stop offset="100%" stopColor="#0097a7"/>
+        </linearGradient>
+        <linearGradient id="sg3" x1="30" y1="6" x2="52" y2="54">
+          <stop offset="0%" stopColor="#00e5ff"/>
+          <stop offset="100%" stopColor="#00838f"/>
         </linearGradient>
       </defs>
-      {/* Shield */}
-      <path d="M28 4L8 14v12c0 11 8.5 21.5 20 24 11.5-2.5 20-13 20-24V14L28 4z" stroke="url(#shield-grad)" strokeWidth="2.5" fill="none" strokeLinejoin="round"/>
+
+      {/* Shield outer */}
+      <path d="M30 5L9 15.5V28C9 39.5 16.5 50 30 53C43.5 50 51 39.5 51 28V15.5L30 5Z"
+        stroke="url(#sg1)" strokeWidth="2.8" fill="none" strokeLinejoin="round"/>
+
+      {/* Shield inner 3D effect */}
+      <path d="M30 9L13 17.5V28C13 37.5 19 46 30 48.5C41 46 47 37.5 47 28V17.5L30 9Z"
+        stroke="url(#sg2)" strokeWidth="1.2" fill="none" opacity="0.4" strokeLinejoin="round"/>
+
       {/* Checkmark */}
-      <path d="M19 30l6 6 11-12" stroke="url(#check-grad)" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
+      <path d="M20 31L27 38L40 24" stroke="url(#sg3)" strokeWidth="4.2" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
+
       {/* GMB text */}
-      <text x="62" y="32" fontFamily="system-ui, -apple-system, sans-serif" fontSize="26" fontWeight="800" fill="white" letterSpacing="-0.5">GMB</text>
+      <text x="64" y="35" fontFamily="system-ui, -apple-system, 'Segoe UI', sans-serif" fontSize="30" fontWeight="900" fill="white" letterSpacing="1">GMB</text>
+
       {/* CLEANER text */}
-      <text x="138" y="32" fontFamily="system-ui, -apple-system, sans-serif" fontSize="26" fontWeight="800" fill="url(#shield-grad)" letterSpacing="-0.5">CLEANER</text>
+      <text x="152" y="35" fontFamily="system-ui, -apple-system, 'Segoe UI', sans-serif" fontSize="30" fontWeight="900" fill="url(#sg1)" letterSpacing="1">CLEANER</text>
+
       {/* Tagline */}
-      <text x="62" y="48" fontFamily="system-ui, -apple-system, sans-serif" fontSize="8" fontWeight="500" fill="#64748b" letterSpacing="1.5">SMART &amp; TRUSTED REPUTATION SOLUTIONS</text>
+      <text x="64" y="52" fontFamily="system-ui, -apple-system, 'Segoe UI', sans-serif" fontSize="8.5" fontWeight="600" fill="#546e7a" letterSpacing="2.5">SMART &amp; TRUSTED REPUTATION SOLUTIONS</text>
     </svg>
   );
 }
 
 export function LogoIcon({ className = '' }: { className?: string }) {
   return (
-    <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" className={className}>
+    <svg viewBox="0 0 48 56" fill="none" xmlns="http://www.w3.org/2000/svg" className={className}>
       <defs>
-        <linearGradient id="shield-grad-icon" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0%" stopColor="#06b6d4" />
-          <stop offset="100%" stopColor="#0ea5e9" />
+        <linearGradient id="sgi" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stopColor="#00e5ff"/>
+          <stop offset="50%" stopColor="#00bcd4"/>
+          <stop offset="100%" stopColor="#0288d1"/>
         </linearGradient>
-        <linearGradient id="check-grad-icon" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0%" stopColor="#06b6d4" />
-          <stop offset="100%" stopColor="#38bdf8" />
+        <linearGradient id="sgi2" x1="30%" y1="0%" x2="70%" y2="100%">
+          <stop offset="0%" stopColor="#00e5ff"/>
+          <stop offset="100%" stopColor="#00838f"/>
         </linearGradient>
       </defs>
-      <path d="M24 4L6 12v10c0 10 7.5 19.5 18 22 10.5-2.5 18-12 18-22V12L24 4z" stroke="url(#shield-grad-icon)" strokeWidth="2.5" fill="none" strokeLinejoin="round"/>
-      <path d="M16 25l5 5 9-10" stroke="url(#check-grad-icon)" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
+      <path d="M24 3L6 12V22C6 31 12 40 24 43C36 40 42 31 42 22V12L24 3Z"
+        stroke="url(#sgi)" strokeWidth="2.5" fill="none" strokeLinejoin="round"/>
+      <path d="M24 7L10 14V22C10 29 14.5 36 24 38.5C33.5 36 38 29 38 22V14L24 7Z"
+        stroke="url(#sgi)" strokeWidth="1" fill="none" opacity="0.35" strokeLinejoin="round"/>
+      <path d="M16 24L22 30L33 18" stroke="url(#sgi2)" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
     </svg>
   );
 }
