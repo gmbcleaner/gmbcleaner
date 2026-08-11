@@ -416,7 +416,7 @@ export default function NewOrderPage() {
           <div className="flex items-start gap-2 mb-4">
             <input type="checkbox" checked={agreeTerms} onChange={(e) => setAgreeTerms(e.target.checked)} className="mt-0.5 h-4 w-4 rounded border-slate-300" />
             <span className="text-xs text-slate-600 leading-relaxed">
-              I agree to the <a href="/terms" target="_blank" className="text-teal-600 underline font-medium">Terms &amp; Conditions</a> and <a href="/refund" target="_blank" className="text-teal-600 underline font-medium">Refund Policy</a>. All sales are final — no refunds.
+              I agree to the <a href="/terms" target="_blank" className="text-teal-600 underline font-medium">Terms &amp; Conditions</a> and <a href="/refund" target="_blank" className="text-teal-600 underline font-medium">Refund Policy</a>.
             </span>
           </div>
 

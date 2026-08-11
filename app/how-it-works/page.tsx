@@ -22,7 +22,7 @@ const steps = [
     number: '01',
     title: 'Create Your Account',
     description:
-      'Sign up with your email and business information. It takes less than two minutes — no credit card required, no subscription commitment. Your account gives you access to our dashboard where you manage all your dispute cases.',
+      'Sign up with your email and business information. It takes less than two minutes — no credit card required, no subscription commitment. Your account gives you access to our dashboard where you manage all your negative review removal cases.',
     details: [
       'Email-based signup with secure authentication',
       'Add your business name and Google Maps listing URL',
@@ -38,11 +38,11 @@ const steps = [
     number: '02',
     title: 'Add Funds to Your Wallet',
     description:
-      'Load your wallet with the balance you want to spend. The minimum deposit is $20. Each review dispute case costs $1.00 plus a $0.15 service fee — $1.15 total per case. You are always in control of your spending.',
+      'Load your wallet with the balance you want to spend. The minimum deposit is $20. Each negative review dispute case costs a base price plus a service fee. You are always in control of your spending.',
     details: [
       'Minimum deposit: $20.00',
-      'Cost per case: $1.00 + $0.15 service fee = $1.15',
-      'Secure payment processing via Stripe',
+      'Pay only for the cases you submit',
+      'Secure cryptocurrency payment processing',
       'Wallet balance never expires — use it anytime',
     ],
     color: 'from-sky-500 to-sky-600',
@@ -52,14 +52,14 @@ const steps = [
   {
     icon: Link2,
     number: '03',
-    title: 'Submit Review URLs',
+    title: 'Submit Negative Review URLs',
     description:
-      'Paste the URLs of reviews you believe violate platform policies. Our analysts review each submission, assess it against the platform’s policies, and file a dispute through official channels if the review is likely in violation.',
+      'Paste the URLs of negative reviews on your Google Maps listing that you believe violate Google\u2019s policies. Our analysts review each submission, assess it against Google\u2019s policies, and file a dispute through official channels.',
     details: [
-      'Paste review URLs directly into your dashboard',
+      'Paste Google Maps review URLs directly into your dashboard',
       'Our analysts review each submission within 24 hours',
-      'We assess each review against specific platform policies',
-      'Disputes are filed through official platform channels only',
+      'We assess each review against Google\u2019s specific policies',
+      'Disputes are filed through Google\u2019s official channels only',
     ],
     color: 'from-teal-500 to-sky-500',
     iconBg: 'bg-teal-50',
@@ -70,10 +70,10 @@ const steps = [
     number: '04',
     title: 'Track & Get Notified',
     description:
-      'Monitor the status of every case from your dashboard. You receive notifications when a platform takes action, when a case needs follow-up, and when a final decision is made. Full transparency from submission to resolution.',
+      'Monitor the status of every case from your dashboard. You receive notifications when Google takes action, when a case needs follow-up, and when a final decision is made.',
     details: [
       'Real-time status updates on every case',
-      'Email notifications when platforms take action',
+      'Notifications when Google takes action',
       'Full case history with documentation',
       'Automatic follow-up submissions when appropriate',
     ],
@@ -92,11 +92,11 @@ export default function HowItWorksPage() {
           eyebrow="How It Works"
           title={
             <>
-              Four steps from signup to{' '}
-              <span className="gradient-text">cleaner reviews</span>
+              Four steps to remove negative reviews from{' '}
+              <span className="gradient-text">Google Maps</span>
             </>
           }
-          description="Our process is designed to be simple, transparent, and fully compliant with platform policies. Here is exactly what happens when you work with GMBCLEANER."
+          description="Our process is designed to be simple, transparent, and fully compliant with Google\u2019s policies. Here is exactly what happens when you work with GMBCLEANER."
         />
 
         {/* Timeline Steps */}
@@ -228,8 +228,8 @@ export default function HowItWorksPage() {
                   </div>
                   <div className="mt-8 p-4 rounded-xl bg-amber-50 border border-amber-200">
                     <p className="text-sm text-amber-800 leading-relaxed">
-                      <strong>Important:</strong> We do not guarantee that any review will be
-                      removed. Outcomes depend entirely on the platform’s review team and their
+                      <strong>Important:</strong> We do not guarantee that any negative review will be
+                      removed. Outcomes depend entirely on Google&apos;s review team and their
                       interpretation of their own policies. Our job is to give your case the
                       best possible chance by submitting a well-documented dispute through the
                       correct channels.

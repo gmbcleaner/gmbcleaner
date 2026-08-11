@@ -11,8 +11,8 @@ export function BeforeAfterSection() {
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <SectionHeading
           eyebrow="The Impact"
-          title="See how reputation management changes the picture"
-          description="When fake and policy-violating reviews are identified and disputed, your profile reflects genuine customer experiences."
+          title="See how negative review removal changes your Google Maps rating"
+          description="When fake and policy-violating negative reviews are identified and disputed, your Google Maps profile reflects genuine customer experiences."
         />
         <div className="mt-16 grid md:grid-cols-2 gap-8 items-center">
           <Reveal>
@@ -30,7 +30,7 @@ export function BeforeAfterSection() {
                 <span className="ml-2 text-sm font-medium text-red-600">2.8 rating</span>
               </div>
               <div className="space-y-2">
-                {['Fake 5-star spam reviews', 'Competitor-coordinated attacks', 'Off-topic or abusive content', 'Misleading potential customers'].map((item) => (
+                {['1-star negative reviews from non-customers', 'Competitor-coordinated attacks', 'Off-topic or abusive content', 'Misleading potential customers'].map((item) => (
                   <div key={item} className="flex items-center gap-2 text-sm text-red-700">
                     <div className="h-1.5 w-1.5 rounded-full bg-red-400" />
                     {item}

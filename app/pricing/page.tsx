@@ -1,5 +1,6 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Navbar } from '@/components/shared/navbar';
 import { Footer } from '@/components/shared/footer';
@@ -9,6 +10,7 @@ import { Counter } from '@/components/animation/counter';
 import { FloatingShape } from '@/components/animation/floating';
 import { Card, CardContent } from '@/components/ui/card';
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from '@/components/ui/accordion';
+import { fetchCollection } from '@/lib/db';
 import {
   CheckCircle2,
   Search,
@@ -20,6 +22,10 @@ import {
   Wallet,
   TrendingUp,
 } from 'lucide-react';
+
+const DEFAULT_PRICE = 1.00;
+const DEFAULT_FEE = 0.15;
+const DEFAULT_MIN = 20;
 
 const includedItems = [
   {
@@ -71,9 +77,9 @@ const pricingFaqs = [
       'Each review dispute case costs $1.00 plus a $0.15 service fee, for a total of $1.15 per item. You fund your wallet with a minimum deposit of $20, and each case you submit deducts $1.15 from your balance. There are no subscriptions or recurring fees — you only pay for the cases you actually submit.',
   },
   {
-    question: 'Why is there a $0.15 service fee on top of the $1.00 base price?',
+    question: 'Why is there a service fee on top of the base price?',
     answer:
-      'The $0.15 service fee covers payment processing, platform maintenance, and case management infrastructure. It keeps the base case price low and transparent while ensuring we can maintain secure systems, comply with data protection regulations, and provide reliable status tracking for every dispute.',
+      'The service fee covers payment processing, platform maintenance, and case management infrastructure. It keeps the base case price low and transparent while ensuring we can maintain secure systems, comply with data protection regulations, and provide reliable status tracking for every dispute.',
   },
   {
     question: 'What happens if my wallet balance runs out mid-case?',
@@ -83,11 +89,28 @@ const pricingFaqs = [
   {
     question: 'Do I get a refund if a review is not removed?',
     answer:
-      'No. We charge for the preparation and submission of dispute cases, not for the outcome. Platform decisions are outside our control, and we do not guarantee removal of any review. What we guarantee is that every case is thoroughly researched, properly documented, and submitted through the correct official channels.',
+      'No. We charge for the preparation and submission of dispute cases, not for the outcome. Platform decisions are outside our control, and we do not guarantee removal of any review. All sales are final — no refunds will be issued under any circumstances.',
   },
 ];
 
 export default function PricingPage() {
+  const [price, setPrice] = useState(DEFAULT_PRICE);
+  const [fee, setFee] = useState(DEFAULT_FEE);
+  const [min, setMin] = useState(DEFAULT_MIN);
+
+  useEffect(() => {
+    fetchCollection('pricing_settings').then((data) => {
+      if (data && data.length > 0) {
+        const p = data[0];
+        setPrice(p.base_price ?? DEFAULT_PRICE);
+        setFee(p.service_fee ?? DEFAULT_FEE);
+        setMin(p.min_deposit ?? DEFAULT_MIN);
+      }
+    }).catch(() => {});
+  }, []);
+
+  const total = price + fee;
+
   return (
     <>
       <Navbar />
@@ -99,7 +122,7 @@ export default function PricingPage() {
               Transparent <span className="gradient-text">pay-as-you-go</span> pricing
             </>
           }
-          description="No subscriptions. No hidden fees. No commitments. You fund your wallet and pay only for the dispute cases you submit — $1.15 per item, every time."
+          description={`No subscriptions. No hidden fees. No commitments. You fund your wallet and pay only for the negative review dispute cases you submit — $${total.toFixed(2)} per item, every time.`}
         />
 
         {/* Main Pricing Card */}
@@ -131,21 +154,21 @@ export default function PricingPage() {
                         <div>
                           <p className="text-sm font-medium text-navy-400">Base Price</p>
                           <div className="mt-2 text-4xl md:text-5xl font-bold text-navy-900">
-                            <Counter value={1} prefix="$" decimals={2} />
+                            <Counter value={price} prefix="$" decimals={2} />
                           </div>
                           <p className="mt-1 text-xs text-navy-400">per review case</p>
                         </div>
                         <div className="sm:border-x border-slate-200">
                           <p className="text-sm font-medium text-navy-400">Service Fee</p>
                           <div className="mt-2 text-4xl md:text-5xl font-bold text-navy-900">
-                            <Counter value={0.15} prefix="$" decimals={2} />
+                            <Counter value={fee} prefix="$" decimals={2} />
                           </div>
                           <p className="mt-1 text-xs text-navy-400">per item</p>
                         </div>
                         <div>
                           <p className="text-sm font-semibold text-teal-600">Total Per Item</p>
                           <div className="mt-2 text-4xl md:text-5xl font-bold gradient-text">
-                            <Counter value={1.15} prefix="$" decimals={2} />
+                            <Counter value={total} prefix="$" decimals={2} />
                           </div>
                           <p className="mt-1 text-xs text-navy-400">all-inclusive</p>
                         </div>
@@ -160,17 +183,17 @@ export default function PricingPage() {
                         </div>
                         <div className="grid grid-cols-3 text-sm text-navy-600 px-6 py-3.5 border-t border-slate-100">
                           <span className="font-medium">Base price</span>
-                          <span className="text-center font-semibold text-navy-900">$1.00</span>
+                          <span className="text-center font-semibold text-navy-900">${price.toFixed(2)}</span>
                           <span className="text-right text-navy-500">Review evaluation & dispute preparation</span>
                         </div>
                         <div className="grid grid-cols-3 text-sm text-navy-600 px-6 py-3.5 border-t border-slate-100">
                           <span className="font-medium">Service fee</span>
-                          <span className="text-center font-semibold text-navy-900">$0.15</span>
+                          <span className="text-center font-semibold text-navy-900">${fee.toFixed(2)}</span>
                           <span className="text-right text-navy-500">Processing & platform maintenance</span>
                         </div>
                         <div className="grid grid-cols-3 text-sm px-6 py-3.5 border-t border-slate-200 bg-teal-50/50">
                           <span className="font-bold text-navy-900">Total per item</span>
-                          <span className="text-center font-bold gradient-text">$1.15</span>
+                          <span className="text-center font-bold gradient-text">${total.toFixed(2)}</span>
                           <span className="text-right text-navy-500">Charged per dispute case submitted</span>
                         </div>
                       </div>
@@ -182,10 +205,10 @@ export default function PricingPage() {
                         </div>
                         <div>
                           <p className="text-sm font-semibold text-navy-900">
-            Minimum deposit: <span className="gradient-text">$20.00</span>
+            Minimum deposit: <span className="gradient-text">${min.toFixed(2)}</span>
                           </p>
                           <p className="text-xs text-navy-500 mt-0.5">
-                            Fund your wallet once. Each submitted case deducts $1.15. Top up anytime.
+                            Fund your wallet once. Each submitted case deducts ${total.toFixed(2)}. Top up anytime.
                           </p>
                         </div>
                       </div>
@@ -212,7 +235,7 @@ export default function PricingPage() {
                     <CardContent className="p-8">
                       <h3 className="text-lg font-bold text-navy-900">No hidden fees</h3>
                       <p className="mt-2 text-sm text-navy-500 leading-relaxed">
-                        The price you see is the price you pay. $1.15 per item, every time. No setup
+                        The price you see is the price you pay. ${total.toFixed(2)} per item, every time. No setup
                         fees, no per-platform surcharges, no minimum monthly spend.
                       </p>
                     </CardContent>
@@ -240,7 +263,7 @@ export default function PricingPage() {
             <SectionHeading
               eyebrow="What's Included"
               title="Everything you get with every dispute case"
-              description="Each $1.15 case includes the full end-to-end service — from initial evaluation through final platform decision tracking."
+              description={`Each $${total.toFixed(2)} case includes the full end-to-end service — from initial evaluation through final platform decision tracking.`}
             />
             <Stagger className="mt-12 grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
               {includedItems.map((item, i) => (
@@ -330,8 +353,8 @@ export default function PricingPage() {
         </section>
 
         <CTABanner
-          title="Ready to start disputing fake reviews?"
-          description="Create your account, fund your wallet with a minimum $20 deposit, and submit your first dispute case today. No subscriptions, no commitments."
+          title="Ready to remove negative Google Maps reviews?"
+          description={`Create your account, fund your wallet with a minimum $${min.toFixed(2)} deposit, and submit your first negative review dispute case today. No subscriptions, no commitments.`}
           primaryHref="/signup"
           primaryLabel="Get Started"
           secondaryHref="/contact"

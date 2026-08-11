@@ -104,11 +104,11 @@ export default function AboutPage() {
           eyebrow="About Us"
           title={
             <>
-              We help businesses fight{' '}
-              <span className="gradient-text">fake reviews</span> the right way
+              We help businesses remove negative reviews from{' '}
+              <span className="gradient-text">Google Maps</span> the right way
             </>
           }
-          description="GMBCLEANER was founded on a simple principle: businesses deserve a fair, compliant way to address fake, spam, and policy-violating reviews without resorting to dishonest tactics."
+          description="GMBCLEANER was founded on a simple principle: businesses deserve a fair, compliant way to address fake, spam, and policy-violating negative reviews on Google Maps."
         />
 
         {/* Story Section */}
@@ -121,14 +121,14 @@ export default function AboutPage() {
                     Our Story
                   </span>
                   <h2 className="mt-4 text-3xl md:text-4xl font-bold tracking-tight text-navy-900 text-balance">
-                    Built by people who understand the system from the inside
+                    Built by people who understand Google Maps from the inside
                   </h2>
                   <div className="mt-6 space-y-4 text-navy-600 leading-relaxed">
                     <p>
                       GMBCLEANER started when our founder, a former Google My Business
                       support specialist, noticed a troubling pattern. Honest businesses
-                      were being damaged by fake reviews, competitor sabotage, and
-                      coordinated spam campaigns — but they had no idea how to fight back
+                      were being damaged by fake negative reviews, competitor sabotage, and
+                      coordinated spam campaigns on Google Maps — but they had no idea how to fight back
                       within the rules.
                     </p>
                     <p>
@@ -139,7 +139,7 @@ export default function AboutPage() {
                     </p>
                     <p>
                       We built GMBCLEANER to be different. We work exclusively through
-                      official platform channels: Google’s review reporting tools, policy
+                      Google&apos;s official channels: Google&apos;s review reporting tools, policy
                       violation forms, and legal removal requests. We document every case,
                       build evidence-based arguments, and submit disputes that stand up to
                       scrutiny.
@@ -148,7 +148,7 @@ export default function AboutPage() {
                       We do not guarantee removal, because no honest service can. What we
                       guarantee is that every case we file is thoroughly researched,
                       properly documented, and submitted through the correct channels —
-                      giving you the best possible chance of a fair outcome.
+                      giving your negative review removal case the best possible chance of a fair outcome.
                     </p>
                   </div>
                 </div>
@@ -309,10 +309,10 @@ export default function AboutPage() {
                   </div>
                   <div className="mt-8 space-y-4">
                     {[
-                      'We only submit disputes through official platform channels (Google review reporting, policy violation forms, legal removal requests).',
-                      'We never use bots, fake accounts, paid reviewers, or any tactic prohibited by platform policies.',
-                      'We do not engage with genuine, factually-based customer feedback — our service is exclusively for reviews that violate platform policies.',
-                      'We do not guarantee removal of any review. Outcomes depend on the platform’s review team and their policies.',
+                      'We only submit disputes through Google\u2019s official review reporting channels.',
+                      'We never use bots, fake accounts, paid reviewers, or any tactic prohibited by Google\u2019s policies.',
+                      'We do not engage with genuine, factually-based customer feedback — our service is exclusively for reviews that violate Google\u2019s policies.',
+                      'We do not guarantee removal of any negative review. Outcomes depend on Google\u2019s review team and their policies.',
                       'We maintain full documentation of every case we file, so you always know what was submitted and when.',
                       'We follow GDPR, CCPA, and industry best practices for data security and privacy.',
                     ].map((item, i) => (
@@ -329,8 +329,8 @@ export default function AboutPage() {
         </section>
 
         <CTABanner
-          title="Ready to work with a reputation service that does things right?"
-          description="Sign up today, add funds to your wallet, and start submitting review dispute cases through official channels. No subscriptions, no hidden fees, no dishonest tactics."
+          title="Ready to remove negative Google Maps reviews the right way?"
+          description="Sign up today, add funds to your wallet, and start submitting negative review dispute cases through Google\u2019s official channels. No subscriptions, no hidden fees, no dishonest tactics."
           primaryHref="/signup"
           primaryLabel="Create Your Account"
           secondaryHref="/contact"

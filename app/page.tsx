@@ -26,8 +26,8 @@ export default function HomePage() {
         <FAQPreview />
         <BlogPreview />
         <CTABanner
-          title="Ready to protect your business reputation?"
-          description="Sign up today, fund your wallet, and start submitting review dispute cases in minutes. No subscriptions, no hidden fees."
+          title="Ready to remove negative reviews from your Google Maps listing?"
+          description="Sign up today, fund your wallet, and start submitting negative review dispute cases in minutes. No subscriptions, no hidden fees."
           primaryHref="/signup"
           primaryLabel="Create Your Account"
           secondaryHref="/contact"

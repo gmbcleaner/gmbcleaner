@@ -23,15 +23,15 @@ export function HeroSection() {
           >
             <div className="inline-flex items-center gap-2 rounded-full bg-teal-50 border border-teal-200 px-4 py-1.5 text-sm font-medium text-teal-700">
               <ShieldCheck className="h-4 w-4" />
-              Compliant Review Dispute Service
+              Google Maps Negative Review Removal
             </div>
             <h1 className="mt-6 text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight text-navy-900 text-balance leading-[1.1]">
-              Protect your business from{' '}
-              <span className="gradient-text">fake & policy-violating reviews</span>
+              Remove negative reviews from your{' '}
+              <span className="gradient-text">Google Maps listing</span>
             </h1>
             <p className="mt-6 text-lg text-navy-500 leading-relaxed max-w-xl">
-              GMBCLEANER helps businesses identify, report, and request removal of reviews that
-              violate platform policies. Transparent, compliant, and built for trust.
+              GMBCLEANER helps businesses remove fake, spam, and policy-violating negative reviews from
+              Google Maps. Fast, compliant, and results-driven.
             </p>
             <div className="mt-8 flex flex-col sm:flex-row items-center gap-4">
               <Link

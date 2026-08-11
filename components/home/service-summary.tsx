@@ -10,22 +10,22 @@ const services = [
   {
     icon: Search,
     title: 'Review Identification',
-    desc: 'We analyze your reviews to identify those that may be fake, spam, abusive, off-topic, or policy-violating.',
+    desc: 'We analyze your Google Maps reviews to identify fake, spam, abusive, and policy-violating negative reviews.',
   },
   {
     icon: FileWarning,
     title: 'Policy Assessment',
-    desc: 'Each review is evaluated against the platform\'s published content policies to determine dispute eligibility.',
+    desc: 'Each negative review is evaluated against Google\'s published content policies to determine dispute eligibility.',
   },
   {
     icon: Send,
     title: 'Dispute Submission',
-    desc: 'We submit formal disputes through official platform channels, including all required documentation.',
+    desc: 'We submit formal disputes through Google\'s official review reporting channels with full documentation.',
   },
   {
     icon: TrendingUp,
     title: 'Status Tracking',
-    desc: 'Track the status of every case in real-time from your dashboard until the platform reaches a decision.',
+    desc: 'Track the status of every case in real-time from your dashboard until Google reaches a decision.',
   },
 ];
 
@@ -35,8 +35,8 @@ export function ServiceSummary() {
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <SectionHeading
           eyebrow="What We Do"
-          title="A complete review dispute workflow"
-          description="From identification to resolution, every step is designed to be transparent, compliant, and effective."
+          title="How we remove negative Google Maps reviews"
+          description="A proven 4-step process to identify, assess, dispute, and track the removal of fake and policy-violating negative reviews from your Google Maps listing."
         />
         <Stagger className="mt-16 grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
           {services.map((service, i) => {

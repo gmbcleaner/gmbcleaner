@@ -9,22 +9,22 @@ import { Stagger, staggerItem } from '@/components/animation/reveal';
 const posts = [
   {
     slug: 'how-to-identify-fake-reviews',
-    title: 'How to Identify Fake Reviews on Your Google Business Listing',
-    excerpt: 'Learn the key signs of fake, spam, or policy-violating reviews and what you can do about them.',
-    category: 'Reputation Management',
+    title: 'How to Identify Fake Negative Reviews on Your Google Maps Listing',
+    excerpt: 'Learn the key signs of fake, spam, or policy-violating negative reviews on Google Maps and what you can do about them.',
+    category: 'Google Maps',
     date: 'Aug 2026',
   },
   {
     slug: 'protect-online-reputation',
-    title: 'How Businesses Can Protect Their Online Reputation',
-    excerpt: 'A proactive strategy for monitoring, managing, and defending your brand reputation.',
-    category: 'Online Reputation',
+    title: 'How Businesses Can Protect Their Google Maps Reputation',
+    excerpt: 'A proactive strategy for monitoring, managing, and defending your Google Maps listing from negative review attacks.',
+    category: 'Reputation Management',
     date: 'Aug 2026',
   },
   {
     slug: 'listing-spam-attack-response',
-    title: 'What to Do When Your Listing Gets a Spam Attack',
-    excerpt: 'A step-by-step response plan for businesses hit by coordinated review spam.',
+    title: 'What to Do When Your Google Maps Listing Gets a Spam Attack',
+    excerpt: 'A step-by-step response plan for businesses hit by coordinated negative review spam on Google Maps.',
     category: 'Review Cleanup',
     date: 'Aug 2026',
   },
@@ -62,7 +62,7 @@ export function BlogPreview() {
                 </h3>
                 <p className="mt-2 text-sm text-navy-500 leading-relaxed">{post.excerpt}</p>
                 <Link
-                  href={`/blog/${post.slug}`}
+                  href="/blog"
                   className="mt-4 inline-flex items-center gap-1.5 text-sm font-semibold text-teal-600 hover:text-teal-700"
                 >
                   Read more <ArrowRight className="h-3.5 w-3.5" />

@@ -32,16 +32,16 @@ const fallbackFaqs: Faq[] = [
     id: 'f1',
     question: 'Is GMBCLEANER a legitimate service?',
     answer:
-      'Yes. GMBCLEANER is a reputation management platform that helps businesses identify and report reviews that may violate platform policies. We operate transparently and only submit disputes through official channels.',
+      'Yes. GMBCLEANER is a Google Maps negative review removal service that helps businesses identify and report fake, spam, and policy-violating negative reviews. We operate transparently and only submit disputes through Google\u2019s official channels.',
     category: 'general',
     sort_order: 1,
     is_published: true,
   },
   {
     id: 'f2',
-    question: 'Can you guarantee removal of a review?',
+    question: 'Can you guarantee removal of a negative review?',
     answer:
-      'No. We do not guarantee removal of any review. We evaluate each case and submit policy-based disputes. Genuine, factually-based customer feedback is not eligible for dispute.',
+      'No. We do not guarantee removal of any review. We evaluate each case and submit policy-based disputes to Google. Genuine, factually-based customer feedback is not eligible for dispute.',
     category: 'general',
     sort_order: 2,
     is_published: true,
@@ -50,7 +50,7 @@ const fallbackFaqs: Faq[] = [
     id: 'f3',
     question: 'How long does the process take?',
     answer:
-      'Most cases are reviewed and submitted within 24-72 hours. Final outcomes depend on the platform\'s own review process and are outside our control.',
+      'Most cases are reviewed and submitted within 24-72 hours. Final outcomes depend on Google\u2019s own review process and are outside our control.',
     category: 'general',
     sort_order: 4,
     is_published: true,
@@ -59,7 +59,7 @@ const fallbackFaqs: Faq[] = [
     id: 'f4',
     question: 'How much does the service cost?',
     answer:
-      'Each review case costs $1.00 plus a $0.15 service fee per item. You fund your wallet and pay from your account balance. The minimum deposit is $20.',
+      'Each negative review dispute case costs a base price plus a service fee per item. You fund your wallet and pay from your account balance. The minimum deposit is $20.',
     category: 'pricing',
     sort_order: 3,
     is_published: true,
@@ -80,6 +80,15 @@ const fallbackFaqs: Faq[] = [
       'We accept cryptocurrency payments including USDT on TRC20, BEP20, and ERC20 networks, as well as other configurable options. Wallet addresses are provided in your dashboard.',
     category: 'payments',
     sort_order: 5,
+    is_published: true,
+  },
+  {
+    id: 'f7',
+    question: 'Do I get a refund if the review is not removed?',
+    answer:
+      'No. All sales are final. We charge for the preparation and submission of dispute cases, not for the outcome. If a review is not removed by Google, your balance is not restored.',
+    category: 'pricing',
+    sort_order: 7,
     is_published: true,
   },
 ];
@@ -137,7 +146,7 @@ export default function FaqPage() {
               Frequently asked <span className="gradient-text">questions</span>
             </>
           }
-          description="Everything you need to know about our review dispute service, pricing, security, and payment methods. Can't find what you're looking for? Reach out to our team."
+          description="Everything you need to know about our Google Maps negative review removal service, pricing, security, and payment methods. Can't find what you're looking for? Reach out to our team."
         />
 
         {/* FAQ Categories */}
@@ -228,8 +237,8 @@ export default function FaqPage() {
         </section>
 
         <CTABanner
-          title="Ready to take control of your online reputation?"
-          description="Create your account today, fund your wallet, and start submitting dispute cases through official channels. Transparent pricing, no commitments."
+          title="Ready to take control of your Google Maps reputation?"
+          description="Create your account today, fund your wallet, and start submitting negative review dispute cases through Google\u2019s official channels. Transparent pricing, no commitments."
           primaryHref="/signup"
           primaryLabel="Get Started"
           secondaryHref="/pricing"

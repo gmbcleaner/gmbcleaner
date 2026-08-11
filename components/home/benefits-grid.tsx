@@ -8,8 +8,8 @@ import { Stagger, staggerItem } from '@/components/animation/reveal';
 const benefits = [
   {
     icon: Shield,
-    title: 'Compliant by Design',
-    desc: 'Every dispute is submitted through official platform channels with proper documentation. No tricks, no shortcuts.',
+    title: 'Google Maps Focused',
+    desc: 'We specialize in removing negative reviews from Google Maps listings. Every dispute targets Google\'s review policies.',
   },
   {
     icon: Lock,
@@ -33,8 +33,8 @@ const benefits = [
   },
   {
     icon: BadgeCheck,
-    title: 'Honest Expectations',
-    desc: 'We tell you upfront: we cannot guarantee removal. We only dispute reviews with genuine policy grounds.',
+    title: 'No Refund Policy',
+    desc: 'All sales are final. You pay for the dispute service — not for guaranteed removal. We are upfront about this.',
   },
 ];
 

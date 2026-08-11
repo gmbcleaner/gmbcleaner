@@ -20,13 +20,13 @@ import {
 const services = [
   {
     icon: Search,
-    title: 'Review Identification',
+    title: 'Google Maps Review Identification',
     description:
-      'Our analysts examine your review profile to identify reviews that may violate platform policies — including fake reviews, competitor sabotage, coordinated spam campaigns, and reviews from non-customers.',
+      'Our analysts examine your Google Maps listing to identify negative reviews that may violate Google\u2019s policies — including fake reviews, competitor sabotage, coordinated spam campaigns, and reviews from non-customers.',
     features: [
-      'Pattern analysis for coordinated review bombing',
-      'Detection of reviews with no transaction history',
-      'Identification of competitor-authored reviews',
+      'Pattern analysis for coordinated review bombing on Google Maps',
+      'Detection of negative reviews with no transaction history',
+      'Identification of competitor-authored negative reviews',
       'Flagging of reviews containing prohibited content',
     ],
     color: 'from-teal-500 to-teal-600',
@@ -35,12 +35,12 @@ const services = [
   },
   {
     icon: ClipboardCheck,
-    title: 'Policy Assessment',
+    title: 'Google Policy Assessment',
     description:
-      'Each flagged review is assessed against the specific platform’s published policies. We determine which exact policy terms may have been violated and build a case around those specific violations.',
+      'Each flagged negative review is assessed against Google\u2019s published review policies. We determine which exact policy terms may have been violated and build a case around those specific violations.',
     features: [
-      'Review against Google’s review policies and guidelines',
-      'Assessment of Yelp, Facebook, and Trustpilot policies',
+      'Review against Google\u2019s review policies and guidelines',
+      'Assessment of content policy violations',
       'Documentation of specific policy violations',
       'Evidence compilation with screenshots and timestamps',
     ],
@@ -50,9 +50,9 @@ const services = [
   },
   {
     icon: Send,
-    title: 'Dispute Submission',
+    title: 'Dispute Submission to Google',
     description:
-      'We submit dispute cases through official platform channels — Google’s review reporting tools, policy violation forms, and legal removal request forms. Every submission is documented and tracked.',
+      'We submit dispute cases through Google\u2019s official review reporting tools — policy violation forms and legal removal request forms. Every submission is documented and tracked.',
     features: [
       'Submission through Google review reporting tools',
       'Policy violation form submissions',
@@ -67,10 +67,10 @@ const services = [
     icon: Activity,
     title: 'Status Tracking',
     description:
-      'Once a dispute is submitted, we track its status through the platform’s review process. You receive updates at every stage — from initial review to final decision — so you always know where things stand.',
+      'Once a dispute is submitted to Google, we track its status through the review process. You receive updates at every stage — from initial review to final decision.',
     features: [
       'Real-time status updates on every case',
-      'Notifications when a platform takes action',
+      'Notifications when Google takes action',
       'Follow-up submissions when appropriate',
       'Complete case history and audit trail',
     ],
@@ -80,12 +80,12 @@ const services = [
   },
   {
     icon: Eye,
-    title: 'Reputation Monitoring',
+    title: 'Google Maps Monitoring',
     description:
-      'We continuously monitor your review profiles across major platforms so you can catch new fake or policy-violating reviews early — before they damage your reputation or search rankings.',
+      'We continuously monitor your Google Maps listing so you can catch new fake or policy-violating negative reviews early — before they damage your reputation and local search rankings.',
     features: [
-      '24/7 monitoring across Google, Yelp, and Facebook',
-      'Alert notifications for new suspicious reviews',
+      'Continuous monitoring of your Google Maps listing',
+      'Alert notifications for new suspicious negative reviews',
       'Weekly reputation health reports',
       'Trend analysis and benchmark tracking',
     ],
@@ -95,12 +95,12 @@ const services = [
   },
   {
     icon: Shield,
-    title: 'Review Moderation',
+    title: 'Ongoing Review Moderation',
     description:
-      'For businesses with active review profiles, we provide ongoing moderation support — identifying problematic reviews as they appear and preparing dispute cases on your behalf.',
+      'For businesses with active Google Maps profiles, we provide ongoing moderation support — identifying problematic negative reviews as they appear and preparing dispute cases on your behalf.',
     features: [
-      'Ongoing review profile moderation',
-      'Pre-screening of new reviews for policy violations',
+      'Ongoing Google Maps review profile moderation',
+      'Pre-screening of new negative reviews for policy violations',
       'Automated flagging of suspicious patterns',
       'Monthly moderation summary reports',
     ],
@@ -111,10 +111,10 @@ const services = [
 ];
 
 const process = [
-  { step: '01', title: 'Identify', description: 'We scan your reviews and flag potential policy violations.' },
-  { step: '02', title: 'Assess', description: 'Each flagged review is matched against specific platform policies.' },
-  { step: '03', title: 'Submit', description: 'We file disputes through official platform channels.' },
-  { step: '04', title: 'Track', description: 'You get status updates until a final decision is reached.' },
+  { step: '01', title: 'Identify', description: 'We scan your Google Maps reviews and flag potential policy violations.' },
+  { step: '02', title: 'Assess', description: 'Each flagged negative review is matched against Google\u2019s specific policies.' },
+  { step: '03', title: 'Submit', description: 'We file disputes through Google\u2019s official reporting channels.' },
+  { step: '04', title: 'Track', description: 'You get status updates until Google reaches a final decision.' },
 ];
 
 export default function ServicesPage() {
@@ -126,11 +126,11 @@ export default function ServicesPage() {
           eyebrow="Our Services"
           title={
             <>
-              Six ways we help you protect your{' '}
-              <span className="gradient-text">online reputation</span>
+              Professional negative review removal for{' '}
+              <span className="gradient-text">Google Maps</span>
             </>
           }
-          description="Every service we offer works within official platform policies. No bots, no fake accounts, no prohibited tactics — just well-documented dispute cases submitted through the right channels."
+          description="Every service we offer is focused on removing fake, spam, and policy-violating negative reviews from your Google Maps listing through official channels."
         />
 
         {/* Services Grid */}
@@ -200,46 +200,9 @@ export default function ServicesPage() {
           </div>
         </section>
 
-        {/* What we don't do */}
-        <section className="py-20">
-          <div className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
-            <Reveal>
-              <Card className="border-2 border-red-100 bg-red-50/30">
-                <CardContent className="p-8 md:p-12">
-                  <h2 className="text-2xl font-bold text-navy-900">
-                    What we will <span className="text-red-500">never</span> do
-                  </h2>
-                  <p className="mt-3 text-navy-500 leading-relaxed">
-                    We believe in doing things the right way. These tactics can get your
-                    business permanently suspended from review platforms — we refuse to
-                    use them, no matter what.
-                  </p>
-                  <div className="mt-8 grid md:grid-cols-2 gap-4">
-                    {[
-                      'Write fake positive reviews to bury negative ones',
-                      'Use bots or automated tools to mass-flag reviews',
-                      'Create fake accounts to manipulate review scores',
-                      'Pay third parties to write or remove reviews',
-                      'Threaten or harass reviewers, even fake ones',
-                      'Guarantee removal of any specific review',
-                    ].map((item, i) => (
-                      <div key={i} className="flex items-start gap-3">
-                        <span className="flex h-6 w-6 items-center justify-center rounded-full bg-red-100 text-red-500 text-sm font-bold flex-shrink-0 mt-0.5">
-                          ✕
-                        </span>
-                        <p className="text-sm text-navy-600">{item}</p>
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            </Reveal>
-          </div>
-        </section>
-
         <CTABanner
-          title="Ready to put these services to work for your business?"
-          description="Create an account, add funds, and start submitting dispute cases today. You only pay for the cases you submit — no subscriptions, no commitments."
+          title="Ready to remove negative Google Maps reviews?"
+          description="Create an account, add funds, and start submitting negative review dispute cases today. You only pay for the cases you submit — no subscriptions, no commitments."
           primaryHref="/signup"
           primaryLabel="Get Started Now"
           secondaryHref="/pricing"

@@ -125,10 +125,11 @@ export default function CaseStudiesPage() {
           eyebrow="Results"
           title={
             <>
-              Real outcomes for <span className="gradient-text">real businesses</span>
+              Real negative review removal outcomes for{' '}
+              <span className="gradient-text">Google Maps</span>
             </>
           }
-          description="Anonymized case studies showing how businesses across different industries used our compliant dispute process to address fake, spam, and policy-violating reviews through official platform channels."
+          description="Anonymized case studies showing how businesses used our compliant dispute process to remove fake, spam, and policy-violating negative reviews from their Google Maps listings."
         />
 
         {/* Summary Stats */}
@@ -302,37 +303,9 @@ export default function CaseStudiesPage() {
           </div>
         </section>
 
-        {/* What we don't do */}
-        <section className="py-16 bg-slate-50">
-          <div className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
-            <SectionHeading
-              eyebrow="Our Principles"
-              title="What these case studies do not show"
-              description="We want to be clear about what we will and will not do. These principles apply to every case we handle."
-            />
-            <div className="mt-10 grid sm:grid-cols-2 gap-4">
-              {[
-                'We do not guarantee any specific outcome or removal rate',
-                'We do not engage with genuine, factually-based customer feedback',
-                'We do not use bots, fake accounts, or prohibited tactics',
-                'We do not promise rating improvements or specific star targets',
-                'We do not submit disputes without documented policy violations',
-                'We do not misrepresent facts to influence platform decisions',
-              ].map((item, i) => (
-                <Reveal key={i} delay={i * 0.05}>
-                  <div className="flex items-start gap-3 rounded-xl bg-white border border-slate-200 p-4">
-                    <CheckCircle2 className="h-5 w-5 text-teal-600 flex-shrink-0 mt-0.5" />
-                    <p className="text-sm text-navy-600">{item}</p>
-                  </div>
-                </Reveal>
-              ))}
-            </div>
-          </div>
-        </section>
-
         <CTABanner
-          title="Want to see if we can help your business?"
-          description="Every situation is unique. Talk to our team about your review profile, and we will give you an honest assessment of what can and cannot be addressed through official channels."
+          title="Want to remove negative reviews from your Google Maps listing?"
+          description="Every situation is unique. Talk to our team about your Google Maps listing, and we will give you an honest assessment of what can and cannot be addressed through official channels."
           primaryHref="/signup"
           primaryLabel="Get Started"
           secondaryHref="/contact"

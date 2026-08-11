@@ -10,19 +10,19 @@ import { Reveal } from '@/components/animation/reveal';
 const faqs = [
   {
     question: 'Is GMBCLEANER a legitimate service?',
-    answer: 'Yes. GMBCLEANER is a reputation management platform that helps businesses identify and report reviews that may violate platform policies. We operate transparently and only submit disputes through official channels.',
+    answer: 'Yes. GMBCLEANER is a Google Maps negative review removal service that helps businesses identify and report fake, spam, and policy-violating negative reviews. We operate transparently and only submit disputes through Google\'s official channels.',
   },
   {
-    question: 'Can you guarantee removal of a review?',
-    answer: 'No. We do not guarantee removal of any review. We evaluate each case and submit policy-based disputes. Genuine, factually-based customer feedback is not eligible for dispute.',
+    question: 'Can you guarantee removal of a negative review?',
+    answer: 'No. We do not guarantee removal of any review. We evaluate each case and submit policy-based disputes to Google. Genuine, factually-based customer feedback is not eligible for dispute.',
   },
   {
     question: 'How much does the service cost?',
-    answer: 'Each review case costs $1.00 plus a $0.15 service fee per item. You fund your wallet and pay from your account balance. The minimum deposit is $20.',
+    answer: 'Each negative review dispute case costs $1.00 plus a $0.15 service fee per item. You fund your wallet and pay from your account balance. The minimum deposit is $20.',
   },
   {
     question: 'How long does the process take?',
-    answer: 'Most cases are reviewed and submitted within 24-72 hours. Final outcomes depend on the platform\'s own review process and are outside our control.',
+    answer: 'Most cases are reviewed and submitted within 24-72 hours. Final outcomes depend on Google\'s own review process and are outside our control.',
   },
 ];
 
