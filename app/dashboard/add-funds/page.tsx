@@ -1,24 +1,68 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Wallet, Copy, CheckCircle2, AlertTriangle, Upload, X, ArrowRight, ArrowLeft } from 'lucide-react';
+import { Wallet, Copy, CheckCircle2, AlertTriangle, ArrowRight, ArrowLeft, Clock, X, Send, ShieldCheck } from 'lucide-react';
 import { addDocument, fetchCollection } from '@/lib/db';
 import { useAuth } from '@/components/providers/auth-provider';
 import { toast } from '@/hooks/use-toast';
-import { uploadToImgbb } from '@/lib/imgbb';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { sendTelegramAdminOnly, setTelegramChatIds } from '@/lib/telegram';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from '@/components/ui/dialog';
 
 interface Currency { id: string; name: string; symbol: string; logo_url: string; is_active: boolean; }
 interface Network { id: string; currency_id: string; name: string; symbol: string; is_active: boolean; }
 interface WalletAddress { id: string; currency_id: string; network_id: string; address: string; label: string; }
 
+function isNightTime(): boolean {
+  const now = new Date();
+  const hours = now.getHours();
+  const minutes = now.getMinutes();
+  const totalMinutes = hours * 60 + minutes;
+  const start = 23 * 60;
+  const end = 6 * 60 + 30;
+  if (start > end) {
+    return totalMinutes >= start || totalMinutes < end;
+  }
+  return totalMinutes >= start && totalMinutes < end;
+}
+
+function getTimeUntil630AM(): number {
+  const now = new Date();
+  const target = new Date(now);
+  target.setHours(6, 30, 0, 0);
+  if (now.getHours() >= 6 && (now.getHours() > 6 || now.getMinutes() >= 30)) {
+    target.setDate(target.getDate() + 1);
+  }
+  return target.getTime() - now.getTime();
+}
+
+function formatCountdown(ms: number): string {
+  if (ms <= 0) return '00:00';
+  const totalSeconds = Math.floor(ms / 1000);
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+  if (hours > 0) {
+    return `${hours}h ${String(minutes).padStart(2, '0')}m ${String(seconds).padStart(2, '0')}s`;
+  }
+  return `${String(minutes).padStart(2, '0')}m ${String(seconds).padStart(2, '0')}s`;
+}
+
+type Step = 'amount' | 'payment' | 'confirming' | 'processing' | 'result';
+
 export default function AddFundsPage() {
   const { user, refreshProfile } = useAuth();
-  const [step, setStep] = useState<'amount' | 'currency' | 'network' | 'address' | 'proof'>('amount');
+  const [step, setStep] = useState<Step>('amount');
   const [amount, setAmount] = useState('');
   const [minDeposit, setMinDeposit] = useState(20);
   const [currencies, setCurrencies] = useState<Currency[]>([]);
@@ -28,93 +72,117 @@ export default function AddFundsPage() {
   const [selectedNetwork, setSelectedNetwork] = useState<Network | null>(null);
   const [selectedWallet, setSelectedWallet] = useState<WalletAddress | null>(null);
   const [txHash, setTxHash] = useState('');
-  const [senderWallet, setSenderWallet] = useState('');
-  const [screenshotUrl, setScreenshotUrl] = useState('');
-  const [screenshotPreview, setScreenshotPreview] = useState('');
   const [copied, setCopied] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
-  const [dbError, setDbError] = useState('');
-  const fileRef = useRef<HTMLInputElement>(null);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [depositId, setDepositId] = useState('');
+  const [processingTimeLeft, setProcessingTimeLeft] = useState(0);
+  const [nightMode, setNightMode] = useState(false);
+  const [resultStatus, setResultStatus] = useState<'approved' | 'rejected' | 'timeout' | null>(null);
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const pollRef = useRef<NodeJS.Timeout | null>(null);
 
-  const fetchData = useCallback(async () => {
-    try {
-      const [c, n, w, p, s] = await Promise.all([
-        fetchCollection('currencies'),
-        fetchCollection('networks'),
-        fetchCollection('wallet_addresses'),
-        fetchCollection('pricing_settings').catch(() => []),
-        fetchCollection('admin_settings').catch(() => []),
-      ]);
-      const activeCurrencies = ((c as Currency[]) || []);
-      setCurrencies(activeCurrencies);
-      setNetworks((n as Network[]) || []);
-      setWallets((w as WalletAddress[]) || []);
-      if (p && p.length > 0) setMinDeposit(p[0].min_deposit || 20);
-      if (s && s.length > 0) {
-        setTelegramChatIds(s[0].admin_telegram_id || '', s[0].provider_telegram_id || '');
-      }
-      setDbError('');
-    } catch (err: any) {
-      setDbError(err.message || 'Failed to load data. Check database rules.');
-    }
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const [c, n, w, p, s] = await Promise.all([
+          fetchCollection('currencies'),
+          fetchCollection('networks'),
+          fetchCollection('wallet_addresses'),
+          fetchCollection('pricing_settings').catch(() => []),
+          fetchCollection('admin_settings').catch(() => []),
+        ]);
+        setCurrencies((c as Currency[]) || []);
+        setNetworks((n as Network[]) || []);
+        setWallets((w as WalletAddress[]) || []);
+        if (p && p.length > 0) setMinDeposit(p[0].min_deposit || 20);
+        if (s && s.length > 0) {
+          setTelegramChatIds(s[0].admin_telegram_id || '', s[0].provider_telegram_id || '');
+        }
+      } catch {}
+    };
+    fetchData();
   }, []);
 
   useEffect(() => {
-    fetchData();
-    const onFocus = () => fetchData();
-    window.addEventListener('focus', onFocus);
-    return () => window.removeEventListener('focus', onFocus);
-  }, [fetchData]);
+    if (step === 'processing' && depositId) {
+      const timerMs = 15 * 60 * 1000;
+      setProcessingTimeLeft(timerMs);
+      const startTime = Date.now();
 
-  useEffect(() => {
-    if (step === 'currency') fetchData();
-  }, [step, fetchData]);
+      timerRef.current = setInterval(() => {
+        const elapsed = Date.now() - startTime;
+        const remaining = timerMs - elapsed;
+        if (remaining <= 0) {
+          clearInterval(timerRef.current!);
+          setProcessingTimeLeft(0);
+          setResultStatus('timeout');
+          setStep('result');
+          return;
+        }
+        setProcessingTimeLeft(remaining);
+      }, 1000);
 
-  useEffect(() => {
-    if (step === 'address' && walletsForNetwork.length > 0 && !selectedWallet) {
-      setSelectedWallet(walletsForNetwork[0]);
+      pollRef.current = setInterval(async () => {
+        try {
+          const data = await fetchCollection('deposits', [{ field: '__name__', op: '==', value: depositId }]);
+          if (data && data.length > 0) {
+            const dep = data[0] as any;
+            if (dep.status === 'approved') {
+              clearInterval(timerRef.current!);
+              clearInterval(pollRef.current!);
+              setResultStatus('approved');
+              setStep('result');
+              await refreshProfile();
+            } else if (dep.status === 'rejected') {
+              clearInterval(timerRef.current!);
+              clearInterval(pollRef.current!);
+              setResultStatus('rejected');
+              setStep('result');
+            }
+          }
+        } catch {}
+      }, 5000);
     }
-  }, [step]);
+
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current);
+      if (pollRef.current) clearInterval(pollRef.current);
+    };
+  }, [step, depositId, refreshProfile]);
 
   const parsedAmount = parseFloat(amount) || 0;
   const isValidAmount = parsedAmount >= minDeposit;
   const networksForCurrency = networks.filter(n => n.currency_id === selectedCurrency?.id);
   const walletsForNetwork = wallets.filter(w => w.network_id === selectedNetwork?.id && w.currency_id === selectedCurrency?.id);
 
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    if (file.size > 5 * 1024 * 1024) {
-      toast({ title: 'File too large', description: 'Max 5MB allowed.', variant: 'destructive' });
-      return;
+  useEffect(() => {
+    if (selectedCurrency && networksForCurrency.length === 1) {
+      setSelectedNetwork(networksForCurrency[0]);
     }
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      const base64 = reader.result as string;
-      setScreenshotUrl(base64);
-      setScreenshotPreview(base64);
-    };
-    reader.readAsDataURL(file);
+  }, [selectedCurrency]);
+
+  useEffect(() => {
+    if (selectedNetwork && walletsForNetwork.length > 0) {
+      setSelectedWallet(walletsForNetwork[0]);
+    }
+  }, [selectedNetwork]);
+
+  const copyAddress = (addr: string) => {
+    navigator.clipboard.writeText(addr);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+    toast({ title: 'Address copied', description: 'Wallet address copied to clipboard.' });
   };
 
-  const removeScreenshot = () => {
-    setScreenshotUrl('');
-    setScreenshotPreview('');
-    if (fileRef.current) fileRef.current.value = '';
-  };
+  const handleConfirmPayment = async () => {
+    if (!user || !txHash.trim() || !selectedCurrency || !selectedNetwork || !selectedWallet) return;
+    setConfirmOpen(false);
 
-  const handleSubmit = async () => {
-    if (!user || !isValidAmount || !selectedCurrency || !selectedNetwork || !selectedWallet || !txHash.trim()) return;
-    setSubmitting(true);
     try {
-      let uploadedScreenshotUrl = screenshotUrl || null;
-      if (screenshotUrl && screenshotUrl.startsWith('data:')) {
-        toast({ title: 'Uploading screenshot...', description: 'Please wait.' });
-        const base64Only = screenshotUrl.split(',')[1];
-        uploadedScreenshotUrl = await uploadToImgbb(base64Only);
-      }
+      const night = isNightTime();
+      setNightMode(night);
 
-      await addDocument('deposits', {
+      const depositData: any = {
         user_id: user.uid,
         user_email: user.email,
         amount: parsedAmount,
@@ -124,15 +192,18 @@ export default function AddFundsPage() {
         network_id: selectedNetwork.id,
         wallet_address: selectedWallet.address,
         tx_hash: txHash.trim(),
-        sender_wallet: senderWallet.trim() || null,
-        screenshot_url: uploadedScreenshotUrl,
-        status: 'pending',
-      });
+        status: night ? 'pending' : 'pending',
+        submitted_at: new Date().toISOString(),
+        night_mode: night,
+      };
+
+      const docId = await addDocument('deposits', depositData);
+      setDepositId(docId);
 
       await addDocument('notifications', {
         user_id: user.uid,
         title: 'Deposit Submitted',
-        message: `Your $${parsedAmount.toFixed(2)} ${selectedCurrency.symbol} deposit via ${selectedNetwork.name} is pending review.`,
+        message: `Your $${parsedAmount.toFixed(2)} ${selectedCurrency.symbol} deposit via ${selectedNetwork.name} is being processed.`,
         type: 'deposit',
         is_read: false,
       });
@@ -146,250 +217,384 @@ export default function AddFundsPage() {
         `🌐 Network: ${selectedNetwork.name}`,
         `📍 Wallet: <code>${selectedWallet.address}</code>`,
         `🔗 TX Hash: <code>${txHash.trim()}</code>`,
-        senderWallet ? `📤 Sender: <code>${senderWallet.trim()}</code>` : '',
+        night ? '🌙 Night deposit - Will be processed after 6:30 AM' : '',
         '',
-        `Status: ⏳ Pending Admin Approval`,
+        `Status: ⏳ Pending`,
       ].filter(Boolean).join('\n');
 
-      if (uploadedScreenshotUrl) {
-        await fetch('/api/telegram', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ type: 'photo', photo: uploadedScreenshotUrl, caption: telegramMsg }),
-        });
-      } else {
-        await sendTelegramAdminOnly(telegramMsg);
-      }
+      await sendTelegramAdminOnly(telegramMsg);
 
-      toast({ title: 'Deposit submitted', description: 'Your deposit is pending admin approval.' });
-      await refreshProfile();
-      setStep('amount');
-      setAmount(''); setTxHash(''); setSenderWallet('');
-      removeScreenshot();
-      setSelectedCurrency(null); setSelectedNetwork(null); setSelectedWallet(null);
+      setStep('processing');
     } catch (err: any) {
       toast({ title: 'Error', description: err.message, variant: 'destructive' });
-    } finally {
-      setSubmitting(false);
     }
   };
 
-  const copyAddress = (addr: string) => {
-    navigator.clipboard.writeText(addr);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+  const resetFlow = () => {
+    setStep('amount');
+    setAmount('');
+    setTxHash('');
+    setSelectedCurrency(null);
+    setSelectedNetwork(null);
+    setSelectedWallet(null);
+    setDepositId('');
+    setResultStatus(null);
+    setNightMode(false);
   };
 
-  const stepIndex = ['amount', 'currency', 'network', 'address', 'proof'].indexOf(step);
+  const currentNetworkIndex = networksForCurrency.indexOf(selectedNetwork!);
 
   return (
-    <div className="space-y-6">
+    <div className="mx-auto max-w-2xl space-y-6">
       <div>
         <h1 className="text-2xl font-bold tracking-tight text-slate-900">Add Funds</h1>
         <p className="text-sm text-slate-500">Deposit cryptocurrency to fund your wallet. Minimum deposit: ${minDeposit}</p>
       </div>
 
-      {dbError && (
-        <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">
-          <p className="font-semibold">Database Error</p>
-          <p>{dbError}</p>
-          <p className="mt-2 text-xs">Make sure Firebase Realtime Database rules are set to allow read/write.</p>
-        </div>
+      {step === 'amount' && (
+        <Card className="shadow-card">
+          <CardContent className="p-6 space-y-4">
+            <div className="space-y-2">
+              <Label>Amount (USD)</Label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
+                <Input
+                  type="number"
+                  min={minDeposit}
+                  step="0.01"
+                  placeholder={`${minDeposit}.00`}
+                  value={amount}
+                  onChange={(e) => setAmount(e.target.value)}
+                  className="pl-8 text-lg"
+                  autoFocus
+                />
+              </div>
+              {parsedAmount > 0 && parsedAmount < minDeposit && (
+                <p className="text-xs text-red-500 flex items-center gap-1">
+                  <AlertTriangle className="h-3 w-3" />Minimum deposit is ${minDeposit}
+                </p>
+              )}
+            </div>
+            <Button
+              onClick={() => isValidAmount && setStep('payment')}
+              disabled={!isValidAmount}
+              className="w-full bg-gradient-to-r from-teal-500 to-sky-500 text-white"
+            >
+              Pay Now <ArrowRight className="ml-2 h-4 w-4" />
+            </Button>
+          </CardContent>
+        </Card>
       )}
 
-      <div className="flex items-center gap-2 text-xs text-slate-500">
-        {['Amount', 'Currency', 'Network', 'Address', 'Proof'].map((label, i) => (
-          <div key={label} className="flex items-center gap-2">
-            <div className={`flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold ${i <= stepIndex ? 'bg-teal-500 text-white' : 'bg-slate-100 text-slate-400'}`}>
-              {i + 1}
-            </div>
-            <span className={i <= stepIndex ? 'text-slate-900 font-medium' : ''}>{label}</span>
-            {i < 4 && <ArrowRight className="h-3 w-3 text-slate-300" />}
-          </div>
-        ))}
-      </div>
-
-      <div className="grid gap-6 lg:grid-cols-2">
+      {step === 'payment' && (
         <Card className="shadow-card">
-          <CardHeader>
-            <CardTitle className="text-lg">
-              {step === 'amount' && 'Enter Amount'}
-              {step === 'currency' && 'Select Currency'}
-              {step === 'network' && 'Select Network'}
-              {step === 'address' && 'Wallet Address'}
-              {step === 'proof' && 'Submit Proof'}
-            </CardTitle>
-            <CardDescription>
-              {step === 'amount' && `Minimum deposit is $${minDeposit}`}
-              {step === 'currency' && 'Choose the cryptocurrency to deposit'}
-              {step === 'network' && `Select a network for ${selectedCurrency?.symbol}`}
-              {step === 'address' && `Send ${selectedNetwork?.name} to this address`}
-              {step === 'proof' && 'Upload payment proof and enter transaction details'}
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {step === 'amount' && (
-              <>
-                <div className="space-y-2">
-                  <Label>Amount (USD)</Label>
-                  <div className="relative">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
-                    <Input type="number" min={minDeposit} step="0.01" placeholder={`${minDeposit}.00`} value={amount} onChange={(e) => setAmount(e.target.value)} className="pl-8 text-lg" autoFocus />
-                  </div>
-                  {parsedAmount > 0 && parsedAmount < minDeposit && (
-                    <p className="text-xs text-red-500 flex items-center gap-1"><AlertTriangle className="h-3 w-3" />Minimum deposit is ${minDeposit}</p>
-                  )}
+          <CardContent className="p-6 space-y-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-lg font-bold text-slate-900">Crypto Payment</h2>
+                <p className="text-sm text-slate-500">Amount: <span className="font-semibold text-slate-900">${parsedAmount.toFixed(2)}</span></p>
+              </div>
+              <Button variant="ghost" size="sm" onClick={() => setStep('amount')}>
+                <ArrowLeft className="h-4 w-4 mr-1" /> Change
+              </Button>
+            </div>
+
+            <div className="space-y-3">
+              <Label>Select Currency</Label>
+              {currencies.length === 0 ? (
+                <p className="text-sm text-slate-500 text-center py-4">No currencies available. Contact admin.</p>
+              ) : (
+                <select
+                  value={selectedCurrency?.id || ''}
+                  onChange={(e) => {
+                    const cur = currencies.find(c => c.id === e.target.value);
+                    setSelectedCurrency(cur || null);
+                    setSelectedNetwork(null);
+                    setSelectedWallet(null);
+                  }}
+                  className="w-full rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-teal-500"
+                >
+                  <option value="">-- Select Currency --</option>
+                  {currencies.map(cur => (
+                    <option key={cur.id} value={cur.id}>{cur.name} ({cur.symbol})</option>
+                  ))}
+                </select>
+              )}
+            </div>
+
+            {selectedCurrency && (
+              <div className="space-y-3">
+                <Label>Select Network</Label>
+                {networksForCurrency.length === 0 ? (
+                  <p className="text-sm text-slate-500 text-center py-4">No networks available for {selectedCurrency.symbol}.</p>
+                ) : (
+                  <select
+                    value={selectedNetwork?.id || ''}
+                    onChange={(e) => {
+                      const net = networksForCurrency.find(n => n.id === e.target.value);
+                      setSelectedNetwork(net || null);
+                      setSelectedWallet(null);
+                    }}
+                    className="w-full rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-teal-500"
+                  >
+                    <option value="">-- Select Network --</option>
+                    {networksForCurrency.map(net => (
+                      <option key={net.id} value={net.id}>{net.name} ({net.symbol})</option>
+                    ))}
+                  </select>
+                )}
+              </div>
+            )}
+
+            {selectedNetwork && selectedWallet && (
+              <div className="rounded-xl border-2 border-teal-200 bg-gradient-to-br from-teal-50 to-sky-50 p-5 space-y-3">
+                <p className="text-xs font-semibold text-teal-700 uppercase tracking-wider">Send {selectedNetwork.symbol} to this address</p>
+                <div className="flex items-center gap-2 bg-white rounded-lg p-3 border border-teal-100">
+                  <code className="flex-1 break-all text-xs font-mono text-slate-700 select-all">{selectedWallet.address}</code>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="shrink-0 h-8 w-8 p-0"
+                    onClick={() => copyAddress(selectedWallet.address)}
+                  >
+                    {copied ? <CheckCircle2 className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4 text-teal-600" />}
+                  </Button>
                 </div>
-                <Button onClick={() => isValidAmount && setStep('currency')} disabled={!isValidAmount} className="w-full">
-                  Continue <ArrowRight className="ml-2 h-4 w-4" />
+                {selectedWallet.label && <p className="text-[11px] text-teal-600">{selectedWallet.label}</p>}
+                <p className="text-[11px] text-slate-500">Make sure to send only {selectedNetwork.symbol} on {selectedNetwork.name} network.</p>
+              </div>
+            )}
+
+            {selectedNetwork && walletsForNetwork.length === 0 && (
+              <div className="rounded-lg bg-amber-50 border border-amber-200 p-4 text-sm text-amber-700">
+                No wallet address configured for {selectedNetwork.name}. Contact support.
+              </div>
+            )}
+
+            {selectedNetwork && selectedWallet && (
+              <div className="space-y-3">
+                <Button
+                  onClick={() => setConfirmOpen(true)}
+                  className="w-full bg-gradient-to-r from-teal-500 to-sky-500 text-white"
+                >
+                  <Send className="mr-2 h-4 w-4" /> I&apos;ve Sent Payment
+                </Button>
+                <p className="text-[11px] text-center text-slate-400">
+                  Click after you have sent the payment from your wallet
+                </p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {step === 'processing' && (
+        <Card className="shadow-card">
+          <CardContent className="p-8 text-center space-y-6">
+            <div className="flex justify-center">
+              <div className="relative">
+                <div className="h-24 w-24 rounded-full border-4 border-teal-200 border-t-teal-500 animate-spin" />
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <Clock className="h-10 w-10 text-teal-500" />
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <h2 className="text-xl font-bold text-slate-900">Processing Payment</h2>
+              <p className="mt-2 text-sm text-slate-500">
+                {nightMode
+                  ? 'Your payment was submitted during night hours (11 PM - 6:30 AM). It will be approved after 6:30 AM.'
+                  : 'Your payment is being processed. This usually takes 10-20 minutes.'}
+              </p>
+            </div>
+
+            <div className="rounded-xl bg-slate-50 border border-slate-200 p-4">
+              <p className="text-xs text-slate-500 mb-1">Time remaining</p>
+              <p className="text-3xl font-bold text-teal-600 font-mono">{formatCountdown(processingTimeLeft)}</p>
+            </div>
+
+            <div className="rounded-lg bg-amber-50 border border-amber-200 p-4">
+              <p className="text-xs text-amber-700">
+                <strong>Important:</strong> Please do not leave this page. You will be notified once your payment is approved. If you close this page, you can check your deposit status in Billing.
+              </p>
+            </div>
+
+            <div className="rounded-lg bg-slate-50 border border-slate-200 p-4 text-left space-y-2">
+              <p className="text-xs font-medium text-slate-700">Deposit Details</p>
+              <div className="text-xs text-slate-500 space-y-1">
+                <p>Amount: <span className="font-semibold text-slate-900">${parsedAmount.toFixed(2)}</span></p>
+                <p>Currency: <span className="font-semibold text-slate-900">{selectedCurrency?.symbol}</span></p>
+                <p>Network: <span className="font-semibold text-slate-900">{selectedNetwork?.name}</span></p>
+                <p>TX Hash: <code className="text-[10px] text-slate-600">{txHash}</code></p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {step === 'result' && (
+        <Card className="shadow-card">
+          <CardContent className="p-8 text-center space-y-6">
+            {resultStatus === 'approved' && (
+              <>
+                <div className="flex justify-center">
+                  <div className="h-20 w-20 rounded-full bg-green-100 flex items-center justify-center">
+                    <CheckCircle2 className="h-10 w-10 text-green-500" />
+                  </div>
+                </div>
+                <div>
+                  <h2 className="text-2xl font-bold text-green-700">Congratulations!</h2>
+                  <p className="mt-2 text-sm text-slate-600">Your deposit of <span className="font-semibold">${parsedAmount.toFixed(2)}</span> has been approved and credited to your wallet.</p>
+                </div>
+                <div className="rounded-xl bg-green-50 border border-green-200 p-4">
+                  <p className="text-sm text-green-700">Your new wallet balance is visible on your dashboard.</p>
+                </div>
+                <Button onClick={resetFlow} className="bg-gradient-to-r from-teal-500 to-sky-500 text-white">
+                  Make Another Deposit
                 </Button>
               </>
             )}
 
-            {step === 'currency' && (
+            {resultStatus === 'rejected' && (
               <>
-                <div className="space-y-2">
-                  {currencies.length === 0 ? (
-                    <p className="text-sm text-slate-500 text-center py-6">No currencies available. Contact admin to add currencies.</p>
-                  ) : (
-                    <div className="grid gap-2">
-                      {currencies.map((cur) => (
-                        <button key={cur.id} onClick={() => { setSelectedCurrency(cur); setStep('network'); }}
-                          className={`flex items-center gap-3 rounded-lg border p-3 text-left transition-all hover:bg-slate-50 ${selectedCurrency?.id === cur.id ? 'border-teal-500 bg-teal-50' : 'border-slate-200'}`}>
-                          {cur.logo_url ? (
-                            cur.logo_url.startsWith('http') || cur.logo_url.startsWith('data:') ? (
-                              <img src={cur.logo_url} alt="" className="h-8 w-8 rounded-lg object-cover" />
-                            ) : (
-                              <span className="text-2xl">{cur.logo_url}</span>
-                            )
-                          ) : (
-                            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100 text-xs font-bold text-slate-600">{cur.symbol?.charAt(0)}</div>
-                          )}
-                          <div><p className="text-sm font-semibold text-slate-900">{cur.name}</p><p className="text-xs text-slate-500">{cur.symbol}</p></div>
-                        </button>
-                      ))}
-                    </div>
-                  )}
+                <div className="flex justify-center">
+                  <div className="h-20 w-20 rounded-full bg-red-100 flex items-center justify-center">
+                    <X className="h-10 w-10 text-red-500" />
+                  </div>
                 </div>
-                <Button variant="outline" onClick={() => setStep('amount')} className="w-full"><ArrowLeft className="mr-2 h-4 w-4" />Back</Button>
-              </>
-            )}
-
-            {step === 'network' && (
-              <>
-                <div className="space-y-2">
-                  {networksForCurrency.length === 0 ? (
-                    <p className="text-sm text-slate-500 text-center py-6">No networks available for {selectedCurrency?.symbol}.</p>
-                  ) : (
-                    <div className="grid gap-2">
-                      {networksForCurrency.map((net) => (
-                        <button key={net.id} onClick={() => { setSelectedNetwork(net); setStep('address'); }}
-                          className={`flex items-center justify-between rounded-lg border p-3 text-left transition-all hover:bg-slate-50 ${selectedNetwork?.id === net.id ? 'border-teal-500 bg-teal-50' : 'border-slate-200'}`}>
-                          <div><p className="text-sm font-semibold text-slate-900">{net.name}</p><p className="text-xs text-slate-500">{net.symbol}</p></div>
-                          <ArrowRight className="h-4 w-4 text-slate-400" />
-                        </button>
-                      ))}
-                    </div>
-                  )}
+                <div>
+                  <h2 className="text-2xl font-bold text-red-700">Payment Not Verified</h2>
+                  <p className="mt-2 text-sm text-slate-600">Your deposit could not be verified. Please contact our support team for assistance.</p>
                 </div>
-                <Button variant="outline" onClick={() => setStep('currency')} className="w-full"><ArrowLeft className="mr-2 h-4 w-4" />Back</Button>
-              </>
-            )}
-
-            {step === 'address' && (
-              <>
-                {walletsForNetwork.length === 0 ? (
-                  <p className="text-sm text-slate-500 text-center py-6">No wallet addresses configured for {selectedNetwork?.name}. Contact support.</p>
-                ) : (
-                  walletsForNetwork.map((w) => (
-                    <div key={w.id} className="rounded-lg border border-teal-200 bg-teal-50 p-4 space-y-2">
-                      <p className="text-xs font-medium text-teal-700">Send {selectedNetwork?.symbol} to this address:</p>
-                      <div className="flex items-center gap-2">
-                        <code className="flex-1 break-all text-xs font-mono text-slate-700">{w.address}</code>
-                        <Button size="icon" variant="ghost" className="h-8 w-8 shrink-0" onClick={() => copyAddress(w.address)}>
-                          {copied ? <CheckCircle2 className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
-                        </Button>
-                      </div>
-                      {w.label && <p className="text-[10px] text-teal-600">{w.label}</p>}
-                    </div>
-                  ))
-                )}
-                <div className="flex gap-2">
-                  <Button variant="outline" onClick={() => setStep('network')} className="flex-1"><ArrowLeft className="mr-2 h-4 w-4" />Back</Button>
-                  <Button onClick={() => setStep('proof')} disabled={walletsForNetwork.length === 0} className="flex-1">I&apos;ve sent payment <ArrowRight className="ml-2 h-4 w-4" /></Button>
+                <div className="rounded-xl bg-red-50 border border-red-200 p-4">
+                  <p className="text-sm text-red-700">
+                    <strong>Contact Support:</strong> support@gmbcleaner.online
+                  </p>
+                </div>
+                <div className="flex gap-3">
+                  <Button variant="outline" onClick={resetFlow} className="flex-1">
+                    Try Again
+                  </Button>
+                  <Button onClick={() => window.location.href = '/dashboard/support'} className="flex-1 bg-gradient-to-r from-teal-500 to-sky-500 text-white">
+                    Contact Support
+                  </Button>
                 </div>
               </>
             )}
 
-            {step === 'proof' && (
+            {resultStatus === 'timeout' && (
               <>
-                <div className="space-y-2">
-                  <Label className="text-red-600">Transaction Hash (TX ID) *</Label>
-                  <Input placeholder="Paste your transaction hash here" value={txHash} onChange={(e) => setTxHash(e.target.value)} className={txHash.trim().length > 0 ? '' : 'border-red-300 focus-visible:ring-red-500'} />
-                  {txHash.length === 0 && <p className="text-xs text-red-500">Transaction ID is required for deposit approval</p>}
+                <div className="flex justify-center">
+                  <div className="h-20 w-20 rounded-full bg-amber-100 flex items-center justify-center">
+                    <Clock className="h-10 w-10 text-amber-500" />
+                  </div>
                 </div>
-                <div className="space-y-2">
-                  <Label>Sender Wallet Address (optional)</Label>
-                  <Input placeholder="Your sending wallet address" value={senderWallet} onChange={(e) => setSenderWallet(e.target.value)} />
+                <div>
+                  <h2 className="text-2xl font-bold text-amber-700">Processing Timeout</h2>
+                  <p className="mt-2 text-sm text-slate-600">
+                    {nightMode
+                      ? 'Your payment is still being processed. It will be approved after 6:30 AM. Please check back later or contact support if the issue persists.'
+                      : 'Your payment is taking longer than expected. Please contact our support team for assistance.'}
+                  </p>
                 </div>
-                <div className="space-y-2">
-                  <Label>Payment Screenshot (optional, max 5MB)</Label>
-                  <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleFileSelect} />
-                  {screenshotPreview ? (
-                    <div className="relative inline-block">
-                      <img src={screenshotPreview} alt="Screenshot" className="max-h-40 rounded-lg border" />
-                      <button onClick={removeScreenshot} className="absolute -top-2 -right-2 h-6 w-6 rounded-full bg-red-500 text-white flex items-center justify-center"><X className="h-3 w-3" /></button>
-                    </div>
-                  ) : (
-                    <button onClick={() => fileRef.current?.click()} className="flex w-full items-center justify-center gap-2 rounded-lg border-2 border-dashed border-slate-200 p-6 text-sm text-slate-500 hover:border-teal-300 hover:text-teal-600 transition-colors">
-                      <Upload className="h-5 w-5" />Click to upload screenshot
-                    </button>
-                  )}
+                <div className="rounded-xl bg-amber-50 border border-amber-200 p-4">
+                  <p className="text-sm text-amber-700">
+                    <strong>Contact Support:</strong> support@gmbcleaner.online
+                  </p>
                 </div>
-                <div className="rounded-lg bg-slate-50 border p-3 text-xs text-slate-600">
-                  <p className="font-medium mb-1">Deposit Summary</p>
-                  <p>Amount: <span className="font-semibold">${parsedAmount.toFixed(2)}</span></p>
-                  <p>Currency: <span className="font-semibold">{selectedCurrency?.name} ({selectedCurrency?.symbol})</span></p>
-                  <p>Network: <span className="font-semibold">{selectedNetwork?.name}</span></p>
-                  {selectedWallet && <p>To: <code className="text-[10px]">{selectedWallet.address.slice(0, 12)}...{selectedWallet.address.slice(-8)}</code></p>}
-                </div>
-                <div className="flex gap-2">
-                  <Button variant="outline" onClick={() => setStep('address')} className="flex-1"><ArrowLeft className="mr-2 h-4 w-4" />Back</Button>
-                  <Button onClick={handleSubmit} disabled={!txHash.trim() || submitting} className="flex-1 bg-gradient-to-r from-teal-500 to-sky-500 text-white">
-                    {submitting ? 'Submitting...' : 'Submit Deposit'}
+                <div className="flex gap-3">
+                  <Button variant="outline" onClick={resetFlow} className="flex-1">
+                    Go Back
+                  </Button>
+                  <Button onClick={() => window.location.href = '/dashboard/support'} className="flex-1 bg-gradient-to-r from-teal-500 to-sky-500 text-white">
+                    Contact Support
                   </Button>
                 </div>
               </>
             )}
           </CardContent>
         </Card>
+      )}
 
+      {step !== 'processing' && step !== 'result' && (
         <Card className="shadow-card">
-          <CardHeader><CardTitle className="text-lg">How it works</CardTitle></CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex gap-3">
-              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-teal-100 text-sm font-bold text-teal-700">1</div>
-              <div><p className="text-sm font-medium text-slate-900">Enter amount</p><p className="text-xs text-slate-500">Specify how much you want to deposit (min ${minDeposit}).</p></div>
+          <CardContent className="p-6 space-y-4">
+            <h3 className="text-sm font-bold text-slate-900">How it works</h3>
+            <div className="space-y-3">
+              {[
+                { n: 1, t: 'Enter amount', d: `Minimum deposit is $${minDeposit}` },
+                { n: 2, t: 'Select currency & network', d: 'Choose from dropdown menus' },
+                { n: 3, t: 'Copy wallet address & send crypto', d: 'Send to the address shown' },
+                { n: 4, t: 'Confirm with transaction ID', d: 'Paste your TX hash' },
+                { n: 5, t: 'Wait for approval', d: 'Processing takes 10-20 minutes' },
+              ].map((item) => (
+                <div key={item.n} className="flex gap-3">
+                  <div className="flex h-7 w-7 items-center justify-center rounded-full bg-teal-100 text-xs font-bold text-teal-700 shrink-0">{item.n}</div>
+                  <div>
+                    <p className="text-xs font-medium text-slate-900">{item.t}</p>
+                    <p className="text-[11px] text-slate-500">{item.d}</p>
+                  </div>
+                </div>
+              ))}
             </div>
-            <div className="flex gap-3">
-              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-teal-100 text-sm font-bold text-teal-700">2</div>
-              <div><p className="text-sm font-medium text-slate-900">Choose currency & network</p><p className="text-xs text-slate-500">Select cryptocurrency and network for deposit.</p></div>
-            </div>
-            <div className="flex gap-3">
-              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-teal-100 text-sm font-bold text-teal-700">3</div>
-              <div><p className="text-sm font-medium text-slate-900">Send crypto</p><p className="text-xs text-slate-500">Send to the wallet address shown. Copy it with one click.</p></div>
-            </div>
-            <div className="flex gap-3">
-              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-teal-100 text-sm font-bold text-teal-700">4</div>
-              <div><p className="text-sm font-medium text-slate-900">Upload proof</p><p className="text-xs text-slate-500">Enter TX hash, optionally upload screenshot. Admin reviews instantly.</p></div>
-            </div>
-            <div className="flex gap-3">
-              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-teal-100 text-sm font-bold text-teal-700">5</div>
-              <div><p className="text-sm font-medium text-slate-900">Funds credited</p><p className="text-xs text-slate-500">Once approved, your wallet balance updates instantly.</p></div>
+            <div className="rounded-lg bg-amber-50 border border-amber-200 p-3">
+              <p className="text-[11px] text-amber-700">
+                <strong>Night hours (11 PM - 6:30 AM):</strong> Deposits made during this time will be processed after 6:30 AM.
+              </p>
             </div>
           </CardContent>
         </Card>
-      </div>
+      )}
+
+      <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Confirm Payment</DialogTitle>
+            <DialogDescription>
+              Paste your transaction hash (TX ID) to confirm you have sent the payment.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="rounded-lg bg-slate-50 border p-3 text-xs space-y-1">
+              <p>Amount: <span className="font-semibold">${parsedAmount.toFixed(2)}</span></p>
+              <p>Currency: <span className="font-semibold">{selectedCurrency?.symbol}</span></p>
+              <p>Network: <span className="font-semibold">{selectedNetwork?.name}</span></p>
+            </div>
+            <div className="space-y-2">
+              <Label>Transaction Hash (TX ID) *</Label>
+              <Input
+                placeholder="Paste your transaction hash here"
+                value={txHash}
+                onChange={(e) => setTxHash(e.target.value)}
+                autoFocus
+              />
+              {txHash.trim().length === 0 && (
+                <p className="text-xs text-red-500">Transaction ID is required</p>
+              )}
+            </div>
+            {isNightTime() && (
+              <div className="rounded-lg bg-blue-50 border border-blue-200 p-3">
+                <p className="text-xs text-blue-700">
+                  <strong>Night deposit:</strong> Your payment was submitted between 11 PM - 6:30 AM. It will be approved after 6:30 AM. Please be patient.
+                </p>
+              </div>
+            )}
+          </div>
+          <DialogFooter className="flex-col gap-3">
+            <Button
+              onClick={handleConfirmPayment}
+              disabled={!txHash.trim()}
+              className="w-full bg-gradient-to-r from-teal-500 to-sky-500 text-white"
+            >
+              <ShieldCheck className="mr-2 h-4 w-4" /> Confirm &amp; Submit
+            </Button>
+            <Button variant="outline" onClick={() => setConfirmOpen(false)} className="w-full">
+              Cancel
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
