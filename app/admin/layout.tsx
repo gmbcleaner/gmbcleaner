@@ -17,6 +17,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { fetchCollection } from '@/lib/db';
 import { setTelegramChatIds } from '@/lib/telegram';
+import { useAuth } from '@/components/providers/auth-provider';
 
 interface NavItem { label: string; href: string; icon: typeof LayoutDashboard; }
 
@@ -36,16 +37,27 @@ const navItems: NavItem[] = [
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
+  const { user, loading: authLoading, signOut } = useAuth();
   const [authChecked, setAuthChecked] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   useEffect(() => {
+    if (authLoading) return;
     try {
       const isAdmin = localStorage.getItem('gmb_admin_auth');
-      if (!isAdmin) { router.replace('/raihan'); return; }
-    } catch {}
+      const adminEmail = localStorage.getItem('gmb_admin_email');
+      if (!isAdmin || !user || user.email !== 'gmbcleaner@gmail.com' || adminEmail !== 'gmbcleaner@gmail.com') {
+        localStorage.removeItem('gmb_admin_auth');
+        localStorage.removeItem('gmb_admin_email');
+        router.replace('/raihan');
+        return;
+      }
+    } catch {
+      router.replace('/raihan');
+      return;
+    }
     setAuthChecked(true);
-  }, [router]);
+  }, [user, authLoading, router]);
 
   useEffect(() => {
     fetchCollection('admin_settings')
@@ -60,8 +72,12 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   useEffect(() => { setSidebarOpen(false); }, [pathname]);
 
-  const handleLogout = () => {
-    try { localStorage.removeItem('gmb_admin_auth'); } catch {}
+  const handleLogout = async () => {
+    try {
+      localStorage.removeItem('gmb_admin_auth');
+      localStorage.removeItem('gmb_admin_email');
+      await signOut();
+    } catch {}
     router.replace('/raihan');
   };
 
@@ -105,7 +121,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         <div className="flex items-center gap-3 rounded-lg bg-slate-50 p-3">
           <div className="flex h-8 w-8 items-center justify-center rounded-full bg-red-100 text-xs font-bold text-red-600">A</div>
           <div className="flex-1 min-w-0">
-            <p className="text-xs font-semibold text-slate-900 truncate">Admin</p>
+            <p className="text-xs font-semibold text-slate-900 truncate">{user?.email || 'Admin'}</p>
             <p className="text-[10px] text-slate-400">Main Administrator</p>
           </div>
         </div>
@@ -144,7 +160,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-48">
               <DropdownMenuLabel className="font-normal">
-                <p className="text-sm font-medium text-slate-900">Admin</p>
+                <p className="text-sm font-medium text-slate-900">{user?.email || 'Admin'}</p>
                 <p className="text-xs text-slate-500">Main Administrator</p>
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
