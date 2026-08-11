@@ -35,20 +35,20 @@ export default function AdminLoginPage() {
   };
 
   useEffect(() => {
-    if (!user || loading) return;
+    if (!user || authLoading) return;
     if (user.email === ADMIN_EMAIL) {
       localStorage.setItem('gmb_admin_auth', 'true');
       localStorage.setItem('gmb_admin_email', user.email);
       localStorage.removeItem('gmb_provider_auth');
       router.push('/admin');
-    } else {
+    } else if (user.email && user.email !== ADMIN_EMAIL) {
       import('firebase/auth').then(({ getAuth, signOut }) => {
         signOut(getAuth());
       });
       setError('This Google account is not authorized for admin access.');
       setLoading(false);
     }
-  }, [user, loading, router]);
+  }, [user, authLoading, router]);
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-gradient-to-b from-slate-50 to-white px-4">
