@@ -19,21 +19,22 @@ export const viewport: Viewport = {
 export const metadata: Metadata = {
   metadataBase: new URL('https://gmbcleaner.online'),
   title: {
-    default: 'GMBCLEANER - Professional Review Management & Dispute Service',
+    default: 'GMBCLEANER - Remove Negative Google Maps Reviews | Professional Review Dispute Service',
     template: '%s | GMBCLEANER',
   },
   description:
-    'GMBCLEANER helps businesses identify, report, and request removal of fake, spam, abusive, or policy-violating reviews. Professional, compliant reputation management through official platform channels.',
+    'GMBCLEANER helps businesses identify, report, and request removal of fake, spam, abusive, or policy-violating Google Maps reviews. Professional, compliant reputation management through official platform channels.',
   keywords: [
-    'reputation management',
-    'fake review reporting',
-    'Google Maps review dispute',
-    'business review cleanup',
-    'online reputation support',
-    'review moderation service',
-    'review dispute service',
+    'remove negative Google Maps reviews',
+    'Google Maps review removal service',
     'fake review removal',
+    'review dispute service',
     'Google Business review management',
+    'online reputation management',
+    'review moderation service',
+    'spam review removal',
+    'Google Maps reputation repair',
+    'business review cleanup',
   ],
   authors: [{ name: 'GMBCLEANER' }],
   creator: 'GMBCLEANER',
@@ -42,24 +43,24 @@ export const metadata: Metadata = {
     locale: 'en_US',
     url: 'https://gmbcleaner.online',
     siteName: 'GMBCLEANER',
-    title: 'GMBCLEANER - Professional Review Management & Dispute Service',
+    title: 'GMBCLEANER - Remove Negative Google Maps Reviews',
     description:
-      'Professional review management and dispute service. Identify, report, and request removal of fake, spam, or policy-violating reviews through official platform channels.',
+      'Professional Google Maps review removal service. Remove fake, spam, and policy-violating reviews through official platform channels.',
     images: [
       {
-        url: '/og-image.png',
+        url: 'https://gmbcleaner.online/og-image.png',
         width: 1200,
         height: 630,
-        alt: 'GMBCLEANER - Professional Review Management & Dispute Service',
+        alt: 'GMBCLEANER - Remove Negative Google Maps Reviews',
       },
     ],
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'GMBCLEANER - Professional Review Management & Dispute Service',
+    title: 'GMBCLEANER - Remove Negative Google Maps Reviews',
     description:
-      'Professional review management and dispute service. Identify, report, and request removal of fake, spam, or policy-violating reviews.',
-    images: ['/og-image.png'],
+      'Professional Google Maps review removal service. Remove fake, spam, and policy-violating reviews.',
+    images: ['https://gmbcleaner.online/og-image.png'],
   },
   robots: {
     index: true,
@@ -76,6 +77,7 @@ export const metadata: Metadata = {
     shortcut: '/favicon.svg',
     apple: '/favicon.svg',
   },
+  manifest: '/site.webmanifest',
 };
 
 export default function RootLayout({

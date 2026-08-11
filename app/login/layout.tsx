@@ -4,7 +4,11 @@ import { ReactNode } from 'react';
 export const metadata: Metadata = {
   title: 'Login',
   description:
-    'Log in to your GMBCLEANER account to manage review dispute cases, track submissions, and monitor your wallet balance.',
+    'Log in to your GMBCLEANER account to manage Google Maps review dispute cases, track submissions, and monitor your wallet balance.',
+  robots: {
+    index: false,
+    follow: false,
+  },
 };
 
 export default function Layout({ children }: { children: ReactNode }) {

@@ -78,7 +78,7 @@ export function TestimonialSlider() {
                     ))}
                   </div>
                   <p className="text-lg md:text-xl text-white leading-relaxed">
-                    "{testimonials[index].content}"
+                    &ldquo;{testimonials[index].content}&rdquo;
                   </p>
                   <div className="mt-6 flex items-center gap-4">
                     <div className="flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-br from-teal-500 to-sky-500 text-white font-bold">

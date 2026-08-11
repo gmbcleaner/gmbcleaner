@@ -6,7 +6,7 @@ import { PageHeader } from '@/components/shared/sections';
 export const metadata: Metadata = {
   title: 'Privacy Policy',
   description:
-    'Learn how GMBCLEANER collects, uses, stores, and protects your personal data, including information about cookies, third-party services like Supabase and crypto payment processors, data retention, and your rights under GDPR.',
+    'Learn how GMBCLEANER collects, uses, stores, and protects your personal data, including information about cookies, third-party services, data retention, and your rights under GDPR.',
 };
 
 export default function PrivacyPage() {
@@ -139,7 +139,7 @@ export default function PrivacyPage() {
                   3. Data Storage and Security
                 </h2>
                 <p className="text-navy-600 leading-relaxed">
-                  Your data is stored using Supabase, a secure, cloud-based database platform that provides encrypted
+                  Your data is stored using Firebase Realtime Database, a secure, cloud-based database platform that provides encrypted
                   data storage at rest and in transit. All data transmitted between your browser and our servers is
                   protected using TLS (Transport Layer Security) encryption.
                 </p>
@@ -209,13 +209,13 @@ export default function PrivacyPage() {
                   minimum data necessary to use their services.
                 </p>
 
-                <h3 className="text-xl font-semibold text-navy-900 pt-2">5.1 Supabase (Authentication &amp; Database)</h3>
+                <h3 className="text-xl font-semibold text-navy-900 pt-2">5.1 Firebase (Authentication &amp; Database)</h3>
                 <p className="text-navy-600 leading-relaxed">
-                  We use Supabase for user authentication and as our primary database provider. Supabase stores your
-                  account credentials, profile information, order data, and wallet balance. Supabase processes data in
+                  We use Firebase for user authentication and as our primary database provider. Firebase stores your
+                  account credentials, profile information, order data, and wallet balance. Firebase processes data in
                   accordance with its own privacy policy and complies with industry-standard security practices.
-                  Your authentication data is protected by Supabase&apos;s built-in security features, including
-                  encrypted password hashing and row-level security policies.
+                  Your authentication data is protected by Firebase&apos;s built-in security features, including
+                  encrypted password hashing and security rules.
                 </p>
 
                 <h3 className="text-xl font-semibold text-navy-900 pt-2">5.2 Cryptocurrency Payment Processor</h3>
