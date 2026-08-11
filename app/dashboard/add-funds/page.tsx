@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Wallet, Copy, CheckCircle2, AlertTriangle, ArrowRight, ArrowLeft, Clock, X, Send, ShieldCheck, ChevronDown } from 'lucide-react';
-import { addDocument, fetchCollection } from '@/lib/db';
+import { addDocument, fetchCollection, getDocument } from '@/lib/db';
 import { useAuth } from '@/components/providers/auth-provider';
 import { toast } from '@/hooks/use-toast';
 import { Card, CardContent } from '@/components/ui/card';
@@ -128,9 +128,8 @@ export default function AddFundsPage() {
 
       pollRef.current = setInterval(async () => {
         try {
-          const data = await fetchCollection('deposits', [{ field: '__name__', op: '==', value: depositId }]);
-          if (data && data.length > 0) {
-            const dep = data[0] as any;
+          const dep = await getDocument('deposits', depositId);
+          if (dep) {
             if (dep.status === 'approved') {
               clearInterval(timerRef.current!);
               clearInterval(pollRef.current!);
