@@ -501,7 +501,7 @@ export default function NewOrderPage() {
                 <label className="flex items-start gap-2 cursor-pointer">
                   <input type="checkbox" checked={agreeTerms} onChange={(e) => setAgreeTerms(e.target.checked)} className="mt-0.5 h-4 w-4 rounded border-slate-300" />
                   <span className="text-xs text-slate-600 leading-relaxed">
-                    I agree to the <a href="/terms" target="_blank" className="text-teal-600 underline">Terms &amp; Conditions</a> and <a href="/refund" target="_blank" className="text-teal-600 underline">Refund Policy</a>. I understand that all sales are final and no refunds will be issued if reviews are not removed.
+                    I agree to the <a href="/terms" target="_blank" className="text-teal-600 underline">Terms &amp; Conditions</a> and <a href="/refund" target="_blank" className="text-teal-600 underline">Refund Policy</a>.
                   </span>
                 </label>
                 <div className="flex gap-2 justify-end">
