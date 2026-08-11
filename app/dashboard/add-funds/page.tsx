@@ -417,7 +417,7 @@ export default function AddFundsPage() {
 
             {selectedNetwork && selectedWallet && (
               <div className="rounded-xl border-2 border-teal-200 bg-gradient-to-br from-teal-50 to-sky-50 p-5 space-y-3">
-                <p className="text-xs font-semibold text-teal-700 uppercase tracking-wider">Send {selectedNetwork.symbol} to this address</p>
+                <p className="text-xs font-semibold text-teal-700 uppercase tracking-wider">Send {selectedCurrency.symbol} to this address</p>
                 <div className="flex items-center gap-2 bg-white rounded-lg p-3 border border-teal-100">
                   <code className="flex-1 break-all text-xs font-mono text-slate-700 select-all">{selectedWallet.address}</code>
                   <Button
@@ -430,7 +430,7 @@ export default function AddFundsPage() {
                   </Button>
                 </div>
                 {selectedWallet.label && <p className="text-[11px] text-teal-600">{selectedWallet.label}</p>}
-                <p className="text-[11px] text-slate-500">Make sure to send only {selectedNetwork.symbol} on {selectedNetwork.name} network.</p>
+                <p className="text-[11px] text-slate-500">Make sure to send only {selectedCurrency.symbol} on {selectedNetwork.name} network.</p>
               </div>
             )}
 
