@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Wallet, Copy, CheckCircle2, AlertTriangle, ArrowRight, ArrowLeft, Clock, X, Send, ShieldCheck } from 'lucide-react';
+import { Wallet, Copy, CheckCircle2, AlertTriangle, ArrowRight, ArrowLeft, Clock, X, Send, ShieldCheck, ChevronDown } from 'lucide-react';
 import { addDocument, fetchCollection } from '@/lib/db';
 import { useAuth } from '@/components/providers/auth-provider';
 import { toast } from '@/hooks/use-toast';
@@ -78,8 +78,12 @@ export default function AddFundsPage() {
   const [processingTimeLeft, setProcessingTimeLeft] = useState(0);
   const [nightMode, setNightMode] = useState(false);
   const [resultStatus, setResultStatus] = useState<'approved' | 'rejected' | 'timeout' | null>(null);
+  const [currencyOpen, setCurrencyOpen] = useState(false);
+  const [networkOpen, setNetworkOpen] = useState(false);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const pollRef = useRef<NodeJS.Timeout | null>(null);
+  const currencyRef = useRef<HTMLDivElement>(null);
+  const networkRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -149,6 +153,15 @@ export default function AddFundsPage() {
       if (pollRef.current) clearInterval(pollRef.current);
     };
   }, [step, depositId, refreshProfile]);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (currencyRef.current && !currencyRef.current.contains(e.target as Node)) setCurrencyOpen(false);
+      if (networkRef.current && !networkRef.current.contains(e.target as Node)) setNetworkOpen(false);
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   const parsedAmount = parseFloat(amount) || 0;
   const isValidAmount = parsedAmount >= minDeposit;
@@ -299,49 +312,105 @@ export default function AddFundsPage() {
               </Button>
             </div>
 
-            <div className="space-y-3">
+            <div className="space-y-3" ref={currencyRef}>
               <Label>Select Currency</Label>
               {currencies.length === 0 ? (
                 <p className="text-sm text-slate-500 text-center py-4">No currencies available. Contact admin.</p>
               ) : (
-                <select
-                  value={selectedCurrency?.id || ''}
-                  onChange={(e) => {
-                    const cur = currencies.find(c => c.id === e.target.value);
-                    setSelectedCurrency(cur || null);
-                    setSelectedNetwork(null);
-                    setSelectedWallet(null);
-                  }}
-                  className="w-full rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-teal-500"
-                >
-                  <option value="">-- Select Currency --</option>
-                  {currencies.map(cur => (
-                    <option key={cur.id} value={cur.id}>{cur.name} ({cur.symbol})</option>
-                  ))}
-                </select>
+                <div className="relative">
+                  <button
+                    type="button"
+                    onClick={() => { setCurrencyOpen(!currencyOpen); setNetworkOpen(false); }}
+                    className="w-full flex items-center justify-between rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-teal-500"
+                  >
+                    {selectedCurrency ? (
+                      <span className="flex items-center gap-3">
+                        {selectedCurrency.logo_url ? (
+                          selectedCurrency.logo_url.startsWith('http') || selectedCurrency.logo_url.startsWith('data:') ? (
+                            <img src={selectedCurrency.logo_url} alt="" className="h-6 w-6 rounded-full object-cover" />
+                          ) : (
+                            <span className="text-lg">{selectedCurrency.logo_url}</span>
+                          )
+                        ) : (
+                          <span className="flex h-6 w-6 items-center justify-center rounded-full bg-slate-100 text-[10px] font-bold text-slate-600">{selectedCurrency.symbol?.charAt(0)}</span>
+                        )}
+                        {selectedCurrency.name}
+                      </span>
+                    ) : (
+                      <span className="text-slate-400">-- Select Currency --</span>
+                    )}
+                    <ChevronDown className="h-4 w-4 text-slate-400" />
+                  </button>
+                  {currencyOpen && (
+                    <div className="absolute z-50 mt-1 w-full rounded-lg border border-slate-200 bg-white shadow-lg max-h-60 overflow-y-auto">
+                      {currencies.map(cur => (
+                        <button
+                          key={cur.id}
+                          type="button"
+                          onClick={() => {
+                            setSelectedCurrency(cur);
+                            setSelectedNetwork(null);
+                            setSelectedWallet(null);
+                            setCurrencyOpen(false);
+                          }}
+                          className={`w-full flex items-center gap-3 px-4 py-3 text-sm text-left hover:bg-slate-50 transition-colors ${selectedCurrency?.id === cur.id ? 'bg-teal-50 text-teal-700' : 'text-slate-900'}`}
+                        >
+                          {cur.logo_url ? (
+                            cur.logo_url.startsWith('http') || cur.logo_url.startsWith('data:') ? (
+                              <img src={cur.logo_url} alt="" className="h-6 w-6 rounded-full object-cover" />
+                            ) : (
+                              <span className="text-lg">{cur.logo_url}</span>
+                            )
+                          ) : (
+                            <span className="flex h-6 w-6 items-center justify-center rounded-full bg-slate-100 text-[10px] font-bold text-slate-600">{cur.symbol?.charAt(0)}</span>
+                          )}
+                          {cur.name}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
               )}
             </div>
 
             {selectedCurrency && (
-              <div className="space-y-3">
+              <div className="space-y-3" ref={networkRef}>
                 <Label>Select Network</Label>
                 {networksForCurrency.length === 0 ? (
                   <p className="text-sm text-slate-500 text-center py-4">No networks available for {selectedCurrency.symbol}.</p>
                 ) : (
-                  <select
-                    value={selectedNetwork?.id || ''}
-                    onChange={(e) => {
-                      const net = networksForCurrency.find(n => n.id === e.target.value);
-                      setSelectedNetwork(net || null);
-                      setSelectedWallet(null);
-                    }}
-                    className="w-full rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-teal-500"
-                  >
-                    <option value="">-- Select Network --</option>
-                    {networksForCurrency.map(net => (
-                      <option key={net.id} value={net.id}>{net.name} ({net.symbol})</option>
-                    ))}
-                  </select>
+                  <div className="relative">
+                    <button
+                      type="button"
+                      onClick={() => { setNetworkOpen(!networkOpen); setCurrencyOpen(false); }}
+                      className="w-full flex items-center justify-between rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-teal-500"
+                    >
+                      {selectedNetwork ? (
+                        <span>{selectedNetwork.name}</span>
+                      ) : (
+                        <span className="text-slate-400">-- Select Network --</span>
+                      )}
+                      <ChevronDown className="h-4 w-4 text-slate-400" />
+                    </button>
+                    {networkOpen && (
+                      <div className="absolute z-50 mt-1 w-full rounded-lg border border-slate-200 bg-white shadow-lg max-h-60 overflow-y-auto">
+                        {networksForCurrency.map(net => (
+                          <button
+                            key={net.id}
+                            type="button"
+                            onClick={() => {
+                              setSelectedNetwork(net);
+                              setSelectedWallet(null);
+                              setNetworkOpen(false);
+                            }}
+                            className={`w-full flex items-center gap-3 px-4 py-3 text-sm text-left hover:bg-slate-50 transition-colors ${selectedNetwork?.id === net.id ? 'bg-teal-50 text-teal-700' : 'text-slate-900'}`}
+                          >
+                            {net.name}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 )}
               </div>
             )}
