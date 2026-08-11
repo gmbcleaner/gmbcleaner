@@ -66,7 +66,7 @@ export default function ContactPage() {
                       <p className="text-xs text-slate-500">We respond within 24 hours</p>
                     </div>
                   </div>
-                  <p className="text-sm text-slate-600">support@gmbcleaner.com</p>
+                  <p className="text-sm text-slate-600">support@gmbcleaner.online</p>
                 </div>
 
                 <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-card">

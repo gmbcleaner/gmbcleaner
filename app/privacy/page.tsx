@@ -372,7 +372,7 @@ export default function PrivacyPage() {
                   If you are located in the EEA or the UK, you have the rights described in Section 7. If you believe we
                   have not complied with our obligations under the GDPR, you have the right to lodge a complaint with
                   your local data protection authority. You may also contact our data protection contact at
-                  privacy@gmbcleaner.com.
+                  privacy@gmbcleaner.online.
                 </p>
                 <p className="text-navy-600 leading-relaxed">
                   We do not transfer your personal data outside the EEA or UK without appropriate safeguards in place,
@@ -391,9 +391,9 @@ export default function PrivacyPage() {
                 </p>
                 <div className="rounded-2xl border border-slate-200 bg-white p-6">
                   <p className="text-navy-900 font-semibold">GMBCLEANER Privacy Team</p>
-                  <p className="mt-2 text-navy-600">Email: privacy@gmbcleaner.com</p>
-                  <p className="text-navy-600">General support: support@gmbcleaner.com</p>
-                  <p className="text-navy-600">Website: https://gmbcleaner.com</p>
+                  <p className="mt-2 text-navy-600">Email: privacy@gmbcleaner.online</p>
+                  <p className="text-navy-600">General support: support@gmbcleaner.online</p>
+                  <p className="text-navy-600">Website: https://gmbcleaner.online</p>
                   <p className="text-navy-600">Hours: Monday–Friday, 9:00 AM – 6:00 PM (Eastern Time)</p>
                 </div>
                 <p className="text-navy-600 leading-relaxed">

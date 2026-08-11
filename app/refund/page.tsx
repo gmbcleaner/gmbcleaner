@@ -29,7 +29,7 @@ export default function RefundPage() {
                   This Refund Policy forms part of the GMBCLEANER Terms &amp; Conditions and applies to all wallet
                   funding transactions and orders placed through the Service. By funding your wallet or placing an
                   order, you agree to the terms set out below. If you have any questions, please contact us at
-                  support@gmbcleaner.com before making a payment.
+                  support@gmbcleaner.online before making a payment.
                 </p>
                 <p className="mt-4 text-sm font-medium text-navy-900">
                   Last updated: August 10, 2026
@@ -194,8 +194,8 @@ export default function RefundPage() {
                 </ol>
                 <div className="rounded-2xl border border-slate-200 bg-white p-6">
                   <p className="text-navy-900 font-semibold">GMBCLEANER Support</p>
-                  <p className="mt-2 text-navy-600">Email: support@gmbcleaner.com</p>
-                  <p className="text-navy-600">Website: https://gmbcleaner.com</p>
+                  <p className="mt-2 text-navy-600">Email: support@gmbcleaner.online</p>
+                  <p className="text-navy-600">Website: https://gmbcleaner.online</p>
                   <p className="text-navy-600">Hours: Monday–Friday, 9:00 AM – 6:00 PM (Eastern Time)</p>
                 </div>
               </section>

@@ -95,7 +95,7 @@ export function Footer() {
           </p>
           <div className="flex items-center gap-6 text-sm text-navy-400">
             <span className="flex items-center gap-1.5">
-              <Mail className="h-4 w-4" /> support@gmbcleaner.com
+              <Mail className="h-4 w-4" /> support@gmbcleaner.online
             </span>
             <span className="flex items-center gap-1.5">
               <MapPin className="h-4 w-4" /> Remote · Global

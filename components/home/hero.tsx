@@ -91,7 +91,7 @@ function HeroDashboard() {
             <div className="h-3 w-3 rounded-full bg-amber-400" />
             <div className="h-3 w-3 rounded-full bg-emerald-400" />
           </div>
-          <span className="text-xs text-navy-400 font-medium">gmbcleaner.com/dashboard</span>
+          <span className="text-xs text-navy-400 font-medium">gmbcleaner.online/dashboard</span>
         </div>
 
         <div className="rounded-xl bg-gradient-to-br from-navy-900 to-navy-800 p-5 text-white">

@@ -446,8 +446,8 @@ export default function TermsPage() {
                 </p>
                 <div className="rounded-2xl border border-slate-200 bg-white p-6">
                   <p className="text-navy-900 font-semibold">GMBCLEANER Support</p>
-                  <p className="mt-2 text-navy-600">Email: support@gmbcleaner.com</p>
-                  <p className="text-navy-600">Website: https://gmbcleaner.com</p>
+                  <p className="mt-2 text-navy-600">Email: support@gmbcleaner.online</p>
+                  <p className="text-navy-600">Website: https://gmbcleaner.online</p>
                   <p className="text-navy-600">Hours: Monday–Friday, 9:00 AM – 6:00 PM (Eastern Time)</p>
                 </div>
                 <p className="text-navy-600 leading-relaxed">

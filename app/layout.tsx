@@ -17,7 +17,7 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  metadataBase: new URL('https://gmbcleaner.com'),
+  metadataBase: new URL('https://gmbcleaner.online'),
   title: {
     default: 'GMBCLEANER - Professional Review Management & Dispute Service',
     template: '%s | GMBCLEANER',
@@ -40,7 +40,7 @@ export const metadata: Metadata = {
   openGraph: {
     type: 'website',
     locale: 'en_US',
-    url: 'https://gmbcleaner.com',
+    url: 'https://gmbcleaner.online',
     siteName: 'GMBCLEANER',
     title: 'GMBCLEANER - Professional Review Management & Dispute Service',
     description:
