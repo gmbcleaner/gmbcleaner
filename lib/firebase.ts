@@ -3,14 +3,14 @@ import { getAuth, type Auth } from 'firebase/auth';
 import { getDatabase, type Database } from 'firebase/database';
 
 const firebaseConfig = {
-  apiKey: 'AIzaSyCqcaUskeWldzBh_tX_NO10rUwxRN96334',
-  authDomain: 'gmbcleaner.firebaseapp.com',
-  projectId: 'gmbcleaner',
-  storageBucket: 'gmbcleaner.firebasestorage.app',
-  messagingSenderId: '857540659881',
-  appId: '1:857540659881:web:621c856b60fb324f4cb7b8',
-  measurementId: 'G-RK957N9D3Y',
-  databaseURL: 'https://gmbcleaner-default-rtdb.firebaseio.com',
+  apiKey: 'AIzaSyC__VekaMQbA69Rk3eM0jwfm1MiK1Il6fE',
+  authDomain: 'gmbcleaner-9dad2.firebaseapp.com',
+  projectId: 'gmbcleaner-9dad2',
+  storageBucket: 'gmbcleaner-9dad2.firebasestorage.app',
+  messagingSenderId: '1021297420353',
+  appId: '1:1021297420353:web:27def7105207c4bb653ec0',
+  measurementId: 'G-JDZH54EFHE',
+  databaseURL: 'https://gmbcleaner-9dad2-default-rtdb.firebaseio.com',
 };
 
 let app: FirebaseApp;

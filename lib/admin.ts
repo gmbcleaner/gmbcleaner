@@ -33,7 +33,7 @@ try {
       });
     } else {
       adminApp = initializeApp({
-        projectId: 'gmbcleaner',
+        projectId: 'gmbcleaner-9dad2',
       });
     }
   } else {
