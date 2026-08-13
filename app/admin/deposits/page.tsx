@@ -396,7 +396,7 @@ export default function AdminDepositsPage() {
                           <p className="text-[10px] font-medium uppercase text-slate-400">Transaction Info</p>
                           <div className="rounded-lg border border-slate-200 bg-white p-3 space-y-1.5">
                             <div className="space-y-1">
-                              <span className="text-[10px] text-slate-400">Tx Hash</span>
+                              <span className="text-[10px] text-slate-400">{d.payment_method === 'binance' ? 'Order ID' : 'Tx Hash'}</span>
                               <div className="flex items-center gap-1.5">
                                 <code className="text-[10px] font-mono text-slate-700 break-all flex-1">{d.tx_hash}</code>
                                 <Button variant="ghost" size="sm" className="h-5 w-5 p-0 shrink-0" onClick={() => copyToClipboard(d.tx_hash)}>

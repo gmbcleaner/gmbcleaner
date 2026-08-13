@@ -223,7 +223,7 @@ export default function AddFundsPage() {
           `👤 User: ${user.email}`,
           `💵 Amount: $${parsedAmount.toFixed(2)}`,
           `🏦 Binance ID: <code>${binanceId}</code>`,
-          `🔗 TX ID: <code>${txHash.trim()}</code>`,
+          `🔗 Order ID: <code>${txHash.trim()}</code>`,
           night ? '🌙 Night deposit - Will be processed after 6:30 AM' : '',
           '',
           `Status: ⏳ Pending`,
@@ -568,7 +568,7 @@ export default function AddFundsPage() {
                     </Button>
                   </div>
                   <p className="text-[11px] text-yellow-600">Send exactly ${parsedAmount.toFixed(2)} to this Binance ID.</p>
-                  <p className="text-[11px] text-slate-500">After sending, click below and enter your Binance transaction ID to confirm.</p>
+                  <p className="text-[11px] text-slate-500">After sending, click below and enter your Binance Order ID to confirm.</p>
                 </div>
 
                 <div className="space-y-3">
@@ -626,7 +626,7 @@ export default function AddFundsPage() {
                 <p>Amount: <span className="font-semibold text-slate-900">${parsedAmount.toFixed(2)}</span></p>
                 <p>Method: <span className="font-semibold text-slate-900">{paymentMethod === 'binance' ? 'Binance' : selectedCurrency?.symbol}</span></p>
                 <p>{paymentMethod === 'binance' ? 'Binance ID' : 'Network'}: <span className="font-semibold text-slate-900">{paymentMethod === 'binance' ? binanceId : selectedNetwork?.name}</span></p>
-                <p>TX ID: <code className="text-[10px] text-slate-600">{txHash}</code></p>
+                <p>{paymentMethod === 'binance' ? 'Order ID' : 'TX Hash'}: <code className="text-[10px] text-slate-600">{txHash}</code></p>
               </div>
             </div>
           </CardContent>
@@ -753,7 +753,7 @@ export default function AddFundsPage() {
             <DialogTitle>Confirm Payment</DialogTitle>
             <DialogDescription>
               {paymentMethod === 'binance'
-                ? 'Paste your Binance transaction ID to confirm you have sent the payment.'
+                ? 'Paste your Binance Order ID to confirm you have sent the payment.'
                 : 'Paste your transaction hash (TX ID) to confirm you have sent the payment.'}
             </DialogDescription>
           </DialogHeader>
@@ -773,15 +773,15 @@ export default function AddFundsPage() {
               )}
             </div>
             <div className="space-y-2">
-              <Label>Transaction ID (TX ID) *</Label>
+              <Label>{paymentMethod === 'binance' ? 'Binance Order ID *' : 'Transaction Hash (TX ID) *'}</Label>
               <Input
-                placeholder={paymentMethod === 'binance' ? "Paste your Binance transaction ID here" : "Paste your transaction hash here"}
+                placeholder={paymentMethod === 'binance' ? "Paste your Binance Order ID here" : "Paste your transaction hash here"}
                 value={txHash}
                 onChange={(e) => setTxHash(e.target.value)}
                 autoFocus
               />
               {txHash.trim().length === 0 && (
-                <p className="text-xs text-red-500">Transaction ID is required</p>
+                <p className="text-xs text-red-500">{paymentMethod === 'binance' ? 'Order ID is required' : 'Transaction ID is required'}</p>
               )}
             </div>
             {isNightTime() && (
