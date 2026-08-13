@@ -5,13 +5,14 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { ShieldCheck, Save, Bell } from 'lucide-react';
+import { ShieldCheck, Save, Bell, Landmark } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { updateDocument, fetchCollection } from '@/lib/db';
 
 export default function AdminSettingsPage() {
   const [adminTelegramId, setAdminTelegramId] = useState('');
   const [providerTelegramId, setProviderTelegramId] = useState('');
+  const [binanceId, setBinanceId] = useState('');
   const [settingsId, setSettingsId] = useState('');
   const [saving, setSaving] = useState(false);
 
@@ -23,6 +24,7 @@ export default function AdminSettingsPage() {
           setSettingsId(s.id);
           setAdminTelegramId(s.admin_telegram_id || '');
           setProviderTelegramId(s.provider_telegram_id || '');
+          setBinanceId(s.binance_id || '');
         }
       })
       .catch(() => {});
@@ -35,16 +37,18 @@ export default function AdminSettingsPage() {
         await updateDocument('admin_settings', settingsId, {
           admin_telegram_id: adminTelegramId.trim(),
           provider_telegram_id: providerTelegramId.trim(),
+          binance_id: binanceId.trim(),
         });
       } else {
         const { addDocument } = await import('@/lib/db');
         const id = await addDocument('admin_settings', {
           admin_telegram_id: adminTelegramId.trim(),
           provider_telegram_id: providerTelegramId.trim(),
+          binance_id: binanceId.trim(),
         });
         setSettingsId(id);
       }
-      toast({ title: 'Settings saved', description: 'Telegram IDs updated successfully.' });
+      toast({ title: 'Settings saved', description: 'Settings updated successfully.' });
     } catch (err: any) {
       toast({ title: 'Error', description: err.message, variant: 'destructive' });
     } finally {
@@ -111,6 +115,35 @@ export default function AdminSettingsPage() {
           <Button onClick={handleSave} disabled={saving} className="bg-gradient-to-r from-teal-500 to-sky-500 text-white">
             <Save className="mr-2 h-4 w-4" />
             {saving ? 'Saving...' : 'Save Settings'}
+          </Button>
+        </CardContent>
+      </Card>
+
+      <Card className="shadow-card">
+        <CardHeader>
+          <div className="flex items-center gap-2">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-yellow-100">
+              <Landmark className="h-4 w-4 text-yellow-600" />
+            </div>
+            <div>
+              <CardTitle className="text-lg">Binance Payment</CardTitle>
+              <CardDescription>Set the Binance ID that users will send deposits to.</CardDescription>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <Label>Binance ID</Label>
+            <Input
+              placeholder="e.g. 123456789"
+              value={binanceId}
+              onChange={(e) => setBinanceId(e.target.value)}
+            />
+            <p className="text-xs text-slate-400">Users will see this Binance ID when they choose the Binance payment method in Add Funds.</p>
+          </div>
+          <Button onClick={handleSave} disabled={saving} className="bg-gradient-to-r from-yellow-500 to-amber-500 text-white hover:from-yellow-600 hover:to-amber-600">
+            <Save className="mr-2 h-4 w-4" />
+            {saving ? 'Saving...' : 'Save Binance ID'}
           </Button>
         </CardContent>
       </Card>

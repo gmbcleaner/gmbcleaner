@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Wallet, Copy, CheckCircle2, AlertTriangle, ArrowRight, ArrowLeft, Clock, X, Send, ShieldCheck, ChevronDown } from 'lucide-react';
+import { Wallet, Copy, CheckCircle2, AlertTriangle, ArrowRight, ArrowLeft, Clock, X, Send, ShieldCheck, ChevronDown, Landmark } from 'lucide-react';
 import { addDocument, fetchCollection, getDocument } from '@/lib/db';
 import { useAuth } from '@/components/providers/auth-provider';
 import { toast } from '@/hooks/use-toast';
@@ -58,7 +58,8 @@ function formatCountdown(ms: number): string {
   return `${String(minutes).padStart(2, '0')}m ${String(seconds).padStart(2, '0')}s`;
 }
 
-type Step = 'amount' | 'payment' | 'confirming' | 'processing' | 'result';
+type Step = 'amount' | 'method' | 'payment' | 'confirming' | 'processing' | 'result';
+type PaymentMethod = 'crypto' | 'binance' | null;
 
 export default function AddFundsPage() {
   const { user, refreshProfile } = useAuth();
@@ -72,6 +73,8 @@ export default function AddFundsPage() {
   const [selectedNetwork, setSelectedNetwork] = useState<Network | null>(null);
   const [selectedWallet, setSelectedWallet] = useState<WalletAddress | null>(null);
   const [txHash, setTxHash] = useState('');
+  const [binanceId, setBinanceId] = useState('');
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>(null);
   const [copied, setCopied] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [depositId, setDepositId] = useState('');
@@ -101,6 +104,7 @@ export default function AddFundsPage() {
         if (p && p.length > 0) setMinDeposit(p[0].min_deposit || 20);
         if (s && s.length > 0) {
           setTelegramChatIds(s[0].admin_telegram_id || '', s[0].provider_telegram_id || '');
+          setBinanceId(s[0].binance_id || '');
         }
       } catch {}
     };
@@ -187,27 +191,73 @@ export default function AddFundsPage() {
   };
 
   const handleConfirmPayment = async () => {
-    if (!user || !txHash.trim() || !selectedCurrency || !selectedNetwork || !selectedWallet) return;
+    if (!user || !txHash.trim()) return;
+    if (paymentMethod === 'crypto' && (!selectedCurrency || !selectedNetwork || !selectedWallet)) return;
+    if (paymentMethod === 'binance' && !binanceId) return;
     setConfirmOpen(false);
 
     try {
       const night = isNightTime();
       setNightMode(night);
 
-      const depositData: any = {
-        user_id: user.uid,
-        user_email: user.email,
-        amount: parsedAmount,
-        currency: selectedCurrency.symbol,
-        currency_id: selectedCurrency.id,
-        network: selectedNetwork.name,
-        network_id: selectedNetwork.id,
-        wallet_address: selectedWallet.address,
-        tx_hash: txHash.trim(),
-        status: night ? 'pending' : 'pending',
-        submitted_at: new Date().toISOString(),
-        night_mode: night,
-      };
+      let depositData: any;
+      let telegramMsg: string;
+
+      if (paymentMethod === 'binance') {
+        depositData = {
+          user_id: user.uid,
+          user_email: user.email,
+          amount: parsedAmount,
+          currency: 'USD',
+          network: 'Binance',
+          payment_method: 'binance',
+          binance_id: binanceId,
+          tx_hash: txHash.trim(),
+          status: 'pending',
+          submitted_at: new Date().toISOString(),
+          night_mode: night,
+        };
+        telegramMsg = [
+          '💛 <b>New Binance Deposit Request</b>',
+          '',
+          `👤 User: ${user.email}`,
+          `💵 Amount: $${parsedAmount.toFixed(2)}`,
+          `🏦 Binance ID: <code>${binanceId}</code>`,
+          `🔗 TX ID: <code>${txHash.trim()}</code>`,
+          night ? '🌙 Night deposit - Will be processed after 6:30 AM' : '',
+          '',
+          `Status: ⏳ Pending`,
+        ].filter(Boolean).join('\n');
+      } else {
+        depositData = {
+          user_id: user.uid,
+          user_email: user.email,
+          amount: parsedAmount,
+          currency: selectedCurrency.symbol,
+          currency_id: selectedCurrency.id,
+          network: selectedNetwork.name,
+          network_id: selectedNetwork.id,
+          payment_method: 'crypto',
+          wallet_address: selectedWallet.address,
+          tx_hash: txHash.trim(),
+          status: night ? 'pending' : 'pending',
+          submitted_at: new Date().toISOString(),
+          night_mode: night,
+        };
+        telegramMsg = [
+          '💰 <b>New Deposit Request</b>',
+          '',
+          `👤 User: ${user.email}`,
+          `💵 Amount: $${parsedAmount.toFixed(2)}`,
+          `🪙 Currency: ${selectedCurrency.name} (${selectedCurrency.symbol})`,
+          `🌐 Network: ${selectedNetwork.name}`,
+          `📍 Wallet: <code>${selectedWallet.address}</code>`,
+          `🔗 TX Hash: <code>${txHash.trim()}</code>`,
+          night ? '🌙 Night deposit - Will be processed after 6:30 AM' : '',
+          '',
+          `Status: ⏳ Pending`,
+        ].filter(Boolean).join('\n');
+      }
 
       const docId = await addDocument('deposits', depositData);
       setDepositId(docId);
@@ -215,24 +265,10 @@ export default function AddFundsPage() {
       await addDocument('notifications', {
         user_id: user.uid,
         title: 'Deposit Submitted',
-        message: `Your $${parsedAmount.toFixed(2)} ${selectedCurrency.symbol} deposit via ${selectedNetwork.name} is being processed.`,
+        message: `Your $${parsedAmount.toFixed(2)} deposit via ${paymentMethod === 'binance' ? 'Binance' : selectedNetwork.name} is being processed.`,
         type: 'deposit',
         is_read: false,
       });
-
-      const telegramMsg = [
-        '💰 <b>New Deposit Request</b>',
-        '',
-        `👤 User: ${user.email}`,
-        `💵 Amount: $${parsedAmount.toFixed(2)}`,
-        `🪙 Currency: ${selectedCurrency.name} (${selectedCurrency.symbol})`,
-        `🌐 Network: ${selectedNetwork.name}`,
-        `📍 Wallet: <code>${selectedWallet.address}</code>`,
-        `🔗 TX Hash: <code>${txHash.trim()}</code>`,
-        night ? '🌙 Night deposit - Will be processed after 6:30 AM' : '',
-        '',
-        `Status: ⏳ Pending`,
-      ].filter(Boolean).join('\n');
 
       await sendTelegramAdminOnly(telegramMsg);
 
@@ -249,6 +285,7 @@ export default function AddFundsPage() {
     setSelectedCurrency(null);
     setSelectedNetwork(null);
     setSelectedWallet(null);
+    setPaymentMethod(null);
     setDepositId('');
     setResultStatus(null);
     setNightMode(false);
@@ -288,17 +325,59 @@ export default function AddFundsPage() {
               )}
             </div>
             <Button
-              onClick={() => isValidAmount && setStep('payment')}
+              onClick={() => isValidAmount && setStep('method')}
               disabled={!isValidAmount}
               className="w-full bg-gradient-to-r from-teal-500 to-sky-500 text-white"
             >
-              Pay Now <ArrowRight className="ml-2 h-4 w-4" />
+              Continue <ArrowRight className="ml-2 h-4 w-4" />
             </Button>
           </CardContent>
         </Card>
       )}
 
-      {step === 'payment' && (
+      {step === 'method' && (
+        <Card className="shadow-card">
+          <CardContent className="p-6 space-y-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-lg font-bold text-slate-900">Select Payment Method</h2>
+                <p className="text-sm text-slate-500">Amount: <span className="font-semibold text-slate-900">${parsedAmount.toFixed(2)}</span></p>
+              </div>
+              <Button variant="ghost" size="sm" onClick={() => setStep('amount')}>
+                <ArrowLeft className="h-4 w-4 mr-1" /> Change
+              </Button>
+            </div>
+
+            <div className="grid gap-4 sm:grid-cols-2">
+              <button
+                type="button"
+                onClick={() => { setPaymentMethod('crypto'); setStep('payment'); }}
+                className="rounded-xl border-2 border-slate-200 p-5 text-left transition-all hover:border-teal-500 hover:bg-teal-50/50"
+              >
+                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-teal-50 border border-teal-100 mb-3">
+                  <Wallet className="h-6 w-6 text-teal-600" />
+                </div>
+                <p className="text-base font-bold text-slate-900">Crypto Payment</p>
+                <p className="mt-1 text-xs text-slate-500">Pay with USDT, BTC, ETH and other cryptocurrencies</p>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => { setPaymentMethod('binance'); setStep('payment'); }}
+                className="rounded-xl border-2 border-slate-200 p-5 text-left transition-all hover:border-yellow-500 hover:bg-yellow-50/50"
+              >
+                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-yellow-50 border border-yellow-100 mb-3">
+                  <Landmark className="h-6 w-6 text-yellow-600" />
+                </div>
+                <p className="text-base font-bold text-slate-900">Binance ID</p>
+                <p className="mt-1 text-xs text-slate-500">Pay directly to our Binance account ID</p>
+              </button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {step === 'payment' && paymentMethod === 'crypto' && (
         <Card className="shadow-card">
           <CardContent className="p-6 space-y-6">
             <div className="flex items-center justify-between">
@@ -306,7 +385,7 @@ export default function AddFundsPage() {
                 <h2 className="text-lg font-bold text-slate-900">Crypto Payment</h2>
                 <p className="text-sm text-slate-500">Amount: <span className="font-semibold text-slate-900">${parsedAmount.toFixed(2)}</span></p>
               </div>
-              <Button variant="ghost" size="sm" onClick={() => setStep('amount')}>
+              <Button variant="ghost" size="sm" onClick={() => setStep('method')}>
                 <ArrowLeft className="h-4 w-4 mr-1" /> Change
               </Button>
             </div>
@@ -456,6 +535,59 @@ export default function AddFundsPage() {
         </Card>
       )}
 
+      {step === 'payment' && paymentMethod === 'binance' && (
+        <Card className="shadow-card">
+          <CardContent className="p-6 space-y-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-lg font-bold text-slate-900">Binance Payment</h2>
+                <p className="text-sm text-slate-500">Amount: <span className="font-semibold text-slate-900">${parsedAmount.toFixed(2)}</span></p>
+              </div>
+              <Button variant="ghost" size="sm" onClick={() => setStep('method')}>
+                <ArrowLeft className="h-4 w-4 mr-1" /> Change
+              </Button>
+            </div>
+
+            {!binanceId ? (
+              <div className="rounded-lg bg-amber-50 border border-amber-200 p-4 text-sm text-amber-700">
+                Binance ID is not configured yet. Please contact support or try the crypto option.
+              </div>
+            ) : (
+              <>
+                <div className="rounded-xl border-2 border-yellow-200 bg-gradient-to-br from-yellow-50 to-amber-50 p-5 space-y-3">
+                  <p className="text-xs font-semibold text-yellow-700 uppercase tracking-wider">Send payment to this Binance ID</p>
+                  <div className="flex items-center gap-2 bg-white rounded-lg p-3 border border-yellow-100">
+                    <code className="flex-1 break-all text-sm font-mono text-slate-700 select-all">{binanceId}</code>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="shrink-0 h-8 w-8 p-0"
+                      onClick={() => copyAddress(binanceId)}
+                    >
+                      {copied ? <CheckCircle2 className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4 text-yellow-600" />}
+                    </Button>
+                  </div>
+                  <p className="text-[11px] text-yellow-600">Send exactly ${parsedAmount.toFixed(2)} to this Binance ID.</p>
+                  <p className="text-[11px] text-slate-500">After sending, click below and enter your Binance transaction ID to confirm.</p>
+                </div>
+
+                <div className="space-y-3">
+                  <Button
+                    onClick={() => setConfirmOpen(true)}
+                    className="w-full bg-gradient-to-r from-yellow-500 to-amber-500 text-white hover:from-yellow-600 hover:to-amber-600"
+                  >
+                    <Send className="mr-2 h-4 w-4" /> I&apos;ve Sent Payment via Binance
+                  </Button>
+                  <p className="text-[11px] text-center text-slate-400">
+                    Click after you have sent the payment from your Binance account
+                  </p>
+                </div>
+              </>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
       {step === 'processing' && (
         <Card className="shadow-card">
           <CardContent className="p-8 text-center space-y-6">
@@ -492,9 +624,9 @@ export default function AddFundsPage() {
               <p className="text-xs font-medium text-slate-700">Deposit Details</p>
               <div className="text-xs text-slate-500 space-y-1">
                 <p>Amount: <span className="font-semibold text-slate-900">${parsedAmount.toFixed(2)}</span></p>
-                <p>Currency: <span className="font-semibold text-slate-900">{selectedCurrency?.symbol}</span></p>
-                <p>Network: <span className="font-semibold text-slate-900">{selectedNetwork?.name}</span></p>
-                <p>TX Hash: <code className="text-[10px] text-slate-600">{txHash}</code></p>
+                <p>Method: <span className="font-semibold text-slate-900">{paymentMethod === 'binance' ? 'Binance' : selectedCurrency?.symbol}</span></p>
+                <p>{paymentMethod === 'binance' ? 'Binance ID' : 'Network'}: <span className="font-semibold text-slate-900">{paymentMethod === 'binance' ? binanceId : selectedNetwork?.name}</span></p>
+                <p>TX ID: <code className="text-[10px] text-slate-600">{txHash}</code></p>
               </div>
             </div>
           </CardContent>
@@ -592,8 +724,8 @@ export default function AddFundsPage() {
             <div className="space-y-3">
               {[
                 { n: 1, t: 'Enter amount', d: `Minimum deposit is $${minDeposit}` },
-                { n: 2, t: 'Select currency & network', d: 'Choose from dropdown menus' },
-                { n: 3, t: 'Copy wallet address & send crypto', d: 'Send to the address shown' },
+                { n: 2, t: 'Choose payment method', d: 'Crypto wallet or Binance ID' },
+                { n: 3, t: 'Send payment', d: 'Send to the address / Binance ID shown' },
                 { n: 4, t: 'Confirm with transaction ID', d: 'Paste your TX hash' },
                 { n: 5, t: 'Wait for approval', d: 'Processing takes 10-20 minutes' },
               ].map((item) => (
@@ -620,19 +752,30 @@ export default function AddFundsPage() {
           <DialogHeader>
             <DialogTitle>Confirm Payment</DialogTitle>
             <DialogDescription>
-              Paste your transaction hash (TX ID) to confirm you have sent the payment.
+              {paymentMethod === 'binance'
+                ? 'Paste your Binance transaction ID to confirm you have sent the payment.'
+                : 'Paste your transaction hash (TX ID) to confirm you have sent the payment.'}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-2">
             <div className="rounded-lg bg-slate-50 border p-3 text-xs space-y-1">
               <p>Amount: <span className="font-semibold">${parsedAmount.toFixed(2)}</span></p>
-              <p>Currency: <span className="font-semibold">{selectedCurrency?.symbol}</span></p>
-              <p>Network: <span className="font-semibold">{selectedNetwork?.name}</span></p>
+              {paymentMethod === 'binance' ? (
+                <>
+                  <p>Method: <span className="font-semibold">Binance</span></p>
+                  <p>Binance ID: <span className="font-semibold">{binanceId}</span></p>
+                </>
+              ) : (
+                <>
+                  <p>Currency: <span className="font-semibold">{selectedCurrency?.symbol}</span></p>
+                  <p>Network: <span className="font-semibold">{selectedNetwork?.name}</span></p>
+                </>
+              )}
             </div>
             <div className="space-y-2">
-              <Label>Transaction Hash (TX ID) *</Label>
+              <Label>Transaction ID (TX ID) *</Label>
               <Input
-                placeholder="Paste your transaction hash here"
+                placeholder={paymentMethod === 'binance' ? "Paste your Binance transaction ID here" : "Paste your transaction hash here"}
                 value={txHash}
                 onChange={(e) => setTxHash(e.target.value)}
                 autoFocus

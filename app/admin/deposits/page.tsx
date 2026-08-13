@@ -41,6 +41,8 @@ interface Deposit {
   status: string;
   created_at: string;
   user_email?: string;
+  payment_method?: string;
+  binance_id?: string;
 }
 
 const STATUS_OPTIONS = ['pending', 'approved', 'rejected'] as const;
@@ -328,7 +330,7 @@ export default function AdminDepositsPage() {
                           )}
                         </div>
                         <p className="text-xs text-slate-500 truncate">
-                          ${d.amount.toFixed(2)} via {d.network.toUpperCase()} &middot; {new Date(d.created_at).toLocaleDateString()}
+                          ${d.amount.toFixed(2)} via {d.payment_method === 'binance' ? 'BINANCE' : d.network.toUpperCase()} &middot; {new Date(d.created_at).toLocaleDateString()}
                         </p>
                       </div>
                     </div>
@@ -364,9 +366,19 @@ export default function AdminDepositsPage() {
                               <span className="text-xs font-medium text-slate-900">{(d.currency || 'USD').toUpperCase()}</span>
                             </div>
                             <div className="flex items-center justify-between">
+                              <span className="text-xs text-slate-500">Method</span>
+                              <Badge variant="outline" className="text-[10px]">{d.payment_method === 'binance' ? 'Binance' : 'Crypto'}</Badge>
+                            </div>
+                            <div className="flex items-center justify-between">
                               <span className="text-xs text-slate-500">Network</span>
                               <Badge variant="outline" className="text-[10px]">{d.network.toUpperCase()}</Badge>
                             </div>
+                            {d.binance_id && (
+                              <div className="flex items-center justify-between">
+                                <span className="text-xs text-slate-500">Binance ID</span>
+                                <span className="text-xs font-medium text-slate-900">{d.binance_id}</span>
+                              </div>
+                            )}
                             <div className="flex items-center justify-between">
                               <span className="text-xs text-slate-500">Status</span>
                               <Badge className={`${STATUS_COLORS[d.status] || 'bg-slate-100 text-slate-700'} text-[10px]`}>
