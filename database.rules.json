@@ -8,67 +8,75 @@
       }
     },
     "deposits": {
-      ".read": "auth != null",
-      ".write": "auth != null",
-      "$deposit_id": {
-        ".write": "auth != null && (root.child('profiles').child(auth.uid).child('role').val() === 'admin' || data.child('user_id').val() === auth.uid || newData.child('user_id').val() === auth.uid)"
-      }
+      ".read": true,
+      ".write": "auth != null"
     },
     "orders": {
-      ".read": "auth != null",
-      ".write": "auth != null",
-      "$order_id": {
-        ".write": "auth != null && (root.child('profiles').child(auth.uid).child('role').val() === 'admin' || root.child('profiles').child(auth.uid).child('role').val() === 'provider' || data.child('user_id').val() === auth.uid || newData.child('user_id').val() === auth.uid)"
-      }
+      ".read": true,
+      ".write": "auth != null"
     },
-    "support_tickets": {
-      ".read": "auth != null",
-      ".write": "auth != null",
-      "$ticket_id": {
-        ".write": "auth != null && (root.child('profiles').child(auth.uid).child('role').val() === 'admin' || data.child('user_id').val() === auth.uid || newData.child('user_id').val() === auth.uid)",
-        "messages": {
-          "$msg_id": {
-            ".validate": "newData.hasChildren(['sender_id', 'text'])",
-            "sender_id": { ".validate": "newData.isString()" }
-          }
-        }
-      }
+    "order_items": {
+      ".read": true,
+      ".write": "auth != null"
+    },
+    "provider_tasks": {
+      ".read": true,
+      ".write": "auth != null"
+    },
+    "wallet_addresses": {
+      ".read": true,
+      ".write": "auth != null"
+    },
+    "currencies": {
+      ".read": true,
+      ".write": "auth != null"
+    },
+    "networks": {
+      ".read": true,
+      ".write": "auth != null"
     },
     "transactions": {
-      ".read": "auth != null",
+      ".read": true,
       ".write": "auth != null"
     },
     "notifications": {
       ".read": "auth != null",
       ".write": "auth != null"
     },
+    "support_tickets": {
+      ".read": "auth != null",
+      ".write": "auth != null",
+      "$ticket_id": {
+        "ticket_messages": {
+          "$msg_id": {
+            ".validate": "newData.hasChildren(['user_id', 'message'])"
+          }
+        }
+      }
+    },
+    "faqs": {
+      ".read": true,
+      ".write": "auth != null"
+    },
+    "testimonials": {
+      ".read": true,
+      ".write": "auth != null"
+    },
     "admin_settings": {
-      ".read": "auth != null && root.child('profiles').child(auth.uid).child('role').val() === 'admin'",
-      ".write": "auth != null && root.child('profiles').child(auth.uid).child('role').val() === 'admin'"
+      ".read": true,
+      ".write": "auth != null"
     },
     "pricing_settings": {
       ".read": true,
-      ".write": "auth != null && root.child('profiles').child(auth.uid).child('role').val() === 'admin'"
-    },
-    "currencies": {
-      ".read": true,
-      ".write": "auth != null && root.child('profiles').child(auth.uid).child('role').val() === 'admin'"
-    },
-    "networks": {
-      ".read": true,
-      ".write": "auth != null && root.child('profiles').child(auth.uid).child('role').val() === 'admin'"
-    },
-    "wallets": {
-      ".read": true,
-      ".write": "auth != null && root.child('profiles').child(auth.uid).child('role').val() === 'admin'"
+      ".write": "auth != null"
     },
     "blog_posts": {
       ".read": true,
-      ".write": "auth != null && root.child('profiles').child(auth.uid).child('role').val() === 'admin'"
+      ".write": "auth != null"
     },
     "site_content": {
       ".read": true,
-      ".write": "auth != null && root.child('profiles').child(auth.uid).child('role').val() === 'admin'"
+      ".write": "auth != null"
     }
   }
 }
