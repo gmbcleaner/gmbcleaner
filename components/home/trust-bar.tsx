@@ -1,20 +1,19 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { ShieldCheck, Eye, FileCheck, Globe } from 'lucide-react';
+import { ShieldCheck, Eye, FileCheck } from 'lucide-react';
 
 const badges = [
   { icon: ShieldCheck, label: 'Compliant Process', desc: 'Official channels only' },
   { icon: Eye, label: 'Transparent Tracking', desc: 'Real-time status updates' },
   { icon: FileCheck, label: 'Policy-Based Disputes', desc: 'No false promises' },
-  { icon: Globe, label: 'Global Coverage', desc: 'Google, Yelp & more' },
 ];
 
 export function TrustBar() {
   return (
     <section className="border-y border-slate-100 bg-white/50 backdrop-blur-sm">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-10">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
           {badges.map((badge, i) => {
             const Icon = badge.icon;
             return (
