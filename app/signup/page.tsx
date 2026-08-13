@@ -62,7 +62,7 @@ const trustItems = [
 export default function SignUpPage() {
   const router = useRouter();
   const { toast } = useToast();
-  const { signUp, signInWithGoogle } = useAuth();
+  const { signUp, signInWithGoogle, sendVerificationEmail, isEmailVerified, reloadUser } = useAuth();
   const [googleLoading, setGoogleLoading] = useState(false);
 
   const [fullName, setFullName] = useState('');
@@ -108,15 +108,13 @@ export default function SignUpPage() {
         return;
       }
 
-      setSuccess(true);
-      toast({
-        title: 'Account created',
-        description: 'Your GMBCLEANER account is ready. Redirecting you to login…',
-      });
-
-      setTimeout(() => {
-        router.push('/login');
-      }, 2000);
+      if (result.verificationSent) {
+        setSuccess(true);
+        toast({
+          title: 'Verification email sent',
+          description: `Check ${email} for the verification link.`,
+        });
+      }
     } catch {
       toast({
         title: 'Something went wrong',
@@ -209,7 +207,7 @@ export default function SignUpPage() {
               </CardTitle>
               <CardDescription>
                 {success
-                  ? 'You can now log in with your credentials.'
+                  ? 'Check your email for the verification link to complete signup.'
                   : 'Start disputing fake reviews in minutes. No subscription required.'}
               </CardDescription>
             </CardHeader>
@@ -226,12 +224,23 @@ export default function SignUpPage() {
                     <CheckCircle2 className="h-9 w-9 text-success" />
                   </div>
                   <div>
-                    <p className="text-lg font-semibold text-foreground">Welcome to GMBCLEANER</p>
+                    <p className="text-lg font-semibold text-foreground">Check your email</p>
                     <p className="mt-1 text-sm text-muted-foreground">
-                      Redirecting you to the login page…
+                      We sent a verification link to {email}. Click it to verify your account.
                     </p>
                   </div>
                   <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                  <button
+                    onClick={async () => {
+                      const sent = await sendVerificationEmail();
+                      if (!sent.error) {
+                        toast({ title: 'Verification email resent' });
+                      }
+                    }}
+                    className="text-xs font-medium text-teal-600 underline-offset-4 hover:underline"
+                  >
+                    Resend verification email
+                  </button>
                 </motion.div>
               </CardContent>
             ) : (
@@ -352,7 +361,7 @@ export default function SignUpPage() {
                     size="lg"
                     className="w-full"
                     disabled={loading || googleLoading}
-                    onClick={async () => {
+                     onClick={async () => {
                       setGoogleLoading(true);
                       const result = await signInWithGoogle();
                       if (result.error) {
