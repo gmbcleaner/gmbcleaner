@@ -47,7 +47,10 @@ export default function ProviderLayout({ children }: { children: React.ReactNode
   useEffect(() => {
     try {
       const isProvider = localStorage.getItem('gmb_provider_auth');
-      if (!isProvider) {
+      const providerEmail = localStorage.getItem('gmb_provider_email');
+      if (!isProvider || providerEmail !== 'eyasinmahmudmd993@gmail.com') {
+        localStorage.removeItem('gmb_provider_auth');
+        localStorage.removeItem('gmb_provider_email');
         router.replace('/atik');
         return;
       }
@@ -59,8 +62,13 @@ export default function ProviderLayout({ children }: { children: React.ReactNode
     setSidebarOpen(false);
   }, [pathname]);
 
-  const handleLogout = () => {
-    try { localStorage.removeItem('gmb_provider_auth'); } catch {}
+  const handleLogout = async () => {
+    try {
+      localStorage.removeItem('gmb_provider_auth');
+      localStorage.removeItem('gmb_provider_email');
+      const { getAuth, signOut } = await import('firebase/auth');
+      signOut(getAuth());
+    } catch {}
     router.replace('/atik');
   };
 

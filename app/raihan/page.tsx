@@ -40,6 +40,7 @@ export default function AdminLoginPage() {
       localStorage.setItem('gmb_admin_auth', 'true');
       localStorage.setItem('gmb_admin_email', user.email);
       localStorage.removeItem('gmb_provider_auth');
+      localStorage.removeItem('gmb_provider_email');
       router.push('/admin');
     } else if (user.email && user.email !== ADMIN_EMAIL) {
       import('firebase/auth').then(({ getAuth, signOut }) => {
