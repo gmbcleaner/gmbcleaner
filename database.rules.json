@@ -1,54 +1,46 @@
 {
   "rules": {
     "profiles": {
+      ".read": true,
+      ".write": "auth != null",
       "$uid": {
-        ".read": true,
-        ".write": "auth != null && auth.uid === $uid"
+        ".write": "auth != null && (auth.uid === $uid || root.child('profiles').child(auth.uid).child('role').val() === 'admin')"
       }
     },
     "deposits": {
       ".read": "auth != null",
       ".write": "auth != null",
       "$deposit_id": {
-        ".validate": "newData.hasChildren(['user_id', 'status'])",
-        "user_id": {
-          ".validate": "newData.isString()"
-        },
-        "status": {
-          ".validate": "newData.isString() && newData.val().matches(/^(pending|approved|rejected|timeout)$/) "
-        },
-        ".write": "auth != null && (root.child('profiles').child(auth.uid).child('role').val() === 'admin' || data.child('user_id').val() === auth.uid)"
+        ".write": "auth != null && (root.child('profiles').child(auth.uid).child('role').val() === 'admin' || data.child('user_id').val() === auth.uid || newData.child('user_id').val() === auth.uid)"
       }
     },
     "orders": {
       ".read": "auth != null",
       ".write": "auth != null",
       "$order_id": {
-        ".validate": "newData.hasChildren(['user_id'])",
-        "user_id": {
-          ".validate": "newData.isString()"
-        },
-        ".write": "auth != null && (root.child('profiles').child(auth.uid).child('role').val() === 'admin' || root.child('profiles').child(auth.uid).child('role').val() === 'provider' || data.child('user_id').val() === auth.uid)"
+        ".write": "auth != null && (root.child('profiles').child(auth.uid).child('role').val() === 'admin' || root.child('profiles').child(auth.uid).child('role').val() === 'provider' || data.child('user_id').val() === auth.uid || newData.child('user_id').val() === auth.uid)"
       }
     },
     "support_tickets": {
       ".read": "auth != null",
       ".write": "auth != null",
       "$ticket_id": {
-        ".validate": "newData.hasChildren(['user_id'])",
-        "user_id": {
-          ".validate": "newData.isString()"
-        },
-        ".write": "auth != null && (root.child('profiles').child(auth.uid).child('role').val() === 'admin' || data.child('user_id').val() === auth.uid)",
+        ".write": "auth != null && (root.child('profiles').child(auth.uid).child('role').val() === 'admin' || data.child('user_id').val() === auth.uid || newData.child('user_id').val() === auth.uid)",
         "messages": {
           "$msg_id": {
             ".validate": "newData.hasChildren(['sender_id', 'text'])",
-            "sender_id": {
-              ".validate": "newData.isString()"
-            }
+            "sender_id": { ".validate": "newData.isString()" }
           }
         }
       }
+    },
+    "transactions": {
+      ".read": "auth != null",
+      ".write": "auth != null"
+    },
+    "notifications": {
+      ".read": "auth != null",
+      ".write": "auth != null"
     },
     "admin_settings": {
       ".read": "auth != null && root.child('profiles').child(auth.uid).child('role').val() === 'admin'",
