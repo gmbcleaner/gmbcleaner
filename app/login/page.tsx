@@ -13,7 +13,7 @@ import { toast } from '@/hooks/use-toast';
 
 export default function LoginPage() {
   const router = useRouter();
-  const { signIn, signInWithGoogle, resetPassword, sendVerificationEmail, isEmailVerified, reloadUser, user } = useAuth();
+  const { signIn, signInWithGoogle, resetPassword } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -29,26 +29,6 @@ export default function LoginPage() {
 
     if (result.error) {
       setError('Invalid email or password. Please try again.');
-      setLoading(false);
-      return;
-    }
-
-    if (user && !user.emailVerified) {
-      const sent = await sendVerificationEmail();
-      setError(
-        <span className="flex flex-col gap-2">
-          <span>Please verify your email first. We sent a verification link to {email}.</span>
-          <button
-            onClick={async () => {
-              const r = await sendVerificationEmail();
-              if (!r.error) toast({ title: 'Verification email resent' });
-            }}
-            className="underline text-center"
-          >
-            Resend verification email
-          </button>
-        </span>
-      );
       setLoading(false);
       return;
     }
@@ -70,17 +50,14 @@ export default function LoginPage() {
 
   const handleForgotPassword = async () => {
     if (!email.trim()) {
-      setError('Enter your email above first.');
+      setError('Enter your email above first, then click Forgot Password.');
       return;
     }
     const result = await resetPassword(email);
     if (result.error) {
       setError(result.error);
     } else {
-      toast({
-        title: 'Password reset email sent',
-        description: `Check ${email} for the password reset link.`,
-      });
+      toast({ title: 'Reset email sent', description: `Check ${email} for the password reset link.` });
     }
   };
 

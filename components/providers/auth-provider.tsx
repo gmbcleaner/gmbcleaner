@@ -10,9 +10,6 @@ import {
   signOut as firebaseSignOut,
   updatePassword as firebaseUpdatePassword,
   sendPasswordResetEmail,
-  sendSignInLinkToEmail,
-  isSignInWithEmailLink,
-  sendEmailVerification,
   type User,
 } from 'firebase/auth';
 import { ref, get, set } from 'firebase/database';
@@ -23,15 +20,12 @@ interface AuthContextValue {
   loading: boolean;
   profile: UserProfile | null;
   refreshProfile: () => Promise<void>;
-  signUp: (email: string, password: string, meta?: Record<string, any>) => Promise<{ error?: string; verificationSent?: boolean }>;
+  signUp: (email: string, password: string, meta?: Record<string, any>) => Promise<{ error?: string }>;
   signIn: (email: string, password: string) => Promise<{ error?: string }>;
   signInWithGoogle: () => Promise<{ error?: string }>;
   signOut: () => Promise<void>;
   updatePassword: (newPassword: string) => Promise<void>;
   resetPassword: (email: string) => Promise<{ error?: string }>;
-  sendVerificationEmail: () => Promise<{ error?: string }>;
-  isEmailVerified: () => boolean;
-  reloadUser: () => Promise<void>;
 }
 
 interface UserProfile {
@@ -82,9 +76,6 @@ const AuthContext = createContext<AuthContextValue>({
   signOut: async () => {},
   updatePassword: async () => {},
   resetPassword: async () => ({}),
-  sendVerificationEmail: async () => ({}),
-  isEmailVerified: () => false,
-  reloadUser: async () => {},
 });
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -136,7 +127,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  const signUp = async (email: string, password: string, meta?: Record<string, any>): Promise<{ error?: string; verificationSent?: boolean }> => {
+  const signUp = async (email: string, password: string, meta?: Record<string, any>): Promise<{ error?: string }> => {
     try {
       if (!auth) return { error: 'Firebase Auth not configured' };
       const cred = await createUserWithEmailAndPassword(auth, email, password);
@@ -151,12 +142,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           created_at: new Date().toISOString(),
         });
       }
-
-      try {
-        await sendEmailVerification(cred.user);
-      } catch {}
-
-      return { verificationSent: true };
+      return {};
     } catch (err: any) {
       return { error: err.message || 'Sign up failed' };
     }
@@ -229,31 +215,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const sendVerificationEmail = async (): Promise<{ error?: string }> => {
-    try {
-      if (!auth || !auth.currentUser) return { error: 'Not authenticated' };
-      await sendEmailVerification(auth.currentUser, {
-        url: window.location.origin + '/login',
-        handleCodeInApp: true,
-      });
-      return {};
-    } catch (err: any) {
-      return { error: err.message || 'Failed to send verification email' };
-    }
-  };
-
-  const isEmailVerified = (): boolean => {
-    return user?.emailVerified ?? false;
-  };
-
-  const reloadUser = async (): Promise<void> => {
-    if (auth && auth.currentUser) {
-      await auth.currentUser.reload();
-    }
-  };
-
   return (
-    <AuthContext.Provider value={{ user, loading, profile, refreshProfile, signUp, signIn, signInWithGoogle, signOut, updatePassword, resetPassword, sendVerificationEmail, isEmailVerified, reloadUser }}>
+    <AuthContext.Provider value={{ user, loading, profile, refreshProfile, signUp, signIn, signInWithGoogle, signOut, updatePassword, resetPassword }}>
       {children}
     </AuthContext.Provider>
   );
