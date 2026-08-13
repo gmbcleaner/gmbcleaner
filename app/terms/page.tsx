@@ -7,6 +7,25 @@ export const metadata: Metadata = {
   title: 'Terms & Conditions',
   description:
     'Read the Terms & Conditions governing your use of GMBCLEANER, including our strict no-refund policy, crypto payment terms, order processing, limitation of liability, and dispute resolution.',
+  keywords: ['GMBCLEANER terms', 'terms and conditions', 'no refund policy', 'crypto payment terms', 'review dispute terms'],
+  openGraph: {
+    title: 'Terms & Conditions | GMBCLEANER',
+    description: 'Read the Terms & Conditions governing your use of GMBCLEANER, including our strict no-refund policy.',
+    url: 'https://gmbcleaner.online/terms',
+    siteName: 'GMBCLEANER',
+    images: [{ url: 'https://gmbcleaner.online/og-image.png', width: 1200, height: 630 }],
+    locale: 'en_US',
+    type: 'website',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Terms & Conditions | GMBCLEANER',
+    description: 'Read the Terms & Conditions governing your use of GMBCLEANER.',
+    images: ['https://gmbcleaner.online/og-image.png'],
+  },
+  alternates: {
+    canonical: 'https://gmbcleaner.online/terms',
+  },
 };
 
 export default function TermsPage() {

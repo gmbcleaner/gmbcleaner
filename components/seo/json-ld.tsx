@@ -7,7 +7,6 @@ export function JsonLd() {
     logo: 'https://gmbcleaner.online/og-image.svg',
     description: 'Professional Google Maps review removal and dispute service. Remove fake, spam, and policy-violating reviews.',
     email: 'support@gmbcleaner.online',
-    sameAs: [],
   };
 
   const websiteSchema = {
@@ -15,11 +14,6 @@ export function JsonLd() {
     '@type': 'WebSite',
     name: 'GMBCLEANER',
     url: 'https://gmbcleaner.online',
-    potentialAction: {
-      '@type': 'SearchAction',
-      target: 'https://gmbcleaner.online/blog?q={search_term_string}',
-      'query-input': 'required name=search_term_string',
-    },
   };
 
   const serviceSchema = {

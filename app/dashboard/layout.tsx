@@ -207,6 +207,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   return (
     <div className="flex min-h-screen bg-slate-50">
+      <head>
+        <meta name="robots" content="noindex, nofollow" />
+      </head>
       <aside className="fixed inset-y-0 left-0 z-40 hidden w-64 border-r border-slate-200 bg-white lg:block">
         <SidebarContent />
       </aside>

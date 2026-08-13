@@ -7,6 +7,25 @@ export const metadata: Metadata = {
   title: 'Privacy Policy',
   description:
     'Learn how GMBCLEANER collects, uses, stores, and protects your personal data, including information about cookies, third-party services, data retention, and your rights under GDPR.',
+  keywords: ['GMBCLEANER privacy', 'privacy policy', 'data protection', 'GDPR', 'cookie policy', 'personal data'],
+  openGraph: {
+    title: 'Privacy Policy | GMBCLEANER',
+    description: 'Learn how GMBCLEANER collects, uses, stores, and protects your personal data.',
+    url: 'https://gmbcleaner.online/privacy',
+    siteName: 'GMBCLEANER',
+    images: [{ url: 'https://gmbcleaner.online/og-image.png', width: 1200, height: 630 }],
+    locale: 'en_US',
+    type: 'website',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Privacy Policy | GMBCLEANER',
+    description: 'Learn how GMBCLEANER collects, uses, stores, and protects your personal data.',
+    images: ['https://gmbcleaner.online/og-image.png'],
+  },
+  alternates: {
+    canonical: 'https://gmbcleaner.online/privacy',
+  },
 };
 
 export default function PrivacyPage() {

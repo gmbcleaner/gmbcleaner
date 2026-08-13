@@ -7,6 +7,25 @@ export const metadata: Metadata = {
   title: 'Refund Policy',
   description:
     'Read the GMBCLEANER Refund Policy. All sales are final. No refunds on deposits, orders, or crypto payments. If a review is not removed, balance is not restored.',
+  keywords: ['GMBCLEANER refund', 'refund policy', 'no refund', 'crypto payment refund', 'wallet deposit refund'],
+  openGraph: {
+    title: 'Refund Policy | GMBCLEANER',
+    description: 'All sales are final. No refunds on deposits, orders, or crypto payments.',
+    url: 'https://gmbcleaner.online/refund',
+    siteName: 'GMBCLEANER',
+    images: [{ url: 'https://gmbcleaner.online/og-image.png', width: 1200, height: 630 }],
+    locale: 'en_US',
+    type: 'website',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Refund Policy | GMBCLEANER',
+    description: 'All sales are final. No refunds on deposits, orders, or crypto payments.',
+    images: ['https://gmbcleaner.online/og-image.png'],
+  },
+  alternates: {
+    canonical: 'https://gmbcleaner.online/refund',
+  },
 };
 
 export default function RefundPage() {

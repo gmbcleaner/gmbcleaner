@@ -1,0 +1,16 @@
+{
+  "name": "GMBCLEANER",
+  "short_name": "GMBCLEANER",
+  "description": "Professional Google Maps negative review removal and dispute service.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#14b8a6",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}
