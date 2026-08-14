@@ -88,7 +88,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" className={inter.variable} suppressHydrationWarning>
-      <head>
+      <body className="font-sans antialiased">
         <Script
           async
           src="https://www.googletagmanager.com/gtag/js?id=G-JDZH54EFHE"
@@ -102,8 +102,6 @@ export default function RootLayout({
             gtag('config', 'G-JDZH54EFHE');
           `}
         </Script>
-      </head>
-      <body className="font-sans antialiased">
         <AuthProvider>{children}</AuthProvider>
         <Toaster />
       </body>
