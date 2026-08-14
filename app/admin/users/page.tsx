@@ -32,7 +32,9 @@ import {
   Trash2,
   DollarSign,
   Eye,
+  CalendarDays,
 } from 'lucide-react';
+import { formatBDTime, isTodayInBD } from '@/lib/utils';
 
 interface UserProfile {
   id: string;
@@ -65,7 +67,7 @@ export default function AdminUsersPage() {
 
   const fetchUsers = useCallback(async () => {
     try {
-      const data = await fetchCollection('profiles');
+      const data = await fetchCollection('profiles', undefined, 'created_at');
       setUsers((data as UserProfile[]) || []);
     } catch {
       // silent
@@ -283,6 +285,15 @@ export default function AdminUsersPage() {
                       <p className="text-xs text-slate-500 truncate">
                         {user.email} {user.user_code && `\u00b7 ${user.user_code}`}
                       </p>
+                      <p className="text-[11px] text-slate-400 flex items-center gap-1 mt-0.5">
+                        <CalendarDays className="h-3 w-3" />
+                        {user.created_at
+                          ? formatBDTime(user.created_at)
+                          : 'No signup time'}
+                        {isTodayInBD(user.created_at) && (
+                          <Badge className="bg-cyan-100 text-cyan-700 text-[10px] font-semibold">Today</Badge>
+                        )}
+                      </p>
                     </div>
                   </div>
                   <div className="flex items-center gap-1.5 shrink-0 ml-3">
@@ -402,10 +413,10 @@ export default function AdminUsersPage() {
                   </div>
                 </div>
                 <div className="space-y-1">
-                  <p className="text-xs text-slate-400">Created At</p>
+                  <p className="text-xs text-slate-400">Created At (BD Time)</p>
                   <p className="text-sm font-medium text-slate-700">
                     {detailDialog.created_at
-                      ? new Date(detailDialog.created_at).toLocaleDateString()
+                      ? formatBDTime(detailDialog.created_at)
                       : 'N/A'}
                   </p>
                 </div>

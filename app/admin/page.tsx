@@ -25,10 +25,12 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Separator } from '@/components/ui/separator';
 import { fetchCollection, updateDocument } from '@/lib/db';
+import { isTodayInBD, formatBDTime } from '@/lib/utils';
 import Link from 'next/link';
 
 interface Stats {
   totalUsers: number;
+  todayUsers: number;
   totalOrders: number;
   totalRevenue: number;
   pendingDeposits: number;
@@ -76,6 +78,7 @@ const statusColors: Record<string, string> = {
 export default function AdminDashboardPage() {
   const [stats, setStats] = useState<Stats>({
     totalUsers: 0,
+    todayUsers: 0,
     totalOrders: 0,
     totalRevenue: 0,
     pendingDeposits: 0,
@@ -121,6 +124,9 @@ export default function AdminDashboardPage() {
 
       setStats({
         totalUsers: (allUsers || []).length,
+        todayUsers: (allUsers || []).filter(
+          (u: any) => isTodayInBD(u.created_at)
+        ).length,
         totalOrders: (allOrders || []).length,
         totalRevenue,
         pendingDeposits: (pendingDeposits || []).length,
@@ -193,6 +199,15 @@ export default function AdminDashboardPage() {
       description: 'Registered accounts',
     },
     {
+      title: "Today's Users",
+      value: String(stats.todayUsers),
+      icon: UserPlus,
+      color: 'text-cyan-600',
+      bg: 'bg-cyan-50',
+      border: 'border-cyan-100',
+      description: 'New users today (BD time)',
+    },
+    {
       title: 'Total Orders',
       value: String(stats.totalOrders),
       icon: ListOrdered,
@@ -244,8 +259,8 @@ export default function AdminDashboardPage() {
           <Skeleton className="h-8 w-64 mb-2" />
           <Skeleton className="h-4 w-96" />
         </div>
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
-          {Array.from({ length: 5 }).map((_, i) => (
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {Array.from({ length: 6 }).map((_, i) => (
             <Card key={i} className="shadow-sm">
               <CardContent className="p-6">
                 <Skeleton className="h-4 w-24 mb-3" />
@@ -300,7 +315,7 @@ export default function AdminDashboardPage() {
         </Button>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {statCards.map((card) => {
           const Icon = card.icon;
           return (
@@ -559,10 +574,7 @@ export default function AdminDashboardPage() {
                       )}
                       <p className="text-xs text-slate-400">
                         {user.created_at
-                          ? new Date(user.created_at).toLocaleDateString('en-US', {
-                              month: 'short',
-                              day: 'numeric',
-                            })
+                          ? formatBDTime(user.created_at)
                           : ''}
                       </p>
                     </div>
