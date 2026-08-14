@@ -224,7 +224,6 @@ export default function AddFundsPage() {
           `💵 Amount: $${parsedAmount.toFixed(2)}`,
           `🏦 Binance ID: <code>${binanceId}</code>`,
           `🔗 Order ID: <code>${txHash.trim()}</code>`,
-          night ? '🌙 Night deposit - Will be processed after 6:30 AM' : '',
           '',
           `Status: ⏳ Pending`,
         ].filter(Boolean).join('\n');
@@ -253,7 +252,6 @@ export default function AddFundsPage() {
           `🌐 Network: ${selectedNetwork.name}`,
           `📍 Wallet: <code>${selectedWallet.address}</code>`,
           `🔗 TX Hash: <code>${txHash.trim()}</code>`,
-          night ? '🌙 Night deposit - Will be processed after 6:30 AM' : '',
           '',
           `Status: ⏳ Pending`,
         ].filter(Boolean).join('\n');
@@ -603,9 +601,7 @@ export default function AddFundsPage() {
             <div>
               <h2 className="text-xl font-bold text-slate-900">Processing Payment</h2>
               <p className="mt-2 text-sm text-slate-500">
-                {nightMode
-                  ? 'Your payment was submitted during night hours (11 PM - 6:30 AM). It will be approved after 6:30 AM.'
-                  : 'Your payment is being processed. This usually takes 10-20 minutes.'}
+                Your payment is being processed. This usually takes 10-20 minutes.
               </p>
             </div>
 
@@ -693,9 +689,7 @@ export default function AddFundsPage() {
                 <div>
                   <h2 className="text-2xl font-bold text-amber-700">Processing Timeout</h2>
                   <p className="mt-2 text-sm text-slate-600">
-                    {nightMode
-                      ? 'Your payment is still being processed. It will be approved after 6:30 AM. Please check back later or contact support if the issue persists.'
-                      : 'Your payment is taking longer than expected. Please contact our support team for assistance.'}
+                    Your payment is taking longer than expected. Please contact our support team for assistance.
                   </p>
                 </div>
                 <div className="rounded-xl bg-amber-50 border border-amber-200 p-4">
@@ -738,11 +732,6 @@ export default function AddFundsPage() {
                 </div>
               ))}
             </div>
-            <div className="rounded-lg bg-amber-50 border border-amber-200 p-3">
-              <p className="text-[11px] text-amber-700">
-                <strong>Night hours (11 PM - 6:30 AM):</strong> Deposits made during this time will be processed after 6:30 AM.
-              </p>
-            </div>
           </CardContent>
         </Card>
       )}
@@ -784,13 +773,6 @@ export default function AddFundsPage() {
                 <p className="text-xs text-red-500">{paymentMethod === 'binance' ? 'Order ID is required' : 'Transaction ID is required'}</p>
               )}
             </div>
-            {isNightTime() && (
-              <div className="rounded-lg bg-blue-50 border border-blue-200 p-3">
-                <p className="text-xs text-blue-700">
-                  <strong>Night deposit:</strong> Your payment was submitted between 11 PM - 6:30 AM. It will be approved after 6:30 AM. Please be patient.
-                </p>
-              </div>
-            )}
           </div>
           <DialogFooter className="flex-col gap-3">
             <Button
