@@ -50,6 +50,7 @@ export default function LoginPage() {
         setGoogleLoading(false);
         return;
       }
+      if (result.redirect) return;
       window.location.href = '/dashboard';
     } catch {
       window.location.href = '/dashboard';

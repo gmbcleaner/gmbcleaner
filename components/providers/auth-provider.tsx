@@ -24,7 +24,7 @@ interface AuthContextValue {
   refreshProfile: () => Promise<void>;
   signUp: (email: string, password: string, meta?: Record<string, any>) => Promise<{ error?: string }>;
   signIn: (email: string, password: string) => Promise<{ error?: string }>;
-  signInWithGoogle: () => Promise<{ error?: string }>;
+  signInWithGoogle: () => Promise<{ error?: string; redirect?: boolean }>;
   signOut: () => Promise<void>;
   updatePassword: (newPassword: string) => Promise<void>;
   resetPassword: (email: string) => Promise<{ error?: string }>;
@@ -200,14 +200,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const signInWithGoogle = async (): Promise<{ error?: string }> => {
+  const signInWithGoogle = async (): Promise<{ error?: string; redirect?: boolean }> => {
     try {
       if (!auth) return { error: 'Firebase Auth not configured' };
       const provider = new GoogleAuthProvider();
 
       if (isMobileDevice()) {
         await signInWithRedirect(auth, provider);
-        return {};
+        return { redirect: true };
       }
 
       const cred = await signInWithPopup(auth, provider);

@@ -365,6 +365,7 @@ export default function SignUpPage() {
                           setGoogleLoading(false);
                           return;
                         }
+                        if (result.redirect) return;
                         window.location.href = '/dashboard';
                       } catch {
                         window.location.href = '/dashboard';
