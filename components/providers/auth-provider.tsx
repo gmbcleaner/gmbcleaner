@@ -160,9 +160,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 await firebaseSignOut(auth);
                 setUser(null);
                 setProfile(null);
+              } else if (!prof) {
+                // Profile doesn't exist in RTDB — create it now
+                console.log('[Auth] onAuthStateChanged: no profile found, creating...');
+                await ensureProfile(firebaseUser);
+                await fetchProfile(firebaseUser.uid);
               }
-            } catch {
-              // Profile fetch failed — user can still use the app
+            } catch (err) {
+              console.error('[Auth] Profile fetch/create error:', err);
             }
           } else {
             setProfile(null);

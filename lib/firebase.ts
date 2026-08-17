@@ -26,10 +26,15 @@ try {
 
 try {
   auth = getAuth(app);
-  auth.setPersistence(browserLocalPersistence);
 } catch (err) {
   console.error('[Firebase] Auth init failed:', err);
   auth = null as any;
+}
+
+if (auth) {
+  auth.setPersistence(browserLocalPersistence).catch((err) => {
+    console.error('[Firebase] setPersistence failed:', err);
+  });
 }
 
 try {
