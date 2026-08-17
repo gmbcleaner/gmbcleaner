@@ -135,6 +135,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               } catch {}
             }
             await fetchProfile(result.user.uid);
+            if (typeof window !== 'undefined' && !window.location.pathname.startsWith('/dashboard')) {
+              window.location.href = '/dashboard';
+            }
           }
         })
         .catch(() => {});
