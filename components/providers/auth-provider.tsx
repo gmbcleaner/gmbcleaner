@@ -55,27 +55,35 @@ function isMobileDevice(): boolean {
 }
 
 async function ensureProfile(user: User) {
-  if (!rtdb) return;
+  if (!rtdb) {
+    console.error('[Auth] ensureProfile: rtdb is null, cannot write profile');
+    return;
+  }
   for (let attempt = 0; attempt < 3; attempt++) {
     try {
       const snap = await get(ref(rtdb, `profiles/${user.uid}`));
       if (!snap.exists()) {
-        await set(ref(rtdb, `profiles/${user.uid}`), {
+        const profileData = {
           email: user.email,
           role: 'user',
           user_code: generateUserCode(),
           wallet_balance: 0,
+          is_blocked: false,
           full_name: user.displayName || null,
           company: null,
           avatar_url: user.photoURL || null,
           created_at: new Date().toISOString(),
-        });
+        };
+        await set(ref(rtdb, `profiles/${user.uid}`), profileData);
+        console.log(`[Auth] ensureProfile: created profile for ${user.uid}`);
       }
       return;
-    } catch {
+    } catch (err) {
+      console.error(`[Auth] ensureProfile attempt ${attempt + 1} failed:`, err);
       if (attempt < 2) await new Promise((r) => setTimeout(r, 1000 * (attempt + 1)));
     }
   }
+  console.error(`[Auth] ensureProfile: all 3 attempts failed for ${user.uid}`);
 }
 
 const AuthContext = createContext<AuthContextValue>({
@@ -133,13 +141,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             const result = await getRedirectResult(auth);
             if (result?.user && mounted) {
               redirectProcessed.current = true;
-              // Ensure profile exists in RTDB (fire and forget — don't block)
-              ensureProfile(result.user).catch(() => {});
-              // Navigate to dashboard immediately after successful redirect
-              // Use window.location for reliable navigation after redirect
+              // Ensure profile exists BEFORE navigating away
+              await ensureProfile(result.user);
+              // Navigate to dashboard
               if (typeof window !== 'undefined') {
                 window.location.href = '/dashboard';
-                return; // Don't proceed further — navigation will reload the page
+                return;
               }
             }
           } catch (err) {
@@ -194,17 +201,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       if (!auth) return { error: 'Firebase Auth not configured. Please try again later.' };
       const cred = await createUserWithEmailAndPassword(auth, email, password);
-      if (rtdb) {
+
+      // Write profile to RTDB
+      if (!rtdb) {
+        console.error('[Auth] signUp: rtdb is null — profile NOT written');
+        return { error: 'Database not connected. Your account was created but profile could not be saved. Please contact support.' };
+      }
+
+      try {
         await set(ref(rtdb, `profiles/${cred.user.uid}`), {
           email,
           role: 'user',
           user_code: generateUserCode(),
           wallet_balance: 0,
+          is_blocked: false,
           full_name: meta?.full_name || null,
           company: meta?.company || null,
+          avatar_url: null,
           created_at: new Date().toISOString(),
         });
+        console.log(`[Auth] signUp: profile created for ${cred.user.uid}`);
+      } catch (dbErr) {
+        console.error('[Auth] signUp: profile write FAILED:', dbErr);
+        return { error: 'Account created but profile save failed. Please contact support.' };
       }
+
       return {};
     } catch (err: any) {
       console.error('[Auth] signUp error:', err.code);

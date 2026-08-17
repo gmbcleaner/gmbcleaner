@@ -51,7 +51,7 @@ export default function AdminTrashPage() {
       await Promise.all(
         collections.map(async (col) => {
           try {
-            const items = await fetchCollection(col);
+            const items = await fetchCollection(col, undefined, undefined, undefined, true);
             const deleted = items.filter((item: any) => item.is_deleted === true);
             deleted.forEach((item: any) => {
               allDeleted.push({ ...item, _collection: col, _deletedAt: item.deleted_at || '' });

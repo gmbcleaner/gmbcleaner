@@ -70,8 +70,8 @@ export default function AdminUsersPage() {
     try {
       const data = await fetchCollection('profiles', undefined, 'created_at');
       setUsers((data as UserProfile[]) || []);
-    } catch {
-      // silent
+    } catch (err) {
+      console.error('[Admin] Failed to fetch users:', err);
     } finally {
       setLoading(false);
     }
@@ -84,7 +84,6 @@ export default function AdminUsersPage() {
   const filtered = users.filter(
     (u) =>
       u.email?.toLowerCase().includes(search.toLowerCase()) ||
-      u.phone?.toLowerCase().includes(search.toLowerCase()) ||
       u.full_name?.toLowerCase().includes(search.toLowerCase()) ||
       u.user_code?.toLowerCase().includes(search.toLowerCase())
   );
@@ -188,7 +187,7 @@ export default function AdminUsersPage() {
   };
 
   const UserAvatarLetter = (user: UserProfile | null) =>
-    (user?.full_name || user?.phone || user?.email || 'U')?.charAt(0).toUpperCase() || 'U';
+    (user?.full_name || user?.email || 'U')?.charAt(0).toUpperCase() || 'U';
 
   const roleBadge = (role: string) => {
     switch (role) {
@@ -288,7 +287,7 @@ export default function AdminUsersPage() {
                         {roleBadge(user.role)}
                       </div>
                       <p className="text-xs text-slate-500 truncate">
-                        {user.phone || user.email} {user.user_code && `\u00b7 ${user.user_code}`}
+                        {user.email} {user.user_code && `\u00b7 ${user.user_code}`}
                       </p>
                       <p className="text-[11px] text-slate-400 flex items-center gap-1 mt-0.5">
                         <CalendarDays className="h-3 w-3" />
@@ -385,7 +384,7 @@ export default function AdminUsersPage() {
                   <p className="text-base font-semibold text-slate-900">
                     {detailDialog.full_name || 'No name'}
                   </p>
-                  <p className="text-sm text-slate-500">{detailDialog.phone || detailDialog.email}</p>
+                  <p className="text-sm text-slate-500">{detailDialog.email}</p>
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
@@ -394,8 +393,8 @@ export default function AdminUsersPage() {
                   <p className="text-sm font-medium text-slate-700">{detailDialog.user_code || 'N/A'}</p>
                 </div>
                 <div className="space-y-1">
-                  <p className="text-xs text-slate-400">Phone</p>
-                  <p className="text-sm font-medium text-slate-700">{detailDialog.phone || 'N/A'}</p>
+                  <p className="text-xs text-slate-400">Email</p>
+                  <p className="text-sm font-medium text-slate-700">{detailDialog.email}</p>
                 </div>
                 <div className="space-y-1">
                   <p className="text-xs text-slate-400">Role</p>

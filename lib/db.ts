@@ -32,12 +32,18 @@ export async function fetchCollection(
   colName: string,
   filters?: QueryFilter[],
   orderByField?: string,
-  limitCount?: number
+  limitCount?: number,
+  includeDeleted?: boolean
 ) {
   checkDb();
   const dbRef = ref(rtdb);
   const snap = await get(child(dbRef, colName));
   let results = snapshotToArray(snap);
+
+  // Default: exclude soft-deleted records (unless explicitly requested)
+  if (!includeDeleted) {
+    results = results.filter((item: any) => item.is_deleted !== true);
+  }
 
   if (filters) {
     results = results.filter((item: any) => {
