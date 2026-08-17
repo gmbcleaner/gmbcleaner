@@ -49,11 +49,6 @@ function generateUserCode(): string {
   return code;
 }
 
-function isMobileDevice(): boolean {
-  if (typeof window === 'undefined') return false;
-  return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-}
-
 async function ensureProfile(user: User) {
   if (!rtdb) {
     console.error('[Auth] ensureProfile: rtdb is null, cannot write profile');
@@ -269,21 +264,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (!auth) return { error: 'Firebase Auth not configured. Please try again later.' };
       const provider = new GoogleAuthProvider();
 
-      if (isMobileDevice()) {
-        // Mobile: use redirect (popup unreliable on mobile)
-        await signInWithRedirect(auth, provider);
-        return { redirect: true };
+      // Try popup first on ALL devices (including mobile Chrome)
+      // Popup works on modern mobile browsers and avoids redirect persistence issues
+      try {
+        const cred = await signInWithPopup(auth, provider);
+        await ensureProfile(cred.user);
+        await fetchProfile(cred.user.uid);
+        return {};
+      } catch (popupErr: any) {
+        // If popup was blocked or closed, fall back to redirect
+        if (popupErr.code === 'auth/popup-blocked' || popupErr.code === 'auth/popup-closed-by-user') {
+          console.log('[Auth] Popup blocked/closed, falling back to redirect');
+          await signInWithRedirect(auth, provider);
+          return { redirect: true };
+        }
+        // Other popup errors — still try redirect
+        if (popupErr.code !== 'auth/popup-closed-by-user') {
+          console.log('[Auth] Popup failed (' + popupErr.code + '), falling back to redirect');
+          await signInWithRedirect(auth, provider);
+          return { redirect: true };
+        }
+        throw popupErr;
       }
-
-      // Desktop: use popup (better UX — no page reload)
-      const cred = await signInWithPopup(auth, provider);
-      await ensureProfile(cred.user);
-      await fetchProfile(cred.user.uid);
-      return {};
     } catch (err: any) {
       console.error('[Auth] signInWithGoogle error:', err.code);
-      if (err.code === 'auth/popup-blocked') return { error: 'Popup blocked. Please allow popups for this site.' };
-      if (err.code === 'auth/popup-closed-by-user') return { error: 'Sign-in popup was closed.' };
       if (err.code === 'auth/network-request-failed') return { error: 'Network error. Check your internet connection.' };
       return { error: err.message || 'Google sign-in failed' };
     }

@@ -1,5 +1,5 @@
 import { initializeApp, getApps, type FirebaseApp } from 'firebase/app';
-import { getAuth, type Auth } from 'firebase/auth';
+import { getAuth, browserLocalPersistence, type Auth } from 'firebase/auth';
 import { getDatabase, type Database } from 'firebase/database';
 
 const firebaseConfig = {
@@ -26,6 +26,7 @@ try {
 
 try {
   auth = getAuth(app);
+  auth.setPersistence(browserLocalPersistence);
 } catch (err) {
   console.error('[Firebase] Auth init failed:', err);
   auth = null as any;
