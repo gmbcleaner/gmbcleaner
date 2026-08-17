@@ -2,6 +2,7 @@
 
 import { useState, useEffect, FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { useAuth } from '@/components/providers/auth-provider';
 import { useToast } from '@/hooks/use-toast';
@@ -62,19 +63,21 @@ const trustItems = [
 export default function SignUpPage() {
   const router = useRouter();
   const { toast } = useToast();
-  const { user, signUp, signInWithGoogle } = useAuth();
+  const { user, loading, signUp, signInWithGoogle } = useAuth();
   const [googleLoading, setGoogleLoading] = useState(false);
 
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [company, setCompany] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [loading2, setLoading2] = useState(false);
   const [success, setSuccess] = useState(false);
 
   useEffect(() => {
-    if (user) router.replace('/dashboard');
-  }, [user, router]);
+    if (!loading && user) {
+      window.location.href = '/dashboard';
+    }
+  }, [user, loading]);
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -88,7 +91,7 @@ export default function SignUpPage() {
       return;
     }
 
-    setLoading(true);
+    setLoading2(true);
 
     try {
       const result = await signUp(email, password, {
@@ -128,7 +131,24 @@ export default function SignUpPage() {
         variant: 'destructive',
       });
     } finally {
-      setLoading(false);
+      setLoading2(false);
+    }
+  };
+
+  const handleGoogle = async () => {
+    setGoogleLoading(true);
+    try {
+      const result = await signInWithGoogle();
+      if (result.error) {
+        toast({ title: 'Google sign-up failed', description: result.error, variant: 'destructive' });
+        setGoogleLoading(false);
+        return;
+      }
+      // Mobile redirect in progress — AuthProvider will navigate to /dashboard
+      // Desktop popup succeeded — AuthProvider will set user, useEffect above will navigate
+    } catch {
+      toast({ title: 'Google sign-up failed', description: 'An unexpected error occurred.', variant: 'destructive' });
+      setGoogleLoading(false);
     }
   };
 
@@ -136,16 +156,13 @@ export default function SignUpPage() {
     <div className="flex min-h-screen w-full overflow-y-auto">
       {/* Left panel — brand / gradient */}
       <div className="relative hidden w-1/2 overflow-hidden bg-navy-900 lg:flex lg:flex-col lg:justify-between">
-        {/* Gradient backdrop */}
         <div className="absolute inset-0 bg-gradient-to-br from-navy-900 via-navy-800 to-teal-900" />
         <div className="absolute inset-0 bg-grid-dark opacity-30" />
 
-        {/* Floating shapes */}
         <FloatingShape className="h-72 w-72 -left-20 top-24" variant="teal" duration={9} delay={0} />
         <FloatingShape className="h-80 w-80 right-0 top-1/3" variant="sky" duration={11} delay={1.5} />
         <FloatingShape className="h-64 w-64 left-1/4 bottom-10" variant="navy" duration={8} delay={0.8} />
 
-        {/* Brand header */}
         <motion.div
           initial={{ opacity: 0, y: -16 }}
           animate={{ opacity: 1, y: 0 }}
@@ -161,7 +178,6 @@ export default function SignUpPage() {
           </div>
         </motion.div>
 
-        {/* Hero copy */}
         <motion.div
           initial={{ opacity: 0, y: 24 }}
           animate={{ opacity: 1, y: 0 }}
@@ -198,7 +214,6 @@ export default function SignUpPage() {
           animate="visible"
           className="w-full max-w-md"
         >
-          {/* Mobile brand */}
           <div className="mb-8 flex items-center gap-3 lg:hidden">
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-teal-400 to-sky-400 shadow-glow">
               <ShieldCheck className="h-5 w-5 text-white" />
@@ -242,7 +257,6 @@ export default function SignUpPage() {
               <form onSubmit={handleSubmit}>
                 <CardContent className="space-y-4">
                   <motion.div variants={staggerVariants} initial="hidden" animate="visible" className="space-y-4">
-                    {/* Full name */}
                     <motion.div variants={itemVariants} className="space-y-2">
                       <Label htmlFor="full-name">Full name</Label>
                       <div className="relative">
@@ -260,7 +274,6 @@ export default function SignUpPage() {
                       </div>
                     </motion.div>
 
-                    {/* Email */}
                     <motion.div variants={itemVariants} className="space-y-2">
                       <Label htmlFor="email">Email</Label>
                       <div className="relative">
@@ -278,7 +291,6 @@ export default function SignUpPage() {
                       </div>
                     </motion.div>
 
-                    {/* Password */}
                     <motion.div variants={itemVariants} className="space-y-2">
                       <Label htmlFor="password">Password</Label>
                       <div className="relative">
@@ -300,7 +312,6 @@ export default function SignUpPage() {
                       </p>
                     </motion.div>
 
-                    {/* Company (optional) */}
                     <motion.div variants={itemVariants} className="space-y-2">
                       <Label htmlFor="company">
                         Company <span className="text-muted-foreground">(optional)</span>
@@ -326,9 +337,9 @@ export default function SignUpPage() {
                     type="submit"
                     size="lg"
                     className="w-full bg-gradient-to-r from-teal-500 to-sky-500 text-white hover:from-teal-600 hover:to-sky-600"
-                    disabled={loading}
+                    disabled={loading2 || googleLoading}
                   >
-                    {loading ? (
+                    {loading2 ? (
                       <>
                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                         Creating account…
@@ -355,44 +366,31 @@ export default function SignUpPage() {
                     variant="outline"
                     size="lg"
                     className="w-full"
-                    disabled={loading || googleLoading}
-                     onClick={async () => {
-                      setGoogleLoading(true);
-                      try {
-                        const result = await signInWithGoogle();
-                        if (result.error) {
-                          toast({ title: 'Google sign-up failed', description: result.error, variant: 'destructive' });
-                          setGoogleLoading(false);
-                          return;
-                        }
-                        if (result.redirect) return;
-                      } catch {
-                        toast({ title: 'Google sign-up failed', description: 'An unexpected error occurred.', variant: 'destructive' });
-                        setGoogleLoading(false);
-                      }
-                    }}
+                    disabled={loading2 || googleLoading}
+                    onClick={handleGoogle}
                   >
-                    {googleLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : (
+                    {googleLoading ? (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    ) : (
                       <svg className="mr-2 h-4 w-4" viewBox="0 0 24 24"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 01-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
                     )}
                     Sign up with Google
                   </Button>
 
-              <p className="text-center text-sm text-muted-foreground">
-                Already have an account?{' '}
-                <a
-                  href="/login"
-                  className="font-semibold text-teal-600 underline-offset-4 hover:underline"
-                >
-                  Log in
-                </a>
-              </p>
+                  <p className="text-center text-sm text-muted-foreground">
+                    Already have an account?{' '}
+                    <Link
+                      href="/login"
+                      className="font-semibold text-teal-600 underline-offset-4 hover:underline"
+                    >
+                      Log in
+                    </Link>
+                  </p>
                 </CardFooter>
               </form>
             )}
           </Card>
 
-          {/* Trust footer */}
           <div className="mt-6 flex items-center justify-center gap-5 text-xs text-muted-foreground">
             <span className="flex items-center gap-1.5">
               <LockKeyhole className="h-3.5 w-3.5 text-teal-500" />

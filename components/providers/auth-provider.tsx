@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useState, useRef, useCallback, type ReactNode } from 'react';
 import {
   onAuthStateChanged,
   createUserWithEmailAndPassword,
@@ -17,6 +17,18 @@ import {
 import { ref, get, set } from 'firebase/database';
 import { auth, rtdb } from '@/lib/firebase';
 
+export interface UserProfile {
+  id: string;
+  email: string;
+  role: 'user' | 'admin' | 'provider';
+  user_code: string;
+  wallet_balance: number;
+  full_name?: string;
+  company?: string;
+  avatar_url?: string;
+  is_blocked?: boolean;
+}
+
 interface AuthContextValue {
   user: User | null;
   loading: boolean;
@@ -28,20 +40,6 @@ interface AuthContextValue {
   signOut: () => Promise<void>;
   updatePassword: (newPassword: string) => Promise<void>;
   resetPassword: (email: string) => Promise<{ error?: string }>;
-}
-
-interface UserProfile {
-  id: string;
-  email: string;
-  role: 'user' | 'admin' | 'provider';
-  user_code: string;
-  wallet_balance: number;
-  full_name?: string;
-  company?: string;
-  phone?: string;
-  real_email?: string;
-  avatar_url?: string;
-  is_blocked?: boolean;
 }
 
 function generateUserCode(): string {
@@ -97,8 +95,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [profile, setProfile] = useState<UserProfile | null>(null);
+  const redirectProcessed = useRef(false);
 
-  const fetchProfile = async (uid: string): Promise<UserProfile | null> => {
+  const fetchProfile = useCallback(async (uid: string): Promise<UserProfile | null> => {
     try {
       if (!rtdb) return null;
       const snap = await get(ref(rtdb, `profiles/${uid}`));
@@ -107,64 +106,91 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setProfile(data);
         return data;
       }
-    } catch {}
+    } catch {
+      // Silently handle profile fetch errors
+    }
     return null;
-  };
+  }, []);
 
-  const refreshProfile = async () => {
+  const refreshProfile = useCallback(async () => {
     if (user) await fetchProfile(user.uid);
-  };
+  }, [user, fetchProfile]);
 
   useEffect(() => {
     if (!auth) {
       setLoading(false);
       return;
     }
-    try {
-      getRedirectResult(auth)
-        .then(async (result) => {
-          if (result?.user) {
-            ensureProfile(result.user).catch(() => {});
-            if (rtdb) {
-              get(ref(rtdb, `profiles/${result.user.uid}`)).then((snap) => {
-                if (snap.exists() && snap.val().is_blocked) {
-                  firebaseSignOut(auth);
-                }
-              }).catch(() => {});
-            }
-            fetchProfile(result.user.uid).catch(() => {});
-          }
-        })
-        .catch((err) => {
-          console.error('[Auth] getRedirectResult error:', err);
-        });
 
-      const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-        setUser(firebaseUser);
-        if (firebaseUser) {
+    let mounted = true;
+
+    const handleAuth = async () => {
+      try {
+        // Step 1: Handle Google redirect result (critical for mobile)
+        // This MUST complete before we set up the auth state listener
+        if (!redirectProcessed.current) {
           try {
-            const prof = await fetchProfile(firebaseUser.uid);
-            if (prof && prof.is_blocked) {
-              await firebaseSignOut(auth);
-              setUser(null);
-              setProfile(null);
+            const result = await getRedirectResult(auth);
+            if (result?.user && mounted) {
+              redirectProcessed.current = true;
+              // Ensure profile exists in RTDB (fire and forget — don't block)
+              ensureProfile(result.user).catch(() => {});
+              // Navigate to dashboard immediately after successful redirect
+              // Use window.location for reliable navigation after redirect
+              if (typeof window !== 'undefined') {
+                window.location.href = '/dashboard';
+                return; // Don't proceed further — navigation will reload the page
+              }
             }
           } catch (err) {
-            console.error('[Auth] Profile fetch error:', err);
+            console.error('[Auth] getRedirectResult error:', err);
           }
-        } else {
-          setProfile(null);
         }
-        setLoading(false);
-      });
-      const timeout = setTimeout(() => setLoading(false), 5000);
-      return () => { unsubscribe(); clearTimeout(timeout); };
-    } catch {
-      setLoading(false);
-    }
-  }, []);
 
-  const signUp = async (email: string, password: string, meta?: Record<string, any>): Promise<{ error?: string }> => {
+        // Step 2: Listen for auth state changes (normal flow)
+        const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+          if (!mounted) return;
+          setUser(firebaseUser);
+          if (firebaseUser) {
+            try {
+              const prof = await fetchProfile(firebaseUser.uid);
+              if (prof && prof.is_blocked) {
+                await firebaseSignOut(auth);
+                setUser(null);
+                setProfile(null);
+              }
+            } catch {
+              // Profile fetch failed — user can still use the app
+            }
+          } else {
+            setProfile(null);
+          }
+          setLoading(false);
+        });
+
+        // Safety timeout — don't stay in loading state forever
+        const timeout = setTimeout(() => {
+          if (mounted) setLoading(false);
+        }, 5000);
+
+        return () => {
+          mounted = false;
+          unsubscribe();
+          clearTimeout(timeout);
+        };
+      } catch {
+        if (mounted) setLoading(false);
+      }
+    };
+
+    handleAuth();
+
+    return () => {
+      mounted = false;
+    };
+  }, [fetchProfile]);
+
+  const signUp = useCallback(async (email: string, password: string, meta?: Record<string, any>): Promise<{ error?: string }> => {
     try {
       if (!auth) return { error: 'Firebase Auth not configured. Please try again later.' };
       const cred = await createUserWithEmailAndPassword(auth, email, password);
@@ -181,20 +207,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
       return {};
     } catch (err: any) {
-      console.error('[Auth] signUp error:', err.code, err.message);
+      console.error('[Auth] signUp error:', err.code);
       if (err.code === 'auth/email-already-in-use') return { error: 'An account with this email already exists.' };
       if (err.code === 'auth/weak-password') return { error: 'Password is too weak. Use at least 8 characters.' };
       if (err.code === 'auth/invalid-email') return { error: 'Invalid email address.' };
       if (err.code === 'auth/network-request-failed') return { error: 'Network error. Check your internet connection.' };
       return { error: err.message || 'Sign up failed' };
     }
-  };
+  }, []);
 
-  const signIn = async (email: string, password: string): Promise<{ error?: string }> => {
+  const signIn = useCallback(async (email: string, password: string): Promise<{ error?: string }> => {
     try {
       if (!auth) return { error: 'Firebase Auth not configured. Please try again later.' };
       const cred = await signInWithEmailAndPassword(auth, email, password);
-
       if (rtdb) {
         try {
           const snap = await get(ref(rtdb, `profiles/${cred.user.uid}`));
@@ -202,12 +227,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             await firebaseSignOut(auth);
             return { error: 'Your account has been blocked. Please contact support.' };
           }
-        } catch {}
+        } catch {
+          // Block check failed — allow sign in
+        }
       }
-
       return {};
     } catch (err: any) {
-      console.error('[Auth] signIn error:', err.code, err.message);
+      console.error('[Auth] signIn error:', err.code);
       if (err.code === 'auth/user-not-found') return { error: 'No account found with this email.' };
       if (err.code === 'auth/wrong-password') return { error: 'Incorrect password. Please try again.' };
       if (err.code === 'auth/invalid-credential') return { error: 'Invalid email or password. Please try again.' };
@@ -215,42 +241,44 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (err.code === 'auth/network-request-failed') return { error: 'Network error. Check your internet connection.' };
       return { error: err.message || 'Sign in failed' };
     }
-  };
+  }, []);
 
-  const signInWithGoogle = async (): Promise<{ error?: string; redirect?: boolean }> => {
+  const signInWithGoogle = useCallback(async (): Promise<{ error?: string; redirect?: boolean }> => {
     try {
       if (!auth) return { error: 'Firebase Auth not configured. Please try again later.' };
       const provider = new GoogleAuthProvider();
 
       if (isMobileDevice()) {
+        // Mobile: use redirect (popup unreliable on mobile)
         await signInWithRedirect(auth, provider);
         return { redirect: true };
       }
 
+      // Desktop: use popup (better UX — no page reload)
       const cred = await signInWithPopup(auth, provider);
       await ensureProfile(cred.user);
       await fetchProfile(cred.user.uid);
       return {};
     } catch (err: any) {
-      console.error('[Auth] signInWithGoogle error:', err.code, err.message);
+      console.error('[Auth] signInWithGoogle error:', err.code);
       if (err.code === 'auth/popup-blocked') return { error: 'Popup blocked. Please allow popups for this site.' };
       if (err.code === 'auth/popup-closed-by-user') return { error: 'Sign-in popup was closed.' };
       if (err.code === 'auth/network-request-failed') return { error: 'Network error. Check your internet connection.' };
       return { error: err.message || 'Google sign-in failed' };
     }
-  };
+  }, [fetchProfile]);
 
-  const signOut = async () => {
+  const signOut = useCallback(async () => {
     if (auth) await firebaseSignOut(auth);
     setProfile(null);
-  };
+  }, []);
 
-  const updatePassword = async (newPassword: string) => {
+  const updatePassword = useCallback(async (newPassword: string) => {
     if (!auth || !auth.currentUser) throw new Error('Not authenticated');
     await firebaseUpdatePassword(auth.currentUser, newPassword);
-  };
+  }, []);
 
-  const resetPassword = async (email: string): Promise<{ error?: string }> => {
+  const resetPassword = useCallback(async (email: string): Promise<{ error?: string }> => {
     try {
       if (!auth) return { error: 'Firebase Auth not configured' };
       await sendPasswordResetEmail(auth, email);
@@ -258,7 +286,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } catch (err: any) {
       return { error: err.message || 'Failed to send reset email' };
     }
-  };
+  }, []);
 
   return (
     <AuthContext.Provider value={{ user, loading, profile, refreshProfile, signUp, signIn, signInWithGoogle, signOut, updatePassword, resetPassword }}>
