@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, FormEvent } from 'react';
+import { useState, useEffect, FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { useAuth } from '@/components/providers/auth-provider';
@@ -62,7 +62,7 @@ const trustItems = [
 export default function SignUpPage() {
   const router = useRouter();
   const { toast } = useToast();
-  const { signUp, signInWithGoogle } = useAuth();
+  const { user, signUp, signInWithGoogle } = useAuth();
   const [googleLoading, setGoogleLoading] = useState(false);
 
   const [fullName, setFullName] = useState('');
@@ -71,6 +71,10 @@ export default function SignUpPage() {
   const [company, setCompany] = useState('');
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
+
+  useEffect(() => {
+    if (user) router.replace('/dashboard');
+  }, [user, router]);
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -360,8 +364,7 @@ export default function SignUpPage() {
                         setGoogleLoading(false);
                         return;
                       }
-                      setSuccess(true);
-                      setTimeout(() => router.push('/dashboard'), 1500);
+                      // redirect handled by useEffect watching `user`
                     }}
                   >
                     {googleLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : (

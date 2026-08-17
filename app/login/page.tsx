@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/components/providers/auth-provider';
@@ -13,12 +13,16 @@ import { toast } from '@/hooks/use-toast';
 
 export default function LoginPage() {
   const router = useRouter();
-  const { signIn, signInWithGoogle, resetPassword } = useAuth();
+  const { user, signIn, signInWithGoogle, resetPassword } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const [error, setError] = useState('');
+
+  useEffect(() => {
+    if (user) router.replace('/dashboard');
+  }, [user, router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
