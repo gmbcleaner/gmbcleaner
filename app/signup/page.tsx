@@ -73,8 +73,8 @@ export default function SignUpPage() {
   const [success, setSuccess] = useState(false);
 
   useEffect(() => {
-    if (user) window.location.href = '/dashboard';
-  }, [user]);
+    if (user) router.replace('/dashboard');
+  }, [user, router]);
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -366,9 +366,9 @@ export default function SignUpPage() {
                           return;
                         }
                         if (result.redirect) return;
-                        window.location.href = '/dashboard';
                       } catch {
-                        window.location.href = '/dashboard';
+                        toast({ title: 'Google sign-up failed', description: 'An unexpected error occurred.', variant: 'destructive' });
+                        setGoogleLoading(false);
                       }
                     }}
                   >

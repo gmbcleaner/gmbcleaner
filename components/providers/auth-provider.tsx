@@ -124,23 +124,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       getRedirectResult(auth)
         .then(async (result) => {
           if (result?.user) {
-            await ensureProfile(result.user);
+            ensureProfile(result.user).catch(() => {});
             if (rtdb) {
-              try {
-                const snap = await get(ref(rtdb, `profiles/${result.user.uid}`));
+              get(ref(rtdb, `profiles/${result.user.uid}`)).then((snap) => {
                 if (snap.exists() && snap.val().is_blocked) {
-                  await firebaseSignOut(auth);
-                  return;
+                  firebaseSignOut(auth);
                 }
-              } catch {}
+              }).catch(() => {});
             }
-            await fetchProfile(result.user.uid);
-            if (typeof window !== 'undefined' && !window.location.pathname.startsWith('/dashboard')) {
-              window.location.href = '/dashboard';
-            }
+            fetchProfile(result.user.uid).catch(() => {});
           }
         })
-        .catch(() => {});
+        .catch((err) => {
+          console.error('[Auth] getRedirectResult error:', err);
+        });
 
       const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
         setUser(firebaseUser);

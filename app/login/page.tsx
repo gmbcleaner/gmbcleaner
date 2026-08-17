@@ -21,8 +21,8 @@ export default function LoginPage() {
   const [error, setError] = useState('');
 
   useEffect(() => {
-    if (user) window.location.href = '/dashboard';
-  }, [user]);
+    if (user) router.replace('/dashboard');
+  }, [user, router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -51,9 +51,9 @@ export default function LoginPage() {
         return;
       }
       if (result.redirect) return;
-      window.location.href = '/dashboard';
     } catch {
-      window.location.href = '/dashboard';
+      setError('Google sign-in failed. Please try again.');
+      setGoogleLoading(false);
     }
   };
 
