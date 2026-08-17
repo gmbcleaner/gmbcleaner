@@ -8,34 +8,23 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
-import { User, Lock, Shield, Smartphone } from 'lucide-react';
-import { normalizePhoneToE164 } from '@/lib/phone';
+import { User, Lock, Shield } from 'lucide-react';
 
 export default function SettingsPage() {
   const { user, profile, refreshProfile, updatePassword } = useAuth();
   const [fullName, setFullName] = useState('');
   const [company, setCompany] = useState('');
-  const [phone, setPhone] = useState('');
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [saving, setSaving] = useState(false);
 
   const handleProfileUpdate = async () => {
     if (!user) return;
-    if (phone && !normalizePhoneToE164(phone)) {
-      toast({
-        title: 'Invalid phone number',
-        description: 'Enter a valid 11-digit phone number, e.g. 01XXXXXXXXX.',
-        variant: 'destructive',
-      });
-      return;
-    }
     setSaving(true);
     try {
       await updateDocument('profiles', user.uid, {
         full_name: fullName || null,
         company: company || null,
-        phone: phone ? normalizePhoneToE164(phone) : null,
       });
       await refreshProfile();
       toast({ title: 'Profile updated', description: 'Your profile has been saved.' });
@@ -65,16 +54,9 @@ export default function SettingsPage() {
     if (!profile) return;
     setFullName(profile.full_name || '');
     setCompany(profile.company || '');
-    setPhone(profile.phone || '');
   }, [profile]);
 
-  const displayEmail =
-    profile?.real_email ||
-    (profile?.email && !profile.email.includes('@phone.gmbcleaner')
-      ? profile.email
-      : user?.email?.includes('@phone.gmbcleaner')
-      ? ''
-      : profile?.email || user?.email || '');
+  const displayEmail = profile?.email || user?.email || '';
 
   return (
     <div className="space-y-6">
@@ -90,19 +72,6 @@ export default function SettingsPage() {
             <CardDescription>Update your personal information.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label>Phone number</Label>
-              <div className="relative">
-                <Smartphone className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  placeholder="01XXXXXXXXX"
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                  className="pl-9"
-                />
-              </div>
-              <p className="text-xs text-slate-400">Used to sign in to your account.</p>
-            </div>
             <div className="space-y-2">
               <Label>Email</Label>
               <Input value={displayEmail || 'Not provided'} disabled />

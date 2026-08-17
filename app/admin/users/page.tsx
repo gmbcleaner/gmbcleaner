@@ -41,7 +41,6 @@ interface UserProfile {
   email: string;
   full_name?: string;
   company?: string;
-  phone?: string;
   role: string;
   wallet_balance: number;
   is_blocked?: boolean;
