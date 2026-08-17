@@ -19,19 +19,22 @@ let rtdb: Database;
 
 try {
   app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
-} catch {
+} catch (err) {
+  console.error('[Firebase] App init failed:', err);
   app = getApps()[0] || initializeApp(firebaseConfig);
 }
 
 try {
   auth = getAuth(app);
-} catch {
+} catch (err) {
+  console.error('[Firebase] Auth init failed:', err);
   auth = null as any;
 }
 
 try {
   rtdb = getDatabase(app);
-} catch {
+} catch (err) {
+  console.error('[Firebase] Database init failed:', err);
   rtdb = null as any;
 }
 

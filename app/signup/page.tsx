@@ -17,7 +17,6 @@ import {
   CardFooter,
 } from '@/components/ui/card';
 import { FloatingShape } from '@/components/animation/floating';
-import { normalizePhoneToE164, phoneToAccountEmail, isPhoneInput } from '@/lib/phone';
 import {
   ShieldCheck,
   Mail,
@@ -30,7 +29,6 @@ import {
   LockKeyhole,
   BadgeCheck,
   Receipt,
-  Smartphone,
 } from 'lucide-react';
 
 const containerVariants = {
@@ -68,7 +66,6 @@ export default function SignUpPage() {
   const [googleLoading, setGoogleLoading] = useState(false);
 
   const [fullName, setFullName] = useState('');
-  const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [company, setCompany] = useState('');
@@ -91,27 +88,12 @@ export default function SignUpPage() {
       return;
     }
 
-    if (!normalizePhoneToE164(phone)) {
-      toast({
-        title: 'Invalid phone number',
-        description: 'Enter a valid 11-digit phone number, e.g. 01XXXXXXXXX.',
-        variant: 'destructive',
-      });
-      return;
-    }
-
-    const hasEmail = email && isPhoneInput(email) === false && email.includes('@');
-
     setLoading(true);
 
     try {
-      const accountId = phoneToAccountEmail(normalizePhoneToE164(phone)!);
-
-      const result = await signUp(accountId, password, {
+      const result = await signUp(email, password, {
         full_name: fullName,
         company: company || undefined,
-        phone: normalizePhoneToE164(phone)!,
-        email: hasEmail ? email : undefined,
       });
 
       if (result.error) {
@@ -119,8 +101,8 @@ export default function SignUpPage() {
         let description = result.error;
 
         if (result.error.toLowerCase().includes('already') || result.error.toLowerCase().includes('registered')) {
-          title = 'Phone number already registered';
-          description = 'An account with this phone number already exists. Try logging in instead.';
+          title = 'Email already registered';
+          description = 'An account with this email already exists. Try logging in instead.';
         } else if (result.error.toLowerCase().includes('weak') || result.error.toLowerCase().includes('password')) {
           title = 'Weak password';
           description = 'Please choose a stronger password (at least 8 characters).';
@@ -278,34 +260,9 @@ export default function SignUpPage() {
                       </div>
                     </motion.div>
 
-                    {/* Phone number */}
+                    {/* Email */}
                     <motion.div variants={itemVariants} className="space-y-2">
-                      <Label htmlFor="phone">Phone number</Label>
-                      <div className="relative">
-                        <Smartphone className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                        <Input
-                          id="phone"
-                          type="tel"
-                          inputMode="tel"
-                          placeholder="01XXXXXXXXX"
-                          autoComplete="tel"
-                          autoFocus
-                          required
-                          value={phone}
-                          onChange={(e) => setPhone(e.target.value)}
-                          className="pl-9"
-                        />
-                      </div>
-                      <p className="text-xs text-muted-foreground">
-                        Sign in with your phone number later.
-                      </p>
-                    </motion.div>
-
-                    {/* Email (optional) */}
-                    <motion.div variants={itemVariants} className="space-y-2">
-                      <Label htmlFor="email">
-                        Email <span className="text-muted-foreground">(optional)</span>
-                      </Label>
+                      <Label htmlFor="email">Email</Label>
                       <div className="relative">
                         <Mail className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                         <Input
@@ -313,6 +270,7 @@ export default function SignUpPage() {
                           type="email"
                           placeholder="you@company.com"
                           autoComplete="email"
+                          required
                           value={email}
                           onChange={(e) => setEmail(e.target.value)}
                           className="pl-9"

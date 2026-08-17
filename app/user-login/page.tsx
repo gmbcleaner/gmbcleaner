@@ -8,8 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
-import { ShieldCheck, Lock, ArrowRight, Loader2, Smartphone } from 'lucide-react';
-import { resolveLoginEmail } from '@/lib/phone';
+import { ShieldCheck, Mail, Lock, ArrowRight, Loader2 } from 'lucide-react';
 
 export default function UserLoginPage() {
   const router = useRouter();
@@ -25,10 +24,10 @@ export default function UserLoginPage() {
     setLoading(true);
     setError('');
 
-    const result = await signIn(resolveLoginEmail(email), password);
+    const result = await signIn(email, password);
 
     if (result.error) {
-      setError('Invalid phone number/email or password. Please try again.');
+      setError('Invalid email or password. Please try again.');
       setLoading(false);
       return;
     }
@@ -66,15 +65,15 @@ export default function UserLoginPage() {
         <Card className="shadow-card">
           <CardHeader>
             <CardTitle className="text-2xl font-bold">Sign in to your account</CardTitle>
-            <CardDescription>Enter your phone number or email and password to access your dashboard.</CardDescription>
+            <CardDescription>Enter your email and password to access your dashboard.</CardDescription>
           </CardHeader>
           <form onSubmit={handleSubmit}>
             <CardContent className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="email">Phone number or email</Label>
+                <Label htmlFor="email">Email</Label>
                 <div className="relative">
-                  <Smartphone className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                  <Input id="email" type="text" placeholder="01XXXXXXXXX or you@company.com" required value={email} onChange={(e) => setEmail(e.target.value)} className="pl-9" />
+                  <Mail className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                  <Input id="email" type="email" placeholder="you@company.com" required value={email} onChange={(e) => setEmail(e.target.value)} className="pl-9" />
                 </div>
               </div>
               <div className="space-y-2">

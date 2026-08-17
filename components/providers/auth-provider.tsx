@@ -145,11 +145,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
         setUser(firebaseUser);
         if (firebaseUser) {
-          const prof = await fetchProfile(firebaseUser.uid);
-          if (prof && prof.is_blocked) {
-            await firebaseSignOut(auth);
-            setUser(null);
-            setProfile(null);
+          try {
+            const prof = await fetchProfile(firebaseUser.uid);
+            if (prof && prof.is_blocked) {
+              await firebaseSignOut(auth);
+              setUser(null);
+              setProfile(null);
+            }
+          } catch (err) {
+            console.error('[Auth] Profile fetch error:', err);
           }
         } else {
           setProfile(null);
@@ -165,13 +169,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signUp = async (email: string, password: string, meta?: Record<string, any>): Promise<{ error?: string }> => {
     try {
-      if (!auth) return { error: 'Firebase Auth not configured' };
+      if (!auth) return { error: 'Firebase Auth not configured. Please try again later.' };
       const cred = await createUserWithEmailAndPassword(auth, email, password);
       if (rtdb) {
         await set(ref(rtdb, `profiles/${cred.user.uid}`), {
           email,
-          phone: meta?.phone || null,
-          real_email: meta?.email || null,
           role: 'user',
           user_code: generateUserCode(),
           wallet_balance: 0,
@@ -182,13 +184,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
       return {};
     } catch (err: any) {
+      console.error('[Auth] signUp error:', err.code, err.message);
+      if (err.code === 'auth/email-already-in-use') return { error: 'An account with this email already exists.' };
+      if (err.code === 'auth/weak-password') return { error: 'Password is too weak. Use at least 8 characters.' };
+      if (err.code === 'auth/invalid-email') return { error: 'Invalid email address.' };
+      if (err.code === 'auth/network-request-failed') return { error: 'Network error. Check your internet connection.' };
       return { error: err.message || 'Sign up failed' };
     }
   };
 
   const signIn = async (email: string, password: string): Promise<{ error?: string }> => {
     try {
-      if (!auth) return { error: 'Firebase Auth not configured' };
+      if (!auth) return { error: 'Firebase Auth not configured. Please try again later.' };
       const cred = await signInWithEmailAndPassword(auth, email, password);
 
       if (rtdb) {
@@ -203,13 +210,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       return {};
     } catch (err: any) {
+      console.error('[Auth] signIn error:', err.code, err.message);
+      if (err.code === 'auth/user-not-found') return { error: 'No account found with this email.' };
+      if (err.code === 'auth/wrong-password') return { error: 'Incorrect password. Please try again.' };
+      if (err.code === 'auth/invalid-credential') return { error: 'Invalid email or password. Please try again.' };
+      if (err.code === 'auth/too-many-requests') return { error: 'Too many attempts. Please try again later.' };
+      if (err.code === 'auth/network-request-failed') return { error: 'Network error. Check your internet connection.' };
       return { error: err.message || 'Sign in failed' };
     }
   };
 
   const signInWithGoogle = async (): Promise<{ error?: string; redirect?: boolean }> => {
     try {
-      if (!auth) return { error: 'Firebase Auth not configured' };
+      if (!auth) return { error: 'Firebase Auth not configured. Please try again later.' };
       const provider = new GoogleAuthProvider();
 
       if (isMobileDevice()) {
@@ -222,6 +235,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       await fetchProfile(cred.user.uid);
       return {};
     } catch (err: any) {
+      console.error('[Auth] signInWithGoogle error:', err.code, err.message);
+      if (err.code === 'auth/popup-blocked') return { error: 'Popup blocked. Please allow popups for this site.' };
+      if (err.code === 'auth/popup-closed-by-user') return { error: 'Sign-in popup was closed.' };
+      if (err.code === 'auth/network-request-failed') return { error: 'Network error. Check your internet connection.' };
       return { error: err.message || 'Google sign-in failed' };
     }
   };
