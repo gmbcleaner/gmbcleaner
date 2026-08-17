@@ -129,7 +129,7 @@ export default function SignUpPage() {
   };
 
   return (
-    <div className="flex min-h-screen w-full">
+    <div className="flex min-h-screen w-full overflow-y-auto">
       {/* Left panel — brand / gradient */}
       <div className="relative hidden w-1/2 overflow-hidden bg-navy-900 lg:flex lg:flex-col lg:justify-between">
         {/* Gradient backdrop */}
@@ -187,7 +187,7 @@ export default function SignUpPage() {
       </div>
 
       {/* Right panel — form */}
-      <div className="flex w-full items-center justify-center bg-gradient-to-b from-slate-50 to-white px-6 py-12 lg:w-1/2">
+      <div className="flex w-full items-center justify-center bg-gradient-to-b from-slate-50 to-white px-6 py-12 sm:py-8 lg:w-1/2">
         <motion.div
           variants={containerVariants}
           initial="hidden"

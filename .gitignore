@@ -2,6 +2,7 @@
 
 # dependencies
 /node_modules
+project/node_modules
 /.pnp
 .pnp.js
 
@@ -11,9 +12,12 @@
 # next.js
 /.next/
 /out/
+project/.next/
+project/out/
 
 # production
 /build
+project/build/
 
 # misc
 .DS_Store

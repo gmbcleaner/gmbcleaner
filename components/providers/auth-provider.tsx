@@ -6,6 +6,8 @@ import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
   signInWithPopup,
+  signInWithRedirect,
+  getRedirectResult,
   GoogleAuthProvider,
   signOut as firebaseSignOut,
   updatePassword as firebaseUpdatePassword,
@@ -37,6 +39,7 @@ interface UserProfile {
   full_name?: string;
   company?: string;
   avatar_url?: string;
+  is_blocked?: boolean;
 }
 
 function generateUserCode(): string {
@@ -44,6 +47,11 @@ function generateUserCode(): string {
   let code = 'GMB-';
   for (let i = 0; i < 6; i++) code += chars[Math.floor(Math.random() * chars.length)];
   return code;
+}
+
+function isMobileDevice(): boolean {
+  if (typeof window === 'undefined') return false;
+  return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
 }
 
 async function ensureProfile(user: User) {
@@ -88,14 +96,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [profile, setProfile] = useState<UserProfile | null>(null);
 
-  const fetchProfile = async (uid: string) => {
+  const fetchProfile = async (uid: string): Promise<UserProfile | null> => {
     try {
-      if (!rtdb) return;
+      if (!rtdb) return null;
       const snap = await get(ref(rtdb, `profiles/${uid}`));
       if (snap.exists()) {
-        setProfile({ id: uid, ...snap.val() } as UserProfile);
+        const data = { id: uid, ...snap.val() } as UserProfile;
+        setProfile(data);
+        return data;
       }
     } catch {}
+    return null;
   };
 
   const refreshProfile = async () => {
@@ -108,17 +119,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return;
     }
     try {
+      getRedirectResult(auth)
+        .then(async (result) => {
+          if (result?.user) {
+            await ensureProfile(result.user);
+            if (rtdb) {
+              try {
+                const snap = await get(ref(rtdb, `profiles/${result.user.uid}`));
+                if (snap.exists() && snap.val().is_blocked) {
+                  await firebaseSignOut(auth);
+                  return;
+                }
+              } catch {}
+            }
+            await fetchProfile(result.user.uid);
+          }
+        })
+        .catch(() => {});
+
       const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
         setUser(firebaseUser);
         if (firebaseUser) {
-          await fetchProfile(firebaseUser.uid);
-          if (rtdb) {
-            const snap = await get(ref(rtdb, `profiles/${firebaseUser.uid}`));
-            if (snap.exists() && snap.val().is_blocked) {
-              await firebaseSignOut(auth);
-              setUser(null);
-              setProfile(null);
-            }
+          const prof = await fetchProfile(firebaseUser.uid);
+          if (prof && prof.is_blocked) {
+            await firebaseSignOut(auth);
+            setUser(null);
+            setProfile(null);
           }
         } else {
           setProfile(null);
@@ -156,22 +182,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signIn = async (email: string, password: string): Promise<{ error?: string }> => {
     try {
       if (!auth) return { error: 'Firebase Auth not configured' };
+      const cred = await signInWithEmailAndPassword(auth, email, password);
 
       if (rtdb) {
-        const emailSnap = await get(ref(rtdb, 'profiles'));
-        if (emailSnap.exists()) {
-          const profiles = emailSnap.val();
-          const entry = Object.entries(profiles).find(([, v]: [string, any]) => v.email === email);
-          if (entry) {
-            const [, profileData] = entry as [string, any];
-            if (profileData.is_blocked) {
-              return { error: 'Your account has been blocked. Please contact support.' };
-            }
+        try {
+          const snap = await get(ref(rtdb, `profiles/${cred.user.uid}`));
+          if (snap.exists() && snap.val().is_blocked) {
+            await firebaseSignOut(auth);
+            return { error: 'Your account has been blocked. Please contact support.' };
           }
-        }
+        } catch {}
       }
 
-      await signInWithEmailAndPassword(auth, email, password);
       return {};
     } catch (err: any) {
       return { error: err.message || 'Sign in failed' };
@@ -182,6 +204,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       if (!auth) return { error: 'Firebase Auth not configured' };
       const provider = new GoogleAuthProvider();
+
+      if (isMobileDevice()) {
+        await signInWithRedirect(auth, provider);
+        return {};
+      }
+
       const cred = await signInWithPopup(auth, provider);
       await ensureProfile(cred.user);
 

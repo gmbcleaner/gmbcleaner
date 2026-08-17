@@ -62,7 +62,7 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gradient-to-b from-slate-50 to-white px-4">
+    <div className="flex min-h-screen items-center justify-center overflow-y-auto bg-gradient-to-b from-slate-50 to-white px-4 py-8">
       <div className="w-full max-w-md">
         <div className="mb-8 flex items-center justify-center gap-3">
           <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-teal-400 to-sky-400">
