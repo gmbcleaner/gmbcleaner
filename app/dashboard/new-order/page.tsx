@@ -493,10 +493,10 @@ export default function NewOrderPage() {
                   {noticeOpen && (
                     <div className="mt-2 ml-8 rounded-md border border-amber-200 bg-amber-100/60 p-3">
                       <p className="text-sm text-amber-800 leading-relaxed">
-                        Reviews older than <span className="font-bold underline">1 month</span> are <span className="font-bold underline">not guaranteed</span> to be removed. We will attempt the removal process, but if the review is not removed, we are <span className="font-bold underline">not responsible</span>.
+                        <span className="font-bold">Disclaimer:</span> We do <span className="font-bold underline">not guarantee</span> the removal of any review. We will attempt the dispute process, but success depends on various factors.
                       </p>
                       <p className="text-sm text-amber-800 leading-relaxed mt-2">
-                        Please order at your own risk for reviews older than 1 month.
+                        However, for reviews older than <span className="font-bold underline">1 month</span>, the chances of removal are significantly lower and we are <span className="font-bold underline">not responsible</span> if they are not removed. Please order at your own risk.
                       </p>
                     </div>
                   )}
