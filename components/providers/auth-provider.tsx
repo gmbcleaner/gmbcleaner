@@ -141,9 +141,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             const result = await getRedirectResult(auth);
             if (result?.user && mounted) {
               redirectProcessed.current = true;
-              // Ensure profile exists BEFORE navigating away
               await ensureProfile(result.user);
-              // Navigate to dashboard
               if (typeof window !== 'undefined') {
                 window.location.href = '/dashboard';
                 return;
@@ -151,6 +149,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             }
           } catch (err) {
             console.error('[Auth] getRedirectResult error:', err);
+            // If redirect failed but user might still be auth'd via persistence,
+            // onAuthStateChanged below will handle it
           }
         }
 

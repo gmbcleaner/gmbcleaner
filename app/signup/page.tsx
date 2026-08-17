@@ -115,15 +115,11 @@ export default function SignUpPage() {
         return;
       }
 
-      setSuccess(true);
+      // User is now authenticated — useEffect above will redirect to /dashboard
       toast({
         title: 'Account created',
-        description: 'Your GMBCLEANER account is ready. Redirecting you to login…',
+        description: 'Welcome to GMBCLEANER!',
       });
-
-      setTimeout(() => {
-        router.push('/login');
-      }, 2000);
     } catch {
       toast({
         title: 'Something went wrong',
