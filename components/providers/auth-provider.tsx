@@ -47,22 +47,27 @@ function generateUserCode(): string {
 }
 
 async function ensureProfile(user: User) {
-  try {
-    if (!rtdb) return;
-    const snap = await get(ref(rtdb, `profiles/${user.uid}`));
-    if (!snap.exists()) {
-      await set(ref(rtdb, `profiles/${user.uid}`), {
-        email: user.email,
-        role: 'user',
-        user_code: generateUserCode(),
-        wallet_balance: 0,
-        full_name: user.displayName || null,
-        company: null,
-        avatar_url: user.photoURL || null,
-        created_at: new Date().toISOString(),
-      });
+  if (!rtdb) return;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      const snap = await get(ref(rtdb, `profiles/${user.uid}`));
+      if (!snap.exists()) {
+        await set(ref(rtdb, `profiles/${user.uid}`), {
+          email: user.email,
+          role: 'user',
+          user_code: generateUserCode(),
+          wallet_balance: 0,
+          full_name: user.displayName || null,
+          company: null,
+          avatar_url: user.photoURL || null,
+          created_at: new Date().toISOString(),
+        });
+      }
+      return;
+    } catch {
+      if (attempt < 2) await new Promise((r) => setTimeout(r, 1000 * (attempt + 1)));
     }
-  } catch {}
+  }
 }
 
 const AuthContext = createContext<AuthContextValue>({
@@ -181,10 +186,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       await ensureProfile(cred.user);
 
       if (rtdb) {
-        const snap = await get(ref(rtdb, `profiles/${cred.user.uid}`));
-        if (snap.exists() && snap.val().is_blocked) {
-          await firebaseSignOut(auth);
-          return { error: 'Your account has been blocked. Please contact support.' };
+        for (let attempt = 0; attempt < 3; attempt++) {
+          try {
+            const snap = await get(ref(rtdb, `profiles/${cred.user.uid}`));
+            if (snap.exists() && snap.val().is_blocked) {
+              await firebaseSignOut(auth);
+              return { error: 'Your account has been blocked. Please contact support.' };
+            }
+            break;
+          } catch {
+            if (attempt < 2) await new Promise((r) => setTimeout(r, 1000 * (attempt + 1)));
+          }
         }
       }
 
