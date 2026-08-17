@@ -94,6 +94,7 @@ export default function NewOrderPage() {
   const [serviceFee, setServiceFee] = useState(DEFAULT_SERVICE_FEE);
   const [minDeposit, setMinDeposit] = useState(DEFAULT_MIN_DEPOSIT);
   const [agreeTerms, setAgreeTerms] = useState(false);
+  const [noticeOpen, setNoticeOpen] = useState(false);
 
   useEffect(() => {
     fetchCollection('pricing_settings')
@@ -473,6 +474,32 @@ export default function NewOrderPage() {
                       </span>
                     </div>
                   </div>
+                </div>
+
+                <div className="rounded-lg border-2 border-amber-300 bg-amber-50 p-4">
+                  <button
+                    type="button"
+                    onClick={() => setNoticeOpen(!noticeOpen)}
+                    className="flex items-start gap-3 w-full text-left"
+                  >
+                    <AlertTriangle className="h-5 w-5 shrink-0 text-amber-600 mt-0.5" />
+                    <div className="space-y-1 flex-1">
+                      <p className="text-sm font-bold text-amber-800 flex items-center gap-1">
+                        Important Notice
+                        <span className={`text-xs font-normal transition-transform ${noticeOpen ? 'rotate-90' : ''}`}>▶</span>
+                      </p>
+                    </div>
+                  </button>
+                  {noticeOpen && (
+                    <div className="mt-2 ml-8 rounded-md border border-amber-200 bg-amber-100/60 p-3">
+                      <p className="text-sm text-amber-800 leading-relaxed">
+                        Reviews older than <span className="font-bold underline">1 month</span> are <span className="font-bold underline">not guaranteed</span> to be removed. We will attempt the removal process, but if the review is not removed, we are <span className="font-bold underline">not responsible</span>.
+                      </p>
+                      <p className="text-sm text-amber-800 leading-relaxed mt-2">
+                        Please order at your own risk for reviews older than 1 month.
+                      </p>
+                    </div>
+                  )}
                 </div>
 
                 {notes.trim() && (
