@@ -21,8 +21,8 @@ export default function LoginPage() {
   const [error, setError] = useState('');
 
   useEffect(() => {
-    if (user) router.replace('/dashboard');
-  }, [user, router]);
+    if (user) window.location.href = '/dashboard';
+  }, [user]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -43,13 +43,17 @@ export default function LoginPage() {
   const handleGoogle = async () => {
     setGoogleLoading(true);
     setError('');
-    const result = await signInWithGoogle();
-    if (result.error) {
-      setError(result.error);
-      setGoogleLoading(false);
-      return;
+    try {
+      const result = await signInWithGoogle();
+      if (result.error) {
+        setError(result.error);
+        setGoogleLoading(false);
+        return;
+      }
+      window.location.href = '/dashboard';
+    } catch {
+      window.location.href = '/dashboard';
     }
-    router.push('/dashboard');
   };
 
   const handleForgotPassword = async () => {

@@ -73,8 +73,8 @@ export default function SignUpPage() {
   const [success, setSuccess] = useState(false);
 
   useEffect(() => {
-    if (user) router.replace('/dashboard');
-  }, [user, router]);
+    if (user) window.location.href = '/dashboard';
+  }, [user]);
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -358,13 +358,17 @@ export default function SignUpPage() {
                     disabled={loading || googleLoading}
                      onClick={async () => {
                       setGoogleLoading(true);
-                      const result = await signInWithGoogle();
-                      if (result.error) {
-                        toast({ title: 'Google sign-up failed', description: result.error, variant: 'destructive' });
-                        setGoogleLoading(false);
-                        return;
+                      try {
+                        const result = await signInWithGoogle();
+                        if (result.error) {
+                          toast({ title: 'Google sign-up failed', description: result.error, variant: 'destructive' });
+                          setGoogleLoading(false);
+                          return;
+                        }
+                        window.location.href = '/dashboard';
+                      } catch {
+                        window.location.href = '/dashboard';
                       }
-                      // redirect handled by useEffect watching `user`
                     }}
                   >
                     {googleLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : (

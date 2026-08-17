@@ -212,22 +212,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       const cred = await signInWithPopup(auth, provider);
       await ensureProfile(cred.user);
-
-      if (rtdb) {
-        for (let attempt = 0; attempt < 3; attempt++) {
-          try {
-            const snap = await get(ref(rtdb, `profiles/${cred.user.uid}`));
-            if (snap.exists() && snap.val().is_blocked) {
-              await firebaseSignOut(auth);
-              return { error: 'Your account has been blocked. Please contact support.' };
-            }
-            break;
-          } catch {
-            if (attempt < 2) await new Promise((r) => setTimeout(r, 1000 * (attempt + 1)));
-          }
-        }
-      }
-
       await fetchProfile(cred.user.uid);
       return {};
     } catch (err: any) {
