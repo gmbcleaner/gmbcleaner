@@ -41,6 +41,7 @@ interface UserProfile {
   email: string;
   full_name?: string;
   company?: string;
+  phone?: string;
   role: string;
   wallet_balance: number;
   is_blocked?: boolean;
@@ -83,6 +84,7 @@ export default function AdminUsersPage() {
   const filtered = users.filter(
     (u) =>
       u.email?.toLowerCase().includes(search.toLowerCase()) ||
+      u.phone?.toLowerCase().includes(search.toLowerCase()) ||
       u.full_name?.toLowerCase().includes(search.toLowerCase()) ||
       u.user_code?.toLowerCase().includes(search.toLowerCase())
   );
@@ -185,6 +187,9 @@ export default function AdminUsersPage() {
     }
   };
 
+  const UserAvatarLetter = (user: UserProfile | null) =>
+    (user?.full_name || user?.phone || user?.email || 'U')?.charAt(0).toUpperCase() || 'U';
+
   const roleBadge = (role: string) => {
     switch (role) {
       case 'admin':
@@ -270,7 +275,7 @@ export default function AdminUsersPage() {
                 >
                   <div className="flex items-center gap-3 min-w-0 flex-1">
                     <div className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-100 text-sm font-bold text-slate-600 shrink-0">
-                      {user.email?.charAt(0).toUpperCase() || 'U'}
+                      {UserAvatarLetter(user)}
                     </div>
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2 flex-wrap">
@@ -283,7 +288,7 @@ export default function AdminUsersPage() {
                         {roleBadge(user.role)}
                       </div>
                       <p className="text-xs text-slate-500 truncate">
-                        {user.email} {user.user_code && `\u00b7 ${user.user_code}`}
+                        {user.phone || user.email} {user.user_code && `\u00b7 ${user.user_code}`}
                       </p>
                       <p className="text-[11px] text-slate-400 flex items-center gap-1 mt-0.5">
                         <CalendarDays className="h-3 w-3" />
@@ -374,19 +379,23 @@ export default function AdminUsersPage() {
             <div className="space-y-4 py-2">
               <div className="flex items-center gap-4">
                 <div className="flex h-14 w-14 items-center justify-center rounded-full bg-slate-100 text-lg font-bold text-slate-600">
-                  {detailDialog.email?.charAt(0).toUpperCase() || 'U'}
+                  {UserAvatarLetter(detailDialog)}
                 </div>
                 <div>
                   <p className="text-base font-semibold text-slate-900">
                     {detailDialog.full_name || 'No name'}
                   </p>
-                  <p className="text-sm text-slate-500">{detailDialog.email}</p>
+                  <p className="text-sm text-slate-500">{detailDialog.phone || detailDialog.email}</p>
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1">
                   <p className="text-xs text-slate-400">User Code</p>
                   <p className="text-sm font-medium text-slate-700">{detailDialog.user_code || 'N/A'}</p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-xs text-slate-400">Phone</p>
+                  <p className="text-sm font-medium text-slate-700">{detailDialog.phone || 'N/A'}</p>
                 </div>
                 <div className="space-y-1">
                   <p className="text-xs text-slate-400">Role</p>

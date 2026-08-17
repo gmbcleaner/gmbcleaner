@@ -38,6 +38,8 @@ interface UserProfile {
   wallet_balance: number;
   full_name?: string;
   company?: string;
+  phone?: string;
+  real_email?: string;
   avatar_url?: string;
   is_blocked?: boolean;
 }
@@ -165,6 +167,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (rtdb) {
         await set(ref(rtdb, `profiles/${cred.user.uid}`), {
           email,
+          phone: meta?.phone || null,
+          real_email: meta?.email || null,
           role: 'user',
           user_code: generateUserCode(),
           wallet_balance: 0,
