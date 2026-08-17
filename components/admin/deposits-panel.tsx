@@ -189,12 +189,6 @@ export default function DepositsPanel({ deleteMode = false }: { deleteMode?: boo
     setDeletingDeposit(null);
     try {
       await hardDeleteDocument('deposits', dep.id);
-      const msg =
-        `🗑️ <b>Deposit Deleted</b>\n\n` +
-        `<b>User:</b> ${dep.user_email || 'Unknown'}\n` +
-        `<b>Amount:</b> $${dep.amount.toFixed(2)}\n` +
-        `<b>Network:</b> ${dep.network.toUpperCase()}`;
-      sendTelegramAdminOnly(msg);
       toast({ title: 'Deposit permanently deleted', description: 'The deposit was removed. It will NOT appear in trash.' });
       fetchDeposits();
     } catch (err: any) {
