@@ -487,6 +487,7 @@ export default function NewOrderPage() {
                         However, for reviews older than <span className="font-bold underline">1 month</span>, the chances of removal are significantly lower and we are <span className="font-bold underline">not responsible</span> if they are not removed. Please order at your own risk.
                       </p>
                     </div>
+                  </div>
                 </div>
 
                 {notes.trim() && (
