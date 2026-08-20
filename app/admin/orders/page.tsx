@@ -12,11 +12,18 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { ListOrdered, ChevronDown, ChevronUp, Trash2, ExternalLink, Search, Filter, Edit, Package } from 'lucide-react';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import {
+  ListOrdered, ChevronDown, ChevronUp, Trash2, ExternalLink, Search, Filter, Edit,
+  Package, CheckCircle2, XCircle, Star, MapPin, PlayCircle, Shield, RotateCcw,
+} from 'lucide-react';
 
 interface OrderItem {
   id: string;
   review_url: string;
+  review_text?: string;
+  star_rating?: number;
+  country?: string;
   status: string;
 }
 
@@ -24,6 +31,7 @@ interface Order {
   id: string;
   order_code: string;
   status: string;
+  service_type?: string;
   total_amount: number;
   item_count: number;
   notes: string | null;
@@ -57,12 +65,48 @@ const STATUS_LABELS: Record<string, string> = {
   on_hold: 'On Hold',
 };
 
+const SERVICE_TYPES = [
+  { id: 'all', label: 'All Services', icon: Package },
+  { id: 'removal', label: 'Review Removal', icon: XCircle },
+  { id: 'play_store', label: 'Play Store', icon: PlayCircle },
+  { id: 'maps', label: 'Google Maps', icon: MapPin },
+  { id: 'trustpilot', label: 'Trustpilot', icon: Shield },
+];
+
+const SERVICE_BADGE_COLORS: Record<string, string> = {
+  removal: 'bg-red-100 text-red-700 border-red-200',
+  play_store: 'bg-emerald-100 text-emerald-700 border-emerald-200',
+  maps: 'bg-blue-100 text-blue-700 border-blue-200',
+  trustpilot: 'bg-teal-100 text-teal-700 border-teal-200',
+};
+
+const SERVICE_NAMES: Record<string, string> = {
+  removal: 'Review Removal',
+  play_store: 'Google Play Store',
+  maps: 'Google Maps',
+  trustpilot: 'Trustpilot',
+};
+
+function StarDisplay({ value }: { value: number }) {
+  return (
+    <div className="flex items-center gap-0.5">
+      {[1, 2, 3, 4, 5].map((star) => (
+        <Star
+          key={star}
+          className={`h-3 w-3 ${star <= value ? 'fill-amber-400 text-amber-400' : 'text-slate-300'}`}
+        />
+      ))}
+    </div>
+  );
+}
+
 export default function AdminOrdersPage() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [providers, setProviders] = useState<Provider[]>([]);
   const [expanded, setExpanded] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [serviceTab, setServiceTab] = useState('all');
   const [loading, setLoading] = useState(true);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
 
@@ -70,6 +114,8 @@ export default function AdminOrdersPage() {
   const [editNotes, setEditNotes] = useState('');
   const [editAmount, setEditAmount] = useState('');
   const [saving, setSaving] = useState(false);
+
+  const [refundDialogItem, setRefundDialogItem] = useState<{ orderId: string; orderCode: string; itemId: string; itemUrl: string; userId: string; userEmail: string } | null>(null);
 
   const loadTelegramSettings = useCallback(async () => {
     try {
@@ -231,6 +277,59 @@ export default function AdminOrdersPage() {
     }
   };
 
+  const handleItemStatus = async (orderId: string, itemId: string, newStatus: 'completed' | 'rejected') => {
+    try {
+      await updateDocument('order_items', itemId, { status: newStatus });
+
+      if (newStatus === 'rejected') {
+        const order = orders.find((o) => o.id === orderId);
+        if (order?.user_id) {
+          const profile = await getDocument('profiles', order.user_id);
+          if (profile) {
+            const pricePerItem = order.total_amount / (order.item_count || 1);
+            const refundAmount = pricePerItem;
+            const newBalance = (profile.wallet_balance || 0) + refundAmount;
+            await updateDocument('profiles', order.user_id, { wallet_balance: newBalance });
+
+            await addDocument('transactions', {
+              user_id: order.user_id,
+              type: 'refund',
+              amount: refundAmount,
+              balance_after: newBalance,
+              description: `Refund for rejected review in order ${order.order_code}`,
+            });
+
+            await addDocument('notifications', {
+              user_id: order.user_id,
+              title: 'Review Rejected — Refund Issued',
+              message: `A review in your order ${order.order_code} was rejected. $${refundAmount.toFixed(2)} has been refunded to your wallet.`,
+              type: 'refund',
+              is_read: false,
+            });
+          }
+        }
+      }
+
+      const allItems = orders.find((o) => o.id === orderId)?.order_items || [];
+      const updatedItems = allItems.map((item) =>
+        item.id === itemId ? { ...item, status: newStatus } : item
+      );
+      const allCompleted = updatedItems.every((item) => item.status === 'completed');
+      const anyRejected = updatedItems.some((item) => item.status === 'rejected');
+
+      if (allCompleted) {
+        await updateDocument('orders', orderId, { status: 'completed' });
+      } else if (anyRejected) {
+        await updateDocument('orders', orderId, { status: 'processing' });
+      }
+
+      toast({ title: newStatus === 'completed' ? 'Review accepted' : 'Review rejected & refunded' });
+      fetchOrders();
+    } catch (err: any) {
+      toast({ title: 'Error', description: err.message, variant: 'destructive' });
+    }
+  };
+
   const filtered = orders.filter((order) => {
     const matchSearch =
       !search ||
@@ -238,18 +337,47 @@ export default function AdminOrdersPage() {
       order.user_email?.toLowerCase().includes(search.toLowerCase()) ||
       order.notes?.toLowerCase().includes(search.toLowerCase());
     const matchStatus = statusFilter === 'all' || order.status === statusFilter;
-    return matchSearch && matchStatus;
+    const matchService = serviceTab === 'all' || order.service_type === serviceTab;
+    return matchSearch && matchStatus && matchService;
   });
+
+  const getServiceCounts = () => {
+    const counts: Record<string, number> = { all: orders.length };
+    orders.forEach((o) => {
+      const st = o.service_type || 'removal';
+      counts[st] = (counts[st] || 0) + 1;
+    });
+    return counts;
+  };
+
+  const serviceCounts = getServiceCounts();
 
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-slate-900">Order Management</h1>
-          <p className="text-sm text-slate-500">Manage orders, assign providers, update statuses.</p>
+          <p className="text-sm text-slate-500">Manage orders, review items, assign providers, update statuses.</p>
         </div>
         <Badge variant="outline" className="w-fit">{orders.length} orders</Badge>
       </div>
+
+      <Tabs value={serviceTab} onValueChange={setServiceTab}>
+        <TabsList className="flex w-full overflow-x-auto">
+          {SERVICE_TYPES.map((st) => {
+            const Icon = st.icon;
+            return (
+              <TabsTrigger key={st.id} value={st.id} className="flex items-center gap-1.5 whitespace-nowrap">
+                <Icon className="h-3.5 w-3.5" />
+                {st.label}
+                <Badge variant="outline" className="ml-1 text-[10px] px-1.5 py-0">
+                  {serviceCounts[st.id] || 0}
+                </Badge>
+              </TabsTrigger>
+            );
+          })}
+        </TabsList>
+      </Tabs>
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
         <div className="relative flex-1">
@@ -296,8 +424,13 @@ export default function AdminOrdersPage() {
                         <ListOrdered className="h-5 w-5 text-slate-600" />
                       </div>
                       <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 flex-wrap">
                           <p className="text-sm font-semibold text-slate-900">{order.order_code}</p>
+                          {order.service_type && (
+                            <Badge className={`${SERVICE_BADGE_COLORS[order.service_type] || 'bg-slate-100 text-slate-700'} text-[10px]`}>
+                              {SERVICE_NAMES[order.service_type] || order.service_type}
+                            </Badge>
+                          )}
                           {updatingId === order.id && (
                             <span className="text-[10px] text-blue-500 animate-pulse">Updating...</span>
                           )}
@@ -377,6 +510,9 @@ export default function AdminOrdersPage() {
                           <div className="rounded-lg border border-slate-200 bg-white p-3 space-y-1">
                             <p className="text-xs text-slate-600"><strong>User:</strong> {order.user_email || 'Unknown'}</p>
                             <p className="text-xs text-slate-600"><strong>Amount:</strong> ${(order.total_amount || 0).toFixed(2)}</p>
+                            {order.service_type && (
+                              <p className="text-xs text-slate-600"><strong>Service:</strong> {SERVICE_NAMES[order.service_type] || order.service_type}</p>
+                            )}
                             <p className="text-xs text-slate-600"><strong>Created:</strong> {new Date(order.created_at).toLocaleString()}</p>
                             {order.assigned_provider && (
                               <p className="text-xs text-slate-600">
@@ -394,28 +530,72 @@ export default function AdminOrdersPage() {
                             Order Items ({order.order_items?.length || 0})
                           </p>
                           {order.order_items && order.order_items.length > 0 ? (
-                            <div className="space-y-1">
+                            <div className="space-y-1.5">
                               {order.order_items.map((item) => (
                                 <div
                                   key={item.id}
-                                  className="flex items-center justify-between rounded-lg bg-white border border-slate-200 p-2"
+                                  className="rounded-lg bg-white border border-slate-200 p-2.5 space-y-1.5"
                                 >
-                                  <div className="flex items-center gap-2 min-w-0 flex-1">
-                                    <Package className="h-3 w-3 text-slate-400 shrink-0" />
-                                    <a
-                                      href={item.review_url}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
-                                      className="text-xs font-mono text-blue-600 hover:underline truncate flex items-center gap-1"
-                                      onClick={(e) => e.stopPropagation()}
-                                    >
-                                      {item.review_url}
-                                      <ExternalLink className="h-2.5 w-2.5 shrink-0" />
-                                    </a>
+                                  <div className="flex items-center justify-between gap-2">
+                                    <div className="flex items-center gap-2 min-w-0 flex-1">
+                                      <Package className="h-3 w-3 text-slate-400 shrink-0" />
+                                      <a
+                                        href={item.review_url}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="text-[11px] font-mono text-blue-600 hover:underline truncate flex items-center gap-1"
+                                        onClick={(e) => e.stopPropagation()}
+                                      >
+                                        {item.review_url?.length > 40 ? item.review_url.slice(0, 40) + '...' : item.review_url}
+                                        <ExternalLink className="h-2.5 w-2.5 shrink-0" />
+                                      </a>
+                                    </div>
+                                    <Badge variant="outline" className="text-[10px] shrink-0 ml-2">
+                                      {STATUS_LABELS[item.status] || item.status}
+                                    </Badge>
                                   </div>
-                                  <Badge variant="outline" className="text-[10px] shrink-0 ml-2">
-                                    {item.status}
-                                  </Badge>
+
+                                  {(item.review_text || item.star_rating) && (
+                                    <div className="space-y-1 pt-1 border-t border-slate-100">
+                                      {item.star_rating && (
+                                        <div className="flex items-center gap-2">
+                                          <span className="text-[10px] text-slate-400">Rating:</span>
+                                          <StarDisplay value={item.star_rating} />
+                                        </div>
+                                      )}
+                                      {item.review_text && (
+                                        <p className="text-[11px] text-slate-600 leading-relaxed line-clamp-2">
+                                          &ldquo;{item.review_text}&rdquo;
+                                        </p>
+                                      )}
+                                      {item.country && (
+                                        <p className="text-[10px] text-slate-400">Country: {item.country}</p>
+                                      )}
+                                    </div>
+                                  )}
+
+                                  {item.status === 'pending' && (
+                                    <div className="flex items-center gap-1.5 pt-1">
+                                      <Button
+                                        size="sm"
+                                        variant="outline"
+                                        className="h-6 px-2 text-[10px] text-green-700 border-green-200 hover:bg-green-50"
+                                        onClick={(e) => { e.stopPropagation(); handleItemStatus(order.id, item.id, 'completed'); }}
+                                      >
+                                        <CheckCircle2 className="mr-1 h-2.5 w-2.5" />
+                                        Accept
+                                      </Button>
+                                      <Button
+                                        size="sm"
+                                        variant="outline"
+                                        className="h-6 px-2 text-[10px] text-red-700 border-red-200 hover:bg-red-50"
+                                        onClick={(e) => { e.stopPropagation(); handleItemStatus(order.id, item.id, 'rejected'); }}
+                                      >
+                                        <XCircle className="mr-1 h-2.5 w-2.5" />
+                                        Reject
+                                      </Button>
+                                    </div>
+                                  )}
                                 </div>
                               ))}
                             </div>
