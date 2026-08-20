@@ -16,6 +16,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import {
   ListOrdered, ChevronDown, ChevronUp, Trash2, ExternalLink, Search, Filter, Edit,
   Package, CheckCircle2, XCircle, Star, MapPin, PlayCircle, Shield, RotateCcw,
+  Save, DollarSign,
 } from 'lucide-react';
 
 interface OrderItem {
@@ -115,6 +116,16 @@ export default function AdminOrdersPage() {
   const [editAmount, setEditAmount] = useState('');
   const [saving, setSaving] = useState(false);
 
+  const [serviceRevenueId, setServiceRevenueId] = useState<string | null>(null);
+  const [serviceRevenue, setServiceRevenue] = useState<Record<string, number>>({
+    removal: 0,
+    play_store: 0,
+    maps: 0,
+    trustpilot: 0,
+  });
+  const [editingRevenueService, setEditingRevenueService] = useState<string | null>(null);
+  const [editingRevenueAmount, setEditingRevenueAmount] = useState('');
+
   const [refundDialogItem, setRefundDialogItem] = useState<{ orderId: string; orderCode: string; itemId: string; itemUrl: string; userId: string; userEmail: string } | null>(null);
 
   const loadTelegramSettings = useCallback(async () => {
@@ -160,6 +171,21 @@ export default function AdminOrdersPage() {
     loadTelegramSettings();
     fetchOrders();
     fetchProviders();
+
+    fetchCollection('service_revenue')
+      .then((data) => {
+        if (data && data.length > 0) {
+          const row = data[0];
+          setServiceRevenueId(row.id);
+          setServiceRevenue({
+            removal: row.removal ?? 0,
+            play_store: row.play_store ?? 0,
+            maps: row.maps ?? 0,
+            trustpilot: row.trustpilot ?? 0,
+          });
+        }
+      })
+      .catch(() => {});
   }, [loadTelegramSettings, fetchOrders, fetchProviders]);
 
   const updateStatus = async (orderId: string, newStatus: string) => {
@@ -352,6 +378,57 @@ export default function AdminOrdersPage() {
 
   const serviceCounts = getServiceCounts();
 
+  const getApprovedByService = () => {
+    const result: Record<string, { count: number; amount: number }> = {
+      removal: { count: 0, amount: 0 },
+      play_store: { count: 0, amount: 0 },
+      maps: { count: 0, amount: 0 },
+      trustpilot: { count: 0, amount: 0 },
+    };
+    orders.forEach((o) => {
+      if (o.status === 'completed') {
+        const st = o.service_type || 'removal';
+        if (result[st]) {
+          result[st].count += 1;
+          result[st].amount += o.total_amount || 0;
+        }
+      }
+    });
+    return result;
+  };
+
+  const approvedByService = getApprovedByService();
+
+  const startEditRevenue = (serviceId: string) => {
+    setEditingRevenueService(serviceId);
+    setEditingRevenueAmount(String(serviceRevenue[serviceId] || 0));
+  };
+
+  const saveRevenue = async () => {
+    if (!editingRevenueService) return;
+    try {
+      const updated = { ...serviceRevenue, [editingRevenueService]: parseFloat(editingRevenueAmount) || 0 };
+      setServiceRevenue(updated);
+      if (serviceRevenueId) {
+        await updateDocument('service_revenue', serviceRevenueId, updated);
+      } else {
+        const newId = await addDocument('service_revenue', updated);
+        setServiceRevenueId(newId);
+      }
+      toast({ title: 'Revenue updated' });
+      setEditingRevenueService(null);
+    } catch (err: any) {
+      toast({ title: 'Error', description: err.message, variant: 'destructive' });
+    }
+  };
+
+  const SERVICE_CARD_CONFIG = [
+    { id: 'removal', name: 'Review Removal', icon: XCircle, color: 'from-red-500 to-rose-500', bg: 'bg-red-50', text: 'text-red-600' },
+    { id: 'play_store', name: 'Google Play Store', icon: PlayCircle, color: 'from-emerald-500 to-green-500', bg: 'bg-emerald-50', text: 'text-emerald-600' },
+    { id: 'maps', name: 'Google Maps', icon: MapPin, color: 'from-blue-500 to-sky-500', bg: 'bg-blue-50', text: 'text-blue-600' },
+    { id: 'trustpilot', name: 'Trustpilot', icon: Shield, color: 'from-teal-500 to-cyan-500', bg: 'bg-teal-50', text: 'text-teal-600' },
+  ];
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
@@ -360,6 +437,72 @@ export default function AdminOrdersPage() {
           <p className="text-sm text-slate-500">Manage orders, review items, assign providers, update statuses.</p>
         </div>
         <Badge variant="outline" className="w-fit">{orders.length} orders</Badge>
+      </div>
+
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        {SERVICE_CARD_CONFIG.map((svc) => {
+          const Icon = svc.icon;
+          const approved = approvedByService[svc.id] || { count: 0, amount: 0 };
+          const manualAmount = serviceRevenue[svc.id] || 0;
+          const totalAmount = approved.amount + manualAmount;
+          const isEditing = editingRevenueService === svc.id;
+          return (
+            <Card key={svc.id} className="shadow-card overflow-hidden">
+              <div className={`h-1.5 bg-gradient-to-r ${svc.color}`} />
+              <CardContent className="p-4 space-y-3">
+                <div className="flex items-center gap-2">
+                  <div className={`flex h-8 w-8 items-center justify-center rounded-lg ${svc.bg}`}>
+                    <Icon className={`h-4 w-4 ${svc.text}`} />
+                  </div>
+                  <div>
+                    <p className="text-xs font-medium text-slate-500">{svc.name}</p>
+                    <p className="text-lg font-bold text-slate-900">${totalAmount.toFixed(2)}</p>
+                  </div>
+                </div>
+                <div className="space-y-1.5 text-xs">
+                  <div className="flex justify-between">
+                    <span className="text-slate-500">Approved orders</span>
+                    <span className="font-semibold text-slate-700">{approved.count}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-500">From orders</span>
+                    <span className="font-semibold text-slate-700">${approved.amount.toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-slate-500">Manual adjust</span>
+                    {isEditing ? (
+                      <div className="flex items-center gap-1">
+                        <div className="relative">
+                          <span className="absolute left-1.5 top-1/2 -translate-y-1/2 text-slate-400 text-[10px]">$</span>
+                          <Input
+                            type="number"
+                            step="0.01"
+                            value={editingRevenueAmount}
+                            onChange={(e) => setEditingRevenueAmount(e.target.value)}
+                            className="h-6 w-20 pl-5 text-[11px] py-0"
+                            autoFocus
+                            onKeyDown={(e) => { if (e.key === 'Enter') saveRevenue(); if (e.key === 'Escape') setEditingRevenueService(null); }}
+                          />
+                        </div>
+                        <Button size="sm" variant="ghost" className="h-6 w-6 p-0 text-emerald-600" onClick={saveRevenue}>
+                          <Save className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => startEditRevenue(svc.id)}
+                        className="font-semibold text-slate-700 hover:text-teal-600 transition-colors cursor-pointer"
+                      >
+                        ${manualAmount.toFixed(2)}
+                        <Edit className="inline ml-1 h-2.5 w-2.5" />
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          );
+        })}
       </div>
 
       <Tabs value={serviceTab} onValueChange={setServiceTab}>
