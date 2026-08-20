@@ -55,6 +55,11 @@ import {
 const DEFAULT_PRICE_PER_ITEM = 1.00;
 const DEFAULT_SERVICE_FEE = 0.15;
 
+interface ServicePricing {
+  base: number;
+  fee: number;
+}
+
 type ServiceType = 'removal' | 'play_store' | 'maps' | 'trustpilot';
 
 interface ReviewEntry {
@@ -148,17 +153,40 @@ export default function NewOrderPage() {
   const [notes, setNotes] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
-  const [pricePerItem, setPricePerItem] = useState(DEFAULT_PRICE_PER_ITEM);
-  const [serviceFee, setServiceFee] = useState(DEFAULT_SERVICE_FEE);
+  const [servicePricing, setServicePricing] = useState<Record<ServiceType, ServicePricing>>({
+    removal: { base: DEFAULT_PRICE_PER_ITEM, fee: DEFAULT_SERVICE_FEE },
+    play_store: { base: DEFAULT_PRICE_PER_ITEM, fee: DEFAULT_SERVICE_FEE },
+    maps: { base: DEFAULT_PRICE_PER_ITEM, fee: DEFAULT_SERVICE_FEE },
+    trustpilot: { base: DEFAULT_PRICE_PER_ITEM, fee: DEFAULT_SERVICE_FEE },
+  });
   const [agreeTerms, setAgreeTerms] = useState(false);
+
+  const pricePerItem = service ? servicePricing[service].base : DEFAULT_PRICE_PER_ITEM;
+  const serviceFee = service ? servicePricing[service].fee : DEFAULT_SERVICE_FEE;
 
   useEffect(() => {
     fetchCollection('pricing_settings')
       .then((data) => {
         if (data && data.length > 0) {
           const p = data[0];
-          setPricePerItem(p.base_price ?? 1);
-          setServiceFee(p.service_fee ?? 0.15);
+          setServicePricing({
+            removal: {
+              base: p.removal_base_price ?? p.base_price ?? 1,
+              fee: p.removal_service_fee ?? p.service_fee ?? 0.15,
+            },
+            play_store: {
+              base: p.play_store_base_price ?? p.base_price ?? 1,
+              fee: p.play_store_service_fee ?? p.service_fee ?? 0.15,
+            },
+            maps: {
+              base: p.maps_base_price ?? p.base_price ?? 1,
+              fee: p.maps_service_fee ?? p.service_fee ?? 0.15,
+            },
+            trustpilot: {
+              base: p.trustpilot_base_price ?? p.base_price ?? 1,
+              fee: p.trustpilot_service_fee ?? p.service_fee ?? 0.15,
+            },
+          });
         }
       })
       .catch(() => {});
