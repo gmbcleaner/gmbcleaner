@@ -58,6 +58,8 @@ function formatCountdown(ms: number): string {
   return `${String(minutes).padStart(2, '0')}m ${String(seconds).padStart(2, '0')}s`;
 }
 
+const COOLDOWN_MINUTES = 30;
+
 type Step = 'amount' | 'method' | 'payment' | 'confirming' | 'processing' | 'result';
 type PaymentMethod = 'crypto' | 'binance' | null;
 
@@ -83,10 +85,67 @@ export default function AddFundsPage() {
   const [resultStatus, setResultStatus] = useState<'approved' | 'rejected' | 'timeout' | null>(null);
   const [currencyOpen, setCurrencyOpen] = useState(false);
   const [networkOpen, setNetworkOpen] = useState(false);
+  const [cooldownEnd, setCooldownEnd] = useState<number | null>(null);
+  const [cooldownLeft, setCooldownLeft] = useState(0);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const pollRef = useRef<NodeJS.Timeout | null>(null);
+  const cooldownRef = useRef<NodeJS.Timeout | null>(null);
   const currencyRef = useRef<HTMLDivElement>(null);
   const networkRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!user) return;
+    const checkCooldown = async () => {
+      try {
+        const deposits = await fetchCollection('deposits', [
+          { field: 'user_id', op: '==', value: user.uid },
+        ]);
+        const now = Date.now();
+        const cooldownMs = COOLDOWN_MINUTES * 60 * 1000;
+        let latestPending: Date | null = null;
+
+        for (const dep of deposits || []) {
+          if (dep.status === 'pending' && dep.submitted_at) {
+            const submitted = new Date(dep.submitted_at).getTime();
+            if (submitted > now - cooldownMs) {
+              if (!latestPending || submitted > latestPending.getTime()) {
+                latestPending = new Date(submitted);
+              }
+            }
+          }
+        }
+
+        if (latestPending) {
+          const end = latestPending.getTime() + cooldownMs;
+          if (end > now) {
+            setCooldownEnd(end);
+            setCooldownLeft(end - now);
+          }
+        }
+      } catch {}
+    };
+    checkCooldown();
+  }, [user]);
+
+  useEffect(() => {
+    if (cooldownEnd === null) {
+      setCooldownLeft(0);
+      return;
+    }
+    cooldownRef.current = setInterval(() => {
+      const remaining = cooldownEnd - Date.now();
+      if (remaining <= 0) {
+        clearInterval(cooldownRef.current!);
+        setCooldownEnd(null);
+        setCooldownLeft(0);
+        return;
+      }
+      setCooldownLeft(remaining);
+    }, 1000);
+    return () => { if (cooldownRef.current) clearInterval(cooldownRef.current); };
+  }, [cooldownEnd]);
+
+  const isCooldownActive = cooldownLeft > 0;
 
   useEffect(() => {
     const fetchData = async () => {
@@ -301,6 +360,21 @@ export default function AddFundsPage() {
       {step === 'amount' && (
         <Card className="shadow-card">
           <CardContent className="p-6 space-y-4">
+            {isCooldownActive && (
+              <div className="rounded-lg border-2 border-amber-300 bg-amber-50 p-4">
+                <div className="flex items-center gap-3">
+                  <Clock className="h-5 w-5 shrink-0 text-amber-600" />
+                  <div>
+                    <p className="text-sm font-bold text-amber-800">Deposit Cooldown Active</p>
+                    <p className="text-xs text-amber-700">
+                      You recently submitted a deposit request. Please wait{' '}
+                      <span className="font-bold font-mono">{formatCountdown(cooldownLeft)}</span>{' '}
+                      before submitting another.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
             <div className="space-y-2">
               <Label>Amount (USD)</Label>
               <div className="relative">
@@ -324,7 +398,7 @@ export default function AddFundsPage() {
             </div>
             <Button
               onClick={() => isValidAmount && setStep('method')}
-              disabled={!isValidAmount}
+              disabled={!isValidAmount || isCooldownActive}
               className="w-full bg-gradient-to-r from-teal-500 to-sky-500 text-white"
             >
               Continue <ArrowRight className="ml-2 h-4 w-4" />
