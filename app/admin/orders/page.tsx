@@ -16,7 +16,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import {
   ListOrdered, ChevronDown, ChevronUp, Trash2, ExternalLink, Search, Filter, Edit,
   Package, CheckCircle2, XCircle, Star, MapPin, PlayCircle, Shield, RotateCcw,
-  Save, DollarSign,
+  Save, DollarSign, Copy, Check,
 } from 'lucide-react';
 
 interface OrderItem {
@@ -125,6 +125,7 @@ export default function AdminOrdersPage() {
   });
   const [editingRevenueService, setEditingRevenueService] = useState<string | null>(null);
   const [editingRevenueAmount, setEditingRevenueAmount] = useState('');
+  const [copiedItemId, setCopiedItemId] = useState<string | null>(null);
 
   const [refundDialogItem, setRefundDialogItem] = useState<{ orderId: string; orderCode: string; itemId: string; itemUrl: string; userId: string; userEmail: string } | null>(null);
 
@@ -707,9 +708,30 @@ export default function AdminOrdersPage() {
                                         </div>
                                       )}
                                       {item.review_text && (
-                                        <p className="text-[11px] text-slate-600 leading-relaxed line-clamp-2">
-                                          &ldquo;{item.review_text}&rdquo;
-                                        </p>
+                                        <div className="space-y-1.5">
+                                          <div className="flex items-center justify-between gap-2">
+                                            <span className="text-[10px] text-slate-400">Review:</span>
+                                            <button
+                                              type="button"
+                                              onClick={(e) => {
+                                                e.stopPropagation();
+                                                navigator.clipboard.writeText(item.review_text || '');
+                                                setCopiedItemId(item.id);
+                                                setTimeout(() => setCopiedItemId(null), 2000);
+                                              }}
+                                              className="flex items-center gap-1 text-[10px] text-teal-600 hover:text-teal-700 transition-colors"
+                                            >
+                                              {copiedItemId === item.id ? (
+                                                <><Check className="h-2.5 w-2.5" /> Copied</>
+                                              ) : (
+                                                <><Copy className="h-2.5 w-2.5" /> Copy</>
+                                              )}
+                                            </button>
+                                          </div>
+                                          <p className="text-[11px] text-slate-600 leading-relaxed whitespace-pre-wrap">
+                                            &ldquo;{item.review_text}&rdquo;
+                                          </p>
+                                        </div>
                                       )}
                                       {item.country && (
                                         <p className="text-[10px] text-slate-400">Country: {item.country}</p>
