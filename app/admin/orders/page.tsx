@@ -357,6 +357,65 @@ export default function AdminOrdersPage() {
     }
   };
 
+  const handleReverseItem = async (orderId: string, itemId: string, currentStatus: string) => {
+    try {
+      const order = orders.find((o) => o.id === orderId);
+      if (!order?.user_id) return;
+
+      const profile = await getDocument('profiles', order.user_id);
+      if (!profile) return;
+
+      const pricePerItem = order.total_amount / (order.item_count || 1);
+
+      if (currentStatus === 'completed') {
+        const newBalance = (profile.wallet_balance || 0) + pricePerItem;
+        await updateDocument('profiles', order.user_id, { wallet_balance: newBalance });
+        await addDocument('transactions', {
+          user_id: order.user_id,
+          type: 'reversal',
+          amount: pricePerItem,
+          balance_after: newBalance,
+          description: `Reversal for order ${order.order_code} — item unapproved`,
+        });
+      } else if (currentStatus === 'rejected') {
+        const newBalance = (profile.wallet_balance || 0) - pricePerItem;
+        await updateDocument('profiles', order.user_id, { wallet_balance: Math.max(0, newBalance) });
+        await addDocument('transactions', {
+          user_id: order.user_id,
+          type: 'reversal',
+          amount: -pricePerItem,
+          balance_after: Math.max(0, newBalance),
+          description: `Reversal for order ${order.order_code} — refund收回`,
+        });
+      }
+
+      await updateDocument('order_items', itemId, { status: 'pending' });
+
+      const allItems = orders.find((o) => o.id === orderId)?.order_items || [];
+      const updatedItems = allItems.map((item) =>
+        item.id === itemId ? { ...item, status: 'pending' } : item
+      );
+      const allCompleted = updatedItems.every((item) => item.status === 'completed');
+      const allPending = updatedItems.every((item) => item.status === 'pending');
+      const anyRejected = updatedItems.some((item) => item.status === 'rejected');
+
+      if (allCompleted) {
+        await updateDocument('orders', orderId, { status: 'completed' });
+      } else if (allPending) {
+        await updateDocument('orders', orderId, { status: 'pending' });
+      } else if (anyRejected) {
+        await updateDocument('orders', orderId, { status: 'processing' });
+      } else {
+        await updateDocument('orders', orderId, { status: 'processing' });
+      }
+
+      toast({ title: 'Item reversed to pending' });
+      fetchOrders();
+    } catch (err: any) {
+      toast({ title: 'Error', description: err.message, variant: 'destructive' });
+    }
+  };
+
   const filtered = orders.filter((order) => {
     const matchSearch =
       !search ||
@@ -759,6 +818,26 @@ export default function AdminOrdersPage() {
                                         <XCircle className="mr-1 h-2.5 w-2.5" />
                                         Reject
                                       </Button>
+                                    </div>
+                                  )}
+
+                                  {(item.status === 'completed' || item.status === 'rejected') && (
+                                    <div className="flex items-center gap-1.5 pt-1">
+                                      <Button
+                                        size="sm"
+                                        variant="outline"
+                                        className="h-6 px-2 text-[10px] text-amber-700 border-amber-200 hover:bg-amber-50"
+                                        onClick={(e) => { e.stopPropagation(); handleReverseItem(order.id, item.id, item.status); }}
+                                      >
+                                        <RotateCcw className="mr-1 h-2.5 w-2.5" />
+                                        Reverse
+                                      </Button>
+                                      {item.status === 'completed' && (
+                                        <span className="text-[10px] text-green-600">Accepted</span>
+                                      )}
+                                      {item.status === 'rejected' && (
+                                        <span className="text-[10px] text-red-600">Rejected</span>
+                                      )}
                                     </div>
                                   )}
                                 </div>

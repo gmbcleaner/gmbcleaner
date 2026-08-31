@@ -48,7 +48,7 @@ export default function ProviderLayout({ children }: { children: React.ReactNode
     try {
       const isProvider = localStorage.getItem('gmb_provider_auth');
       const providerEmail = localStorage.getItem('gmb_provider_email');
-      if (!isProvider || providerEmail !== 'eyasinmahmudmd993@gmail.com') {
+      if (!isProvider || providerEmail !== 'raihan6962@gmail.com') {
         localStorage.removeItem('gmb_provider_auth');
         localStorage.removeItem('gmb_provider_email');
         router.replace('/atik');
