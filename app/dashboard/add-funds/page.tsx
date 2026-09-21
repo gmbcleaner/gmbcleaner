@@ -215,15 +215,18 @@ export default function AddFundsPage() {
             <div>
               <p className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-3">Select Payment Method</p>
               <div className="rounded-xl border-2 border-yellow-300 bg-gradient-to-br from-yellow-50 to-amber-50 p-5 flex items-center gap-4">
-                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-yellow-100 border border-yellow-200 shrink-0">
-                  <svg className="h-7 w-7" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M24 4L38 18L44 24L38 30L24 44L10 30L4 24L10 18L24 4Z" fill="#F0B90B"/>
-                    <path d="M24 14L30 20L34 24L30 28L24 34L18 28L14 24L18 20L24 14Z" fill="#1A1A1A"/>
-                    <path d="M24 18L27 21L24 24L21 21L24 18Z" fill="#F0B90B"/>
-                    <path d="M14 24L18 20L21 21L18 24L21 27L18 28L14 24Z" fill="#F0B90B"/>
-                    <path d="M34 24L30 20L27 21L30 24L27 27L30 28L34 24Z" fill="#F0B90B"/>
-                    <path d="M24 34L21 27L24 24L27 27L24 34Z" fill="#F0B90B"/>
-                    <path d="M24 14L27 21L24 24L21 21L24 14Z" fill="#F0B90B"/>
+                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-[#181A20] shrink-0">
+                  <svg className="h-8 w-8" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    {/* Main large diamond */}
+                    <path d="M50 5L90 45L70 65L50 45L30 65L10 45L50 5Z" fill="#F0B90B"/>
+                    {/* Bottom diamond extension */}
+                    <path d="M50 45L70 65L50 95L30 65L50 45Z" fill="#F0B90B"/>
+                    {/* Center hole */}
+                    <path d="M50 30L65 45L50 60L35 45L50 30Z" fill="#181A20"/>
+                    {/* Left small diamond */}
+                    <path d="M5 50L15 40L25 50L15 60L5 50Z" fill="#F0B90B"/>
+                    {/* Right small diamond */}
+                    <path d="M75 50L85 40L95 50L85 60L75 50Z" fill="#F0B90B"/>
                   </svg>
                 </div>
                 <div className="flex-1">
