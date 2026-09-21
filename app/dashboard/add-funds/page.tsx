@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { Wallet, Copy, CheckCircle2, AlertTriangle, Clock, X, Send, ShieldCheck, Check } from 'lucide-react';
+import { Wallet, Copy, CheckCircle2, AlertTriangle, Clock, X, Send, ShieldCheck, ChevronRight, ArrowLeft, Landmark } from 'lucide-react';
 import { addDocument, fetchCollection, getDocument } from '@/lib/db';
 import { useAuth } from '@/components/providers/auth-provider';
 import { toast } from '@/hooks/use-toast';
@@ -42,15 +42,17 @@ function formatCountdown(ms: number): string {
 
 const COOLDOWN_MINUTES = 30;
 
+type Step = 'method' | 'payment' | 'processing' | 'result';
+
 export default function AddFundsPage() {
   const { user, refreshProfile } = useAuth();
+  const [step, setStep] = useState<Step>('method');
   const [amount, setAmount] = useState('');
   const [minDeposit, setMinDeposit] = useState(20);
   const [binanceId, setBinanceId] = useState('');
   const [txHash, setTxHash] = useState('');
   const [copied, setCopied] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
-  const [step, setStep] = useState<'form' | 'processing' | 'result'>('form');
   const [depositId, setDepositId] = useState('');
   const [processingTimeLeft, setProcessingTimeLeft] = useState(0);
   const [resultStatus, setResultStatus] = useState<'approved' | 'rejected' | 'timeout' | null>(null);
@@ -98,9 +100,7 @@ export default function AddFundsPage() {
         }
         if (latestPending) {
           const end = latestPending.getTime() + cooldownMs;
-          if (end > now) {
-            setCooldownLeft(end - now);
-          }
+          if (end > now) setCooldownLeft(end - now);
         }
       } catch {}
     };
@@ -111,10 +111,7 @@ export default function AddFundsPage() {
     if (cooldownLeft <= 0) return;
     cooldownRef.current = setInterval(() => {
       setCooldownLeft((prev) => {
-        if (prev <= 1000) {
-          clearInterval(cooldownRef.current!);
-          return 0;
-        }
+        if (prev <= 1000) { clearInterval(cooldownRef.current!); return 0; }
         return prev - 1000;
       });
     }, 1000);
@@ -126,45 +123,20 @@ export default function AddFundsPage() {
       const timerMs = 15 * 60 * 1000;
       setProcessingTimeLeft(timerMs);
       const startTime = Date.now();
-
       timerRef.current = setInterval(() => {
-        const elapsed = Date.now() - startTime;
-        const remaining = timerMs - elapsed;
-        if (remaining <= 0) {
-          clearInterval(timerRef.current!);
-          setProcessingTimeLeft(0);
-          setResultStatus('timeout');
-          setStep('result');
-          return;
-        }
+        const remaining = timerMs - (Date.now() - startTime);
+        if (remaining <= 0) { clearInterval(timerRef.current!); setProcessingTimeLeft(0); setResultStatus('timeout'); setStep('result'); return; }
         setProcessingTimeLeft(remaining);
       }, 1000);
-
       pollRef.current = setInterval(async () => {
         try {
           const dep = await getDocument('deposits', depositId);
-          if (dep) {
-            if (dep.status === 'approved') {
-              clearInterval(timerRef.current!);
-              clearInterval(pollRef.current!);
-              setResultStatus('approved');
-              setStep('result');
-              await refreshProfile();
-            } else if (dep.status === 'rejected') {
-              clearInterval(timerRef.current!);
-              clearInterval(pollRef.current!);
-              setResultStatus('rejected');
-              setStep('result');
-            }
-          }
+          if (dep?.status === 'approved') { clearInterval(timerRef.current!); clearInterval(pollRef.current!); setResultStatus('approved'); setStep('result'); await refreshProfile(); }
+          else if (dep?.status === 'rejected') { clearInterval(timerRef.current!); clearInterval(pollRef.current!); setResultStatus('rejected'); setStep('result'); }
         } catch {}
       }, 5000);
     }
-
-    return () => {
-      if (timerRef.current) clearInterval(timerRef.current);
-      if (pollRef.current) clearInterval(pollRef.current);
-    };
+    return () => { if (timerRef.current) clearInterval(timerRef.current); if (pollRef.current) clearInterval(pollRef.current); };
   }, [step, depositId, refreshProfile]);
 
   const parsedAmount = parseFloat(amount) || 0;
@@ -181,11 +153,9 @@ export default function AddFundsPage() {
   const handleSubmit = async () => {
     if (!user || !txHash.trim() || !isValidAmount) return;
     setConfirmOpen(false);
-
     try {
       const night = isNightTime();
-
-      const depositData = {
+      const docId = await addDocument('deposits', {
         user_id: user.uid,
         user_email: user.email,
         amount: parsedAmount,
@@ -197,11 +167,8 @@ export default function AddFundsPage() {
         status: 'pending',
         submitted_at: new Date().toISOString(),
         night_mode: night,
-      };
-
-      const docId = await addDocument('deposits', depositData);
+      });
       setDepositId(docId);
-
       await addDocument('notifications', {
         user_id: user.uid,
         title: 'Deposit Submitted',
@@ -209,78 +176,58 @@ export default function AddFundsPage() {
         type: 'deposit',
         is_read: false,
       });
-
-      const telegramMsg = [
+      await sendTelegramAdminOnly([
         '💰 <b>New Binance Deposit Request</b>',
-        '',
-        `👤 User: ${user.email}`,
-        `💵 Amount: $${parsedAmount.toFixed(2)}`,
-        `🏦 Binance ID: <code>${binanceId}</code>`,
-        `🔗 Order ID: <code>${txHash.trim()}</code>`,
-        '',
-        'Status: ⏳ Pending',
-      ].filter(Boolean).join('\n');
-      await sendTelegramAdminOnly(telegramMsg);
-
+        '', `👤 User: ${user.email}`, `💵 Amount: $${parsedAmount.toFixed(2)}`,
+        `🏦 Binance ID: <code>${binanceId}</code>`, `🔗 Order ID: <code>${txHash.trim()}</code>`,
+        '', 'Status: ⏳ Pending',
+      ].join('\n'));
       setStep('processing');
     } catch (err: any) {
       toast({ title: 'Error', description: err.message, variant: 'destructive' });
     }
   };
 
-  const resetFlow = () => {
-    setStep('form');
-    setAmount('');
-    setTxHash('');
-    setDepositId('');
-    setResultStatus(null);
-  };
+  const resetFlow = () => { setStep('method'); setAmount(''); setTxHash(''); setDepositId(''); setResultStatus(null); };
 
   return (
     <div className="mx-auto max-w-xl space-y-6">
       <div>
         <h1 className="text-2xl font-bold tracking-tight text-slate-900">Add Funds</h1>
-        <p className="text-sm text-slate-500">Deposit via Binance to fund your wallet. Minimum deposit: ${minDeposit}</p>
+        <p className="text-sm text-slate-500">Deposit via Binance to fund your wallet. Minimum: ${minDeposit}</p>
       </div>
 
-      {step === 'form' && (
+      {step === 'method' && (
         <Card className="shadow-card">
-          <CardContent className="p-6 space-y-6">
+          <CardContent className="p-6 space-y-5">
             {isCooldownActive && (
               <div className="rounded-lg border-2 border-amber-300 bg-amber-50 p-4">
                 <div className="flex items-center gap-3">
                   <Clock className="h-5 w-5 shrink-0 text-amber-600" />
                   <div>
-                    <p className="text-sm font-bold text-amber-800">Deposit Cooldown Active</p>
-                    <p className="text-xs text-amber-700">
-                      Please wait <span className="font-bold font-mono">{formatCountdown(cooldownLeft)}</span> before submitting another deposit.
-                    </p>
+                    <p className="text-sm font-bold text-amber-800">Cooldown Active</p>
+                    <p className="text-xs text-amber-700">Please wait <span className="font-bold font-mono">{formatCountdown(cooldownLeft)}</span> before submitting another deposit.</p>
                   </div>
                 </div>
               </div>
             )}
 
-            <div className="rounded-xl border-2 border-teal-200 bg-gradient-to-br from-teal-50 to-sky-50 p-5 space-y-3">
-              <p className="text-xs font-semibold text-teal-700 uppercase tracking-wider">Step 1 — Send payment to this Binance ID</p>
-              {binanceId ? (
-                <>
-                  <div className="flex items-center gap-2 bg-white rounded-lg p-3 border border-teal-100">
-                    <code className="flex-1 break-all text-sm font-mono text-slate-700 select-all">{binanceId}</code>
-                    <Button size="sm" variant="ghost" className="shrink-0 h-8 w-8 p-0" onClick={copyAddress}>
-                      {copied ? <CheckCircle2 className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4 text-teal-600" />}
-                    </Button>
-                  </div>
-                  <p className="text-[11px] text-teal-600">Copy this ID and send USDT via Binance. Make sure to send the exact amount you enter below.</p>
-                </>
-              ) : (
-                <div className="rounded-lg bg-amber-50 border border-amber-200 p-3 text-sm text-amber-700">
-                  Binance ID not configured. Please contact support.
+            <div>
+              <p className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-3">Select Payment Method</p>
+              <div className="rounded-xl border-2 border-yellow-300 bg-gradient-to-br from-yellow-50 to-amber-50 p-5 flex items-center gap-4">
+                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-yellow-100 border border-yellow-200 shrink-0">
+                  <Landmark className="h-6 w-6 text-yellow-600" />
                 </div>
-              )}
+                <div className="flex-1">
+                  <p className="text-base font-bold text-slate-900">Binance</p>
+                  <p className="text-xs text-slate-500">Pay directly to our Binance account</p>
+                </div>
+                <CheckCircle2 className="h-5 w-5 text-yellow-600 shrink-0" />
+              </div>
             </div>
 
             <div className="space-y-2">
-              <Label>Step 2 — Enter Amount (USD)</Label>
+              <Label>Enter Amount (USD)</Label>
               <div className="relative">
                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
                 <Input
@@ -301,24 +248,67 @@ export default function AddFundsPage() {
               )}
             </div>
 
-            <div className="space-y-2">
-              <Label>Step 3 — Transaction / Order ID</Label>
-              <Input
-                placeholder="Paste your Binance Order ID here"
-                value={txHash}
-                onChange={(e) => setTxHash(e.target.value)}
-                disabled={isCooldownActive}
-              />
-              <p className="text-[11px] text-slate-400">After sending payment, paste the Binance Order ID to confirm.</p>
-            </div>
-
             <Button
-              onClick={() => setConfirmOpen(true)}
-              disabled={!isValidAmount || !txHash.trim() || isCooldownActive || !binanceId}
+              onClick={() => isValidAmount && setStep('payment')}
+              disabled={!isValidAmount || isCooldownActive}
               className="w-full bg-gradient-to-r from-teal-500 to-sky-500 text-white"
             >
-              <Send className="mr-2 h-4 w-4" /> Confirm &amp; Submit
+              Continue <ChevronRight className="ml-2 h-4 w-4" />
             </Button>
+          </CardContent>
+        </Card>
+      )}
+
+      {step === 'payment' && (
+        <Card className="shadow-card">
+          <CardContent className="p-6 space-y-5">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-lg font-bold text-slate-900">Binance Payment</h2>
+                <p className="text-sm text-slate-500">Amount: <span className="font-semibold text-slate-900">${parsedAmount.toFixed(2)}</span></p>
+              </div>
+              <Button variant="ghost" size="sm" onClick={() => setStep('method')}>
+                <ArrowLeft className="h-4 w-4 mr-1" /> Change
+              </Button>
+            </div>
+
+            {!binanceId ? (
+              <div className="rounded-lg bg-amber-50 border border-amber-200 p-4 text-sm text-amber-700">
+                Binance ID is not configured yet. Please contact support.
+              </div>
+            ) : (
+              <>
+                <div className="rounded-xl border-2 border-teal-200 bg-gradient-to-br from-teal-50 to-sky-50 p-5 space-y-3">
+                  <p className="text-xs font-semibold text-teal-700 uppercase tracking-wider">Send USDT to this Binance ID</p>
+                  <div className="flex items-center gap-2 bg-white rounded-lg p-3 border border-teal-100">
+                    <code className="flex-1 break-all text-sm font-mono text-slate-700 select-all">{binanceId}</code>
+                    <Button size="sm" variant="ghost" className="shrink-0 h-8 w-8 p-0" onClick={copyAddress}>
+                      {copied ? <CheckCircle2 className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4 text-teal-600" />}
+                    </Button>
+                  </div>
+                  <p className="text-[11px] text-teal-600">Copy this ID and send exactly ${parsedAmount.toFixed(2)} USDT via Binance.</p>
+                  <p className="text-[11px] text-slate-500">After sending, paste your Binance Order ID below to confirm.</p>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Transaction / Order ID</Label>
+                  <Input
+                    placeholder="Paste your Binance Order ID here"
+                    value={txHash}
+                    onChange={(e) => setTxHash(e.target.value)}
+                  />
+                </div>
+
+                <Button
+                  onClick={() => setConfirmOpen(true)}
+                  disabled={!txHash.trim()}
+                  className="w-full bg-gradient-to-r from-yellow-500 to-amber-500 text-white hover:from-yellow-600 hover:to-amber-600"
+                >
+                  <Send className="mr-2 h-4 w-4" /> I&apos;ve Sent Payment
+                </Button>
+                <p className="text-[11px] text-center text-slate-400">Click after you have sent the payment from your Binance account</p>
+              </>
+            )}
           </CardContent>
         </Card>
       )}
@@ -334,25 +324,17 @@ export default function AddFundsPage() {
                 </div>
               </div>
             </div>
-
             <div>
               <h2 className="text-xl font-bold text-slate-900">Processing Payment</h2>
-              <p className="mt-2 text-sm text-slate-500">
-                Your payment is being processed. This usually takes 10-20 minutes.
-              </p>
+              <p className="mt-2 text-sm text-slate-500">Your payment is being processed. This usually takes 10-20 minutes.</p>
             </div>
-
             <div className="rounded-xl bg-slate-50 border border-slate-200 p-4">
               <p className="text-xs text-slate-500 mb-1">Time remaining</p>
               <p className="text-3xl font-bold text-teal-600 font-mono">{formatCountdown(processingTimeLeft)}</p>
             </div>
-
             <div className="rounded-lg bg-amber-50 border border-amber-200 p-4">
-              <p className="text-xs text-amber-700">
-                <strong>Important:</strong> Please do not leave this page. You will be notified once your payment is approved.
-              </p>
+              <p className="text-xs text-amber-700"><strong>Important:</strong> Please do not leave this page. You will be notified once your payment is approved.</p>
             </div>
-
             <div className="rounded-lg bg-slate-50 border border-slate-200 p-4 text-left space-y-2">
               <p className="text-xs font-medium text-slate-700">Deposit Details</p>
               <div className="text-xs text-slate-500 space-y-1">
@@ -383,12 +365,9 @@ export default function AddFundsPage() {
                 <div className="rounded-xl bg-green-50 border border-green-200 p-4">
                   <p className="text-sm text-green-700">Your new wallet balance is visible on your dashboard.</p>
                 </div>
-                <Button onClick={resetFlow} className="bg-gradient-to-r from-teal-500 to-sky-500 text-white">
-                  Make Another Deposit
-                </Button>
+                <Button onClick={resetFlow} className="bg-gradient-to-r from-teal-500 to-sky-500 text-white">Make Another Deposit</Button>
               </>
             )}
-
             {resultStatus === 'rejected' && (
               <>
                 <div className="flex justify-center">
@@ -398,7 +377,7 @@ export default function AddFundsPage() {
                 </div>
                 <div>
                   <h2 className="text-2xl font-bold text-red-700">Payment Not Verified</h2>
-                  <p className="mt-2 text-sm text-slate-600">Your deposit could not be verified. Please contact our support team.</p>
+                  <p className="mt-2 text-sm text-slate-600">Your deposit could not be verified. Please contact support.</p>
                 </div>
                 <div className="flex gap-3">
                   <Button variant="outline" onClick={resetFlow} className="flex-1">Try Again</Button>
@@ -406,7 +385,6 @@ export default function AddFundsPage() {
                 </div>
               </>
             )}
-
             {resultStatus === 'timeout' && (
               <>
                 <div className="flex justify-center">
@@ -428,16 +406,17 @@ export default function AddFundsPage() {
         </Card>
       )}
 
-      {step === 'form' && (
+      {step === 'method' && (
         <Card className="shadow-card">
           <CardContent className="p-6 space-y-4">
             <h3 className="text-sm font-bold text-slate-900">How it works</h3>
             <div className="space-y-3">
               {[
-                { n: 1, t: 'Copy Binance ID', d: 'Click the copy button to copy our Binance ID' },
-                { n: 2, t: 'Send USDT via Binance', d: `Send exactly the amount you enter (min $${minDeposit})` },
-                { n: 3, t: 'Paste Order ID', d: 'Copy the Binance Order/Transaction ID and paste it here' },
-                { n: 4, t: 'Wait for approval', d: 'Processing takes 10-20 minutes' },
+                { n: 1, t: 'Select Binance payment method', d: 'Choose Binance as your deposit method' },
+                { n: 2, t: 'Enter deposit amount', d: `Minimum deposit is $${minDeposit}` },
+                { n: 3, t: 'Copy Binance ID & send USDT', d: 'Send the exact amount to our Binance ID' },
+                { n: 4, t: 'Paste Order ID & confirm', d: 'Paste your Binance Order ID to verify payment' },
+                { n: 5, t: 'Wait for approval', d: 'Processing takes 10-20 minutes' },
               ].map((item) => (
                 <div key={item.n} className="flex gap-3">
                   <div className="flex h-7 w-7 items-center justify-center rounded-full bg-teal-100 text-xs font-bold text-teal-700 shrink-0">{item.n}</div>
@@ -467,15 +446,10 @@ export default function AddFundsPage() {
             </div>
           </div>
           <DialogFooter className="flex-col gap-3">
-            <Button
-              onClick={handleSubmit}
-              className="w-full bg-gradient-to-r from-teal-500 to-sky-500 text-white"
-            >
+            <Button onClick={handleSubmit} className="w-full bg-gradient-to-r from-teal-500 to-sky-500 text-white">
               <ShieldCheck className="mr-2 h-4 w-4" /> Confirm &amp; Submit
             </Button>
-            <Button variant="outline" onClick={() => setConfirmOpen(false)} className="w-full">
-              Cancel
-            </Button>
+            <Button variant="outline" onClick={() => setConfirmOpen(false)} className="w-full">Cancel</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
