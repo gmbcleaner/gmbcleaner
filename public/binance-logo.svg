@@ -1,11 +1,8 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48">
-  <path d="M24 6L36 18L42 24L36 30L24 42L12 30L6 24L12 18L24 6Z" fill="#F0B90B"/>
-  <path d="M24 14L30 20L24 26L18 20L24 14Z" fill="#181A20"/>
-  <path d="M16 20L22 26L16 32L10 26L16 20Z" fill="#181A20"/>
-  <path d="M32 20L38 26L32 32L26 26L32 20Z" fill="#181A20"/>
-  <path d="M24 26L30 20L36 26L30 32L24 26Z" fill="#F0B90B"/>
-  <path d="M24 26L18 20L12 26L18 32L24 26Z" fill="#F0B90B"/>
-  <path d="M24 26L30 32L24 38L18 32L24 26Z" fill="#F0B90B"/>
-  <path d="M24 14L30 20L24 26L18 20L24 14Z" fill="#F0B90B"/>
-  <rect x="22" y="22" width="4" height="4" rx="0.5" fill="#F0B90B"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" width="400" height="400">
+  <path d="M200 30L330 160L290 200L200 110L110 200L70 160L200 30Z" fill="#F0B90B"/>
+  <path d="M200 110L290 200L200 370L110 200L200 110Z" fill="#F0B90B"/>
+  <path d="M200 155L245 200L200 245L155 200L200 155Z" fill="#181A20"/>
+  <path d="M30 200L110 155L110 245L30 200Z" fill="#F0B90B"/>
+  <path d="M290 155L370 200L290 245L200 200L290 155Z" fill="#F0B90B"/>
+  <path d="M110 155L200 200L110 245L30 200L110 155Z" fill="#F0B90B"/>
 </svg>
