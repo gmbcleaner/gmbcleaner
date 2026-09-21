@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { Wallet, Copy, CheckCircle2, AlertTriangle, Clock, X, Send, ShieldCheck, ChevronRight, ArrowLeft } from 'lucide-react';
+import { Wallet, Copy, CheckCircle2, AlertTriangle, Clock, X, Send, ShieldCheck, ChevronRight, ArrowLeft, Landmark } from 'lucide-react';
 import { addDocument, fetchCollection, getDocument } from '@/lib/db';
 import { useAuth } from '@/components/providers/auth-provider';
 import { toast } from '@/hooks/use-toast';
@@ -215,8 +215,8 @@ export default function AddFundsPage() {
             <div>
               <p className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-3">Select Payment Method</p>
               <div className="rounded-xl border-2 border-yellow-300 bg-gradient-to-br from-yellow-50 to-amber-50 p-5 flex items-center gap-4">
-                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-[#181A20] shrink-0 overflow-hidden">
-                  <img src="/binance-logo.svg" alt="Binance" className="h-10 w-10 object-contain" />
+                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-yellow-100 border border-yellow-200 shrink-0">
+                  <Landmark className="h-6 w-6 text-yellow-600" />
                 </div>
                 <div className="flex-1">
                   <p className="text-base font-bold text-slate-900">Binance</p>
