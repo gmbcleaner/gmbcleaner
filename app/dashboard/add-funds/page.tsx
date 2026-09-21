@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { Wallet, Copy, CheckCircle2, AlertTriangle, Clock, X, Send, ShieldCheck, ChevronRight, ArrowLeft, Landmark } from 'lucide-react';
+import { Wallet, Copy, CheckCircle2, AlertTriangle, Clock, X, Send, ShieldCheck, ChevronRight, ArrowLeft } from 'lucide-react';
 import { addDocument, fetchCollection, getDocument } from '@/lib/db';
 import { useAuth } from '@/components/providers/auth-provider';
 import { toast } from '@/hooks/use-toast';
@@ -216,7 +216,15 @@ export default function AddFundsPage() {
               <p className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-3">Select Payment Method</p>
               <div className="rounded-xl border-2 border-yellow-300 bg-gradient-to-br from-yellow-50 to-amber-50 p-5 flex items-center gap-4">
                 <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-yellow-100 border border-yellow-200 shrink-0">
-                  <Landmark className="h-6 w-6 text-yellow-600" />
+                  <svg className="h-7 w-7" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M24 4L38 18L44 24L38 30L24 44L10 30L4 24L10 18L24 4Z" fill="#F0B90B"/>
+                    <path d="M24 14L30 20L34 24L30 28L24 34L18 28L14 24L18 20L24 14Z" fill="#1A1A1A"/>
+                    <path d="M24 18L27 21L24 24L21 21L24 18Z" fill="#F0B90B"/>
+                    <path d="M14 24L18 20L21 21L18 24L21 27L18 28L14 24Z" fill="#F0B90B"/>
+                    <path d="M34 24L30 20L27 21L30 24L27 27L30 28L34 24Z" fill="#F0B90B"/>
+                    <path d="M24 34L21 27L24 24L27 27L24 34Z" fill="#F0B90B"/>
+                    <path d="M24 14L27 21L24 24L21 21L24 14Z" fill="#F0B90B"/>
+                  </svg>
                 </div>
                 <div className="flex-1">
                   <p className="text-base font-bold text-slate-900">Binance</p>
