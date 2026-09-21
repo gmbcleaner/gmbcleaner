@@ -12,6 +12,8 @@ import {
   Package,
   Clock,
   TrendingUp,
+  ExternalLink,
+  Sparkles,
 } from 'lucide-react';
 import { fetchCollection, countDocuments } from '@/lib/db';
 import { useAuth } from '@/components/providers/auth-provider';
@@ -22,10 +24,37 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from '@/components/ui/dialog';
 
 interface OrderRow { id: string; order_code: string; status: string; total_amount: number; item_count: number; created_at: string; completed_at?: string; }
 interface NotificationRow { id: string; title: string; message: string; type: string; is_read: boolean; created_at: string; }
 interface DashboardStats { walletBalance: number; totalOrders: number; activeOrders: number; completedItems: number; }
+
+const REMOVED_REVIEWS = [
+  'https://goo.gl/maps/545p4MdfmDQ49UeG8',
+  'https://maps.app.goo.gl/7YM7SC4FdnxtLadz5',
+  'https://goo.gl/maps/Ly5JHx3K43hMYxrT6',
+  'https://goo.gl/maps/rWV9RNq698soFYnCA',
+  'https://goo.gl/maps/JQLQ6J4j4x4Dr8Li7',
+  'https://goo.gl/maps/pZQnmCMU3QJvHaSc9',
+  'https://goo.gl/maps/XYe3Dg5bqpQJHGR89',
+  'https://goo.gl/maps/u1oTTHfQDncuW7D4A',
+  'https://maps.app.goo.gl/Qro2hvxZSRZvomCg8?g_st=iw',
+  'https://goo.gl/maps/zWfqV8k8Rzj1gUrP6',
+  'https://share.google/r5QLBZgpP4bLwKcU4',
+  'https://share.google/uKwmlyVvn4JllD63J',
+  'https://goo.gl/maps/iJH4rmuYEfwWMBvm6?g_st=ac',
+  'https://maps.app.goo.gl/B8KDDWdJushww37w5?g_st=ic',
+];
+
+const MAX_POPUP_SHOWS = 2;
 
 function getUserVisibleStatus(order: { status: string; completed_at?: string }): string {
   if (order.status === 'completed' && order.completed_at) {
@@ -78,6 +107,7 @@ export default function DashboardHomePage() {
   const [stats, setStats] = useState<DashboardStats>({ walletBalance: 0, totalOrders: 0, activeOrders: 0, completedItems: 0 });
   const [recentOrders, setRecentOrders] = useState<OrderRow[]>([]);
   const [recentNotifications, setRecentNotifications] = useState<NotificationRow[]>([]);
+  const [showRemovedPopup, setShowRemovedPopup] = useState(false);
 
   const fetchData = useCallback(async () => {
     if (!user) return;
@@ -112,6 +142,18 @@ export default function DashboardHomePage() {
 
   useEffect(() => { fetchData(); }, [fetchData]);
   useEffect(() => { if (user) refreshProfile(); }, [user, refreshProfile]);
+
+  useEffect(() => {
+    if (!user) return;
+    const key = `gmb_popup_seen_${user.uid}`;
+    try {
+      const seen = parseInt(localStorage.getItem(key) || '0', 10);
+      if (seen < MAX_POPUP_SHOWS) {
+        setShowRemovedPopup(true);
+        localStorage.setItem(key, String(seen + 1));
+      }
+    } catch {}
+  }, [user]);
 
   const completionRate = stats.totalOrders > 0 ? Math.round((stats.completedItems / (stats.totalOrders * 5 || 1)) * 100) : 0;
 
@@ -224,6 +266,46 @@ export default function DashboardHomePage() {
           </CardContent>
         </Card>
       )}
+
+      <Dialog open={showRemovedPopup} onOpenChange={setShowRemovedPopup}>
+        <DialogContent className="max-w-lg max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-lg">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-emerald-500 to-green-500">
+                <Sparkles className="h-4 w-4 text-white" />
+              </div>
+              Our Proven Results
+            </DialogTitle>
+            <DialogDescription>
+              Below are links to reviews we have successfully removed using our tool. Feel free to verify them yourself — these reviews are no longer visible on Google Maps.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-2 py-2">
+            {REMOVED_REVIEWS.map((link, i) => (
+              <a
+                key={i}
+                href={link}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-mono text-slate-700 transition-colors hover:border-emerald-300 hover:bg-emerald-50 hover:text-emerald-700"
+              >
+                <ExternalLink className="h-3 w-3 shrink-0 text-emerald-500" />
+                <span className="truncate">{link}</span>
+              </a>
+            ))}
+          </div>
+
+          <DialogFooter>
+            <Button
+              onClick={() => setShowRemovedPopup(false)}
+              className="w-full bg-gradient-to-r from-teal-500 to-sky-500 text-white"
+            >
+              Got it, thanks!
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
