@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback } from 'react';
-import { Wallet, Copy, CheckCircle2, AlertTriangle, ArrowRight, ArrowLeft, Clock, X, Send, ShieldCheck, ChevronDown, Landmark } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { Wallet, Copy, CheckCircle2, AlertTriangle, Clock, X, Send, ShieldCheck, Check } from 'lucide-react';
 import { addDocument, fetchCollection, getDocument } from '@/lib/db';
 import { useAuth } from '@/components/providers/auth-provider';
 import { toast } from '@/hooks/use-toast';
@@ -19,10 +19,6 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog';
 
-interface Currency { id: string; name: string; symbol: string; logo_url: string; is_active: boolean; }
-interface Network { id: string; currency_id: string; name: string; symbol: string; is_active: boolean; }
-interface WalletAddress { id: string; currency_id: string; network_id: string; address: string; label: string; }
-
 function isNightTime(): boolean {
   const now = new Date();
   const hours = now.getHours();
@@ -30,20 +26,8 @@ function isNightTime(): boolean {
   const totalMinutes = hours * 60 + minutes;
   const start = 23 * 60;
   const end = 6 * 60 + 30;
-  if (start > end) {
-    return totalMinutes >= start || totalMinutes < end;
-  }
+  if (start > end) return totalMinutes >= start || totalMinutes < end;
   return totalMinutes >= start && totalMinutes < end;
-}
-
-function getTimeUntil630AM(): number {
-  const now = new Date();
-  const target = new Date(now);
-  target.setHours(6, 30, 0, 0);
-  if (now.getHours() >= 6 && (now.getHours() > 6 || now.getMinutes() >= 30)) {
-    target.setDate(target.getDate() + 1);
-  }
-  return target.getTime() - now.getTime();
 }
 
 function formatCountdown(ms: number): string {
@@ -52,46 +36,45 @@ function formatCountdown(ms: number): string {
   const hours = Math.floor(totalSeconds / 3600);
   const minutes = Math.floor((totalSeconds % 3600) / 60);
   const seconds = totalSeconds % 60;
-  if (hours > 0) {
-    return `${hours}h ${String(minutes).padStart(2, '0')}m ${String(seconds).padStart(2, '0')}s`;
-  }
+  if (hours > 0) return `${hours}h ${String(minutes).padStart(2, '0')}m ${String(seconds).padStart(2, '0')}s`;
   return `${String(minutes).padStart(2, '0')}m ${String(seconds).padStart(2, '0')}s`;
 }
 
 const COOLDOWN_MINUTES = 30;
 
-type Step = 'amount' | 'method' | 'payment' | 'confirming' | 'processing' | 'result';
-type PaymentMethod = 'crypto' | 'binance' | null;
-
 export default function AddFundsPage() {
   const { user, refreshProfile } = useAuth();
-  const [step, setStep] = useState<Step>('amount');
   const [amount, setAmount] = useState('');
   const [minDeposit, setMinDeposit] = useState(20);
-  const [currencies, setCurrencies] = useState<Currency[]>([]);
-  const [networks, setNetworks] = useState<Network[]>([]);
-  const [wallets, setWallets] = useState<WalletAddress[]>([]);
-  const [selectedCurrency, setSelectedCurrency] = useState<Currency | null>(null);
-  const [selectedNetwork, setSelectedNetwork] = useState<Network | null>(null);
-  const [selectedWallet, setSelectedWallet] = useState<WalletAddress | null>(null);
-  const [txHash, setTxHash] = useState('');
   const [binanceId, setBinanceId] = useState('');
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>(null);
+  const [txHash, setTxHash] = useState('');
   const [copied, setCopied] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [step, setStep] = useState<'form' | 'processing' | 'result'>('form');
   const [depositId, setDepositId] = useState('');
   const [processingTimeLeft, setProcessingTimeLeft] = useState(0);
-  const [nightMode, setNightMode] = useState(false);
   const [resultStatus, setResultStatus] = useState<'approved' | 'rejected' | 'timeout' | null>(null);
-  const [currencyOpen, setCurrencyOpen] = useState(false);
-  const [networkOpen, setNetworkOpen] = useState(false);
-  const [cooldownEnd, setCooldownEnd] = useState<number | null>(null);
   const [cooldownLeft, setCooldownLeft] = useState(0);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const pollRef = useRef<NodeJS.Timeout | null>(null);
   const cooldownRef = useRef<NodeJS.Timeout | null>(null);
-  const currencyRef = useRef<HTMLDivElement>(null);
-  const networkRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const [p, s] = await Promise.all([
+          fetchCollection('pricing_settings').catch(() => []),
+          fetchCollection('admin_settings').catch(() => []),
+        ]);
+        if (p && p.length > 0) setMinDeposit(p[0].min_deposit || 20);
+        if (s && s.length > 0) {
+          setTelegramChatIds(s[0].admin_telegram_id || '', s[0].provider_telegram_id || '');
+          setBinanceId(s[0].binance_id || '');
+        }
+      } catch {}
+    };
+    fetchData();
+  }, []);
 
   useEffect(() => {
     if (!user) return;
@@ -103,7 +86,6 @@ export default function AddFundsPage() {
         const now = Date.now();
         const cooldownMs = COOLDOWN_MINUTES * 60 * 1000;
         let latestPending: Date | null = null;
-
         for (const dep of deposits || []) {
           if (dep.status === 'pending' && dep.submitted_at) {
             const submitted = new Date(dep.submitted_at).getTime();
@@ -114,11 +96,9 @@ export default function AddFundsPage() {
             }
           }
         }
-
         if (latestPending) {
           const end = latestPending.getTime() + cooldownMs;
           if (end > now) {
-            setCooldownEnd(end);
             setCooldownLeft(end - now);
           }
         }
@@ -128,47 +108,18 @@ export default function AddFundsPage() {
   }, [user]);
 
   useEffect(() => {
-    if (cooldownEnd === null) {
-      setCooldownLeft(0);
-      return;
-    }
+    if (cooldownLeft <= 0) return;
     cooldownRef.current = setInterval(() => {
-      const remaining = cooldownEnd - Date.now();
-      if (remaining <= 0) {
-        clearInterval(cooldownRef.current!);
-        setCooldownEnd(null);
-        setCooldownLeft(0);
-        return;
-      }
-      setCooldownLeft(remaining);
+      setCooldownLeft((prev) => {
+        if (prev <= 1000) {
+          clearInterval(cooldownRef.current!);
+          return 0;
+        }
+        return prev - 1000;
+      });
     }, 1000);
     return () => { if (cooldownRef.current) clearInterval(cooldownRef.current); };
-  }, [cooldownEnd]);
-
-  const isCooldownActive = cooldownLeft > 0;
-
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const [c, n, w, p, s] = await Promise.all([
-          fetchCollection('currencies'),
-          fetchCollection('networks'),
-          fetchCollection('wallet_addresses'),
-          fetchCollection('pricing_settings').catch(() => []),
-          fetchCollection('admin_settings').catch(() => []),
-        ]);
-        setCurrencies((c as Currency[]) || []);
-        setNetworks((n as Network[]) || []);
-        setWallets((w as WalletAddress[]) || []);
-        if (p && p.length > 0) setMinDeposit(p[0].min_deposit || 20);
-        if (s && s.length > 0) {
-          setTelegramChatIds(s[0].admin_telegram_id || '', s[0].provider_telegram_id || '');
-          setBinanceId(s[0].binance_id || '');
-        }
-      } catch {}
-    };
-    fetchData();
-  }, []);
+  }, [cooldownLeft > 0]);
 
   useEffect(() => {
     if (step === 'processing' && depositId) {
@@ -216,105 +167,37 @@ export default function AddFundsPage() {
     };
   }, [step, depositId, refreshProfile]);
 
-  useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      if (currencyRef.current && !currencyRef.current.contains(e.target as Node)) setCurrencyOpen(false);
-      if (networkRef.current && !networkRef.current.contains(e.target as Node)) setNetworkOpen(false);
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
-
   const parsedAmount = parseFloat(amount) || 0;
   const isValidAmount = parsedAmount >= minDeposit;
-  const networksForCurrency = networks.filter(n => n.currency_id === selectedCurrency?.id);
-  const walletsForNetwork = wallets.filter(w => w.network_id === selectedNetwork?.id && w.currency_id === selectedCurrency?.id);
+  const isCooldownActive = cooldownLeft > 0;
 
-  useEffect(() => {
-    if (selectedCurrency && networksForCurrency.length === 1) {
-      setSelectedNetwork(networksForCurrency[0]);
-    }
-  }, [selectedCurrency]);
-
-  useEffect(() => {
-    if (selectedNetwork && walletsForNetwork.length > 0) {
-      setSelectedWallet(walletsForNetwork[0]);
-    }
-  }, [selectedNetwork]);
-
-  const copyAddress = (addr: string) => {
-    navigator.clipboard.writeText(addr);
+  const copyAddress = () => {
+    navigator.clipboard.writeText(binanceId);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
-    toast({ title: 'Address copied', description: 'Wallet address copied to clipboard.' });
+    toast({ title: 'Copied', description: 'Binance ID copied to clipboard.' });
   };
 
-  const handleConfirmPayment = async () => {
-    if (!user || !txHash.trim()) return;
-    if (paymentMethod === 'crypto' && (!selectedCurrency || !selectedNetwork || !selectedWallet)) return;
-    if (paymentMethod === 'binance' && !binanceId) return;
+  const handleSubmit = async () => {
+    if (!user || !txHash.trim() || !isValidAmount) return;
     setConfirmOpen(false);
 
     try {
       const night = isNightTime();
-      setNightMode(night);
 
-      let depositData: any;
-      let telegramMsg: string;
-
-      if (paymentMethod === 'binance') {
-        depositData = {
-          user_id: user.uid,
-          user_email: user.email,
-          amount: parsedAmount,
-          currency: 'USD',
-          network: 'Binance',
-          payment_method: 'binance',
-          binance_id: binanceId,
-          tx_hash: txHash.trim(),
-          status: 'pending',
-          submitted_at: new Date().toISOString(),
-          night_mode: night,
-        };
-        telegramMsg = [
-          '💛 <b>New Binance Deposit Request</b>',
-          '',
-          `👤 User: ${user.email}`,
-          `💵 Amount: $${parsedAmount.toFixed(2)}`,
-          `🏦 Binance ID: <code>${binanceId}</code>`,
-          `🔗 Order ID: <code>${txHash.trim()}</code>`,
-          '',
-          `Status: ⏳ Pending`,
-        ].filter(Boolean).join('\n');
-      } else {
-        depositData = {
-          user_id: user.uid,
-          user_email: user.email,
-          amount: parsedAmount,
-          currency: selectedCurrency.symbol,
-          currency_id: selectedCurrency.id,
-          network: selectedNetwork.name,
-          network_id: selectedNetwork.id,
-          payment_method: 'crypto',
-          wallet_address: selectedWallet.address,
-          tx_hash: txHash.trim(),
-          status: night ? 'pending' : 'pending',
-          submitted_at: new Date().toISOString(),
-          night_mode: night,
-        };
-        telegramMsg = [
-          '💰 <b>New Deposit Request</b>',
-          '',
-          `👤 User: ${user.email}`,
-          `💵 Amount: $${parsedAmount.toFixed(2)}`,
-          `🪙 Currency: ${selectedCurrency.name} (${selectedCurrency.symbol})`,
-          `🌐 Network: ${selectedNetwork.name}`,
-          `📍 Wallet: <code>${selectedWallet.address}</code>`,
-          `🔗 TX Hash: <code>${txHash.trim()}</code>`,
-          '',
-          `Status: ⏳ Pending`,
-        ].filter(Boolean).join('\n');
-      }
+      const depositData = {
+        user_id: user.uid,
+        user_email: user.email,
+        amount: parsedAmount,
+        currency: 'USDT',
+        network: 'Binance',
+        payment_method: 'binance',
+        binance_id: binanceId,
+        tx_hash: txHash.trim(),
+        status: 'pending',
+        submitted_at: new Date().toISOString(),
+        night_mode: night,
+      };
 
       const docId = await addDocument('deposits', depositData);
       setDepositId(docId);
@@ -322,11 +205,21 @@ export default function AddFundsPage() {
       await addDocument('notifications', {
         user_id: user.uid,
         title: 'Deposit Submitted',
-        message: `Your $${parsedAmount.toFixed(2)} deposit via ${paymentMethod === 'binance' ? 'Binance' : selectedNetwork.name} is being processed.`,
+        message: `Your $${parsedAmount.toFixed(2)} deposit via Binance is being processed.`,
         type: 'deposit',
         is_read: false,
       });
 
+      const telegramMsg = [
+        '💰 <b>New Binance Deposit Request</b>',
+        '',
+        `👤 User: ${user.email}`,
+        `💵 Amount: $${parsedAmount.toFixed(2)}`,
+        `🏦 Binance ID: <code>${binanceId}</code>`,
+        `🔗 Order ID: <code>${txHash.trim()}</code>`,
+        '',
+        'Status: ⏳ Pending',
+      ].filter(Boolean).join('\n');
       await sendTelegramAdminOnly(telegramMsg);
 
       setStep('processing');
@@ -336,30 +229,23 @@ export default function AddFundsPage() {
   };
 
   const resetFlow = () => {
-    setStep('amount');
+    setStep('form');
     setAmount('');
     setTxHash('');
-    setSelectedCurrency(null);
-    setSelectedNetwork(null);
-    setSelectedWallet(null);
-    setPaymentMethod(null);
     setDepositId('');
     setResultStatus(null);
-    setNightMode(false);
   };
 
-  const currentNetworkIndex = networksForCurrency.indexOf(selectedNetwork!);
-
   return (
-    <div className="mx-auto max-w-2xl space-y-6">
+    <div className="mx-auto max-w-xl space-y-6">
       <div>
         <h1 className="text-2xl font-bold tracking-tight text-slate-900">Add Funds</h1>
-        <p className="text-sm text-slate-500">Deposit cryptocurrency to fund your wallet. Minimum deposit: ${minDeposit}</p>
+        <p className="text-sm text-slate-500">Deposit via Binance to fund your wallet. Minimum deposit: ${minDeposit}</p>
       </div>
 
-      {step === 'amount' && (
+      {step === 'form' && (
         <Card className="shadow-card">
-          <CardContent className="p-6 space-y-4">
+          <CardContent className="p-6 space-y-6">
             {isCooldownActive && (
               <div className="rounded-lg border-2 border-amber-300 bg-amber-50 p-4">
                 <div className="flex items-center gap-3">
@@ -367,16 +253,34 @@ export default function AddFundsPage() {
                   <div>
                     <p className="text-sm font-bold text-amber-800">Deposit Cooldown Active</p>
                     <p className="text-xs text-amber-700">
-                      You recently submitted a deposit request. Please wait{' '}
-                      <span className="font-bold font-mono">{formatCountdown(cooldownLeft)}</span>{' '}
-                      before submitting another.
+                      Please wait <span className="font-bold font-mono">{formatCountdown(cooldownLeft)}</span> before submitting another deposit.
                     </p>
                   </div>
                 </div>
               </div>
             )}
+
+            <div className="rounded-xl border-2 border-teal-200 bg-gradient-to-br from-teal-50 to-sky-50 p-5 space-y-3">
+              <p className="text-xs font-semibold text-teal-700 uppercase tracking-wider">Step 1 — Send payment to this Binance ID</p>
+              {binanceId ? (
+                <>
+                  <div className="flex items-center gap-2 bg-white rounded-lg p-3 border border-teal-100">
+                    <code className="flex-1 break-all text-sm font-mono text-slate-700 select-all">{binanceId}</code>
+                    <Button size="sm" variant="ghost" className="shrink-0 h-8 w-8 p-0" onClick={copyAddress}>
+                      {copied ? <CheckCircle2 className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4 text-teal-600" />}
+                    </Button>
+                  </div>
+                  <p className="text-[11px] text-teal-600">Copy this ID and send USDT via Binance. Make sure to send the exact amount you enter below.</p>
+                </>
+              ) : (
+                <div className="rounded-lg bg-amber-50 border border-amber-200 p-3 text-sm text-amber-700">
+                  Binance ID not configured. Please contact support.
+                </div>
+              )}
+            </div>
+
             <div className="space-y-2">
-              <Label>Amount (USD)</Label>
+              <Label>Step 2 — Enter Amount (USD)</Label>
               <div className="relative">
                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
                 <Input
@@ -387,7 +291,7 @@ export default function AddFundsPage() {
                   value={amount}
                   onChange={(e) => setAmount(e.target.value)}
                   className="pl-8 text-lg"
-                  autoFocus
+                  disabled={isCooldownActive}
                 />
               </div>
               {parsedAmount > 0 && parsedAmount < minDeposit && (
@@ -396,266 +300,25 @@ export default function AddFundsPage() {
                 </p>
               )}
             </div>
+
+            <div className="space-y-2">
+              <Label>Step 3 — Transaction / Order ID</Label>
+              <Input
+                placeholder="Paste your Binance Order ID here"
+                value={txHash}
+                onChange={(e) => setTxHash(e.target.value)}
+                disabled={isCooldownActive}
+              />
+              <p className="text-[11px] text-slate-400">After sending payment, paste the Binance Order ID to confirm.</p>
+            </div>
+
             <Button
-              onClick={() => isValidAmount && setStep('method')}
-              disabled={!isValidAmount || isCooldownActive}
+              onClick={() => setConfirmOpen(true)}
+              disabled={!isValidAmount || !txHash.trim() || isCooldownActive || !binanceId}
               className="w-full bg-gradient-to-r from-teal-500 to-sky-500 text-white"
             >
-              Continue <ArrowRight className="ml-2 h-4 w-4" />
+              <Send className="mr-2 h-4 w-4" /> Confirm &amp; Submit
             </Button>
-          </CardContent>
-        </Card>
-      )}
-
-      {step === 'method' && (
-        <Card className="shadow-card">
-          <CardContent className="p-6 space-y-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <h2 className="text-lg font-bold text-slate-900">Select Payment Method</h2>
-                <p className="text-sm text-slate-500">Amount: <span className="font-semibold text-slate-900">${parsedAmount.toFixed(2)}</span></p>
-              </div>
-              <Button variant="ghost" size="sm" onClick={() => setStep('amount')}>
-                <ArrowLeft className="h-4 w-4 mr-1" /> Change
-              </Button>
-            </div>
-
-            <div className="grid gap-4 sm:grid-cols-2">
-              <button
-                type="button"
-                onClick={() => { setPaymentMethod('crypto'); setStep('payment'); }}
-                className="rounded-xl border-2 border-slate-200 p-5 text-left transition-all hover:border-teal-500 hover:bg-teal-50/50"
-              >
-                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-teal-50 border border-teal-100 mb-3">
-                  <Wallet className="h-6 w-6 text-teal-600" />
-                </div>
-                <p className="text-base font-bold text-slate-900">Crypto Payment</p>
-                <p className="mt-1 text-xs text-slate-500">Pay with USDT, BTC, ETH and other cryptocurrencies</p>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => { setPaymentMethod('binance'); setStep('payment'); }}
-                className="rounded-xl border-2 border-slate-200 p-5 text-left transition-all hover:border-yellow-500 hover:bg-yellow-50/50"
-              >
-                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-yellow-50 border border-yellow-100 mb-3">
-                  <Landmark className="h-6 w-6 text-yellow-600" />
-                </div>
-                <p className="text-base font-bold text-slate-900">Binance ID</p>
-                <p className="mt-1 text-xs text-slate-500">Pay directly to our Binance account ID</p>
-              </button>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {step === 'payment' && paymentMethod === 'crypto' && (
-        <Card className="shadow-card">
-          <CardContent className="p-6 space-y-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <h2 className="text-lg font-bold text-slate-900">Crypto Payment</h2>
-                <p className="text-sm text-slate-500">Amount: <span className="font-semibold text-slate-900">${parsedAmount.toFixed(2)}</span></p>
-              </div>
-              <Button variant="ghost" size="sm" onClick={() => setStep('method')}>
-                <ArrowLeft className="h-4 w-4 mr-1" /> Change
-              </Button>
-            </div>
-
-            <div className="space-y-3" ref={currencyRef}>
-              <Label>Select Currency</Label>
-              {currencies.length === 0 ? (
-                <p className="text-sm text-slate-500 text-center py-4">No currencies available. Contact admin.</p>
-              ) : (
-                <div className="relative">
-                  <button
-                    type="button"
-                    onClick={() => { setCurrencyOpen(!currencyOpen); setNetworkOpen(false); }}
-                    className="w-full flex items-center justify-between rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-teal-500"
-                  >
-                    {selectedCurrency ? (
-                      <span className="flex items-center gap-3">
-                        {selectedCurrency.logo_url ? (
-                          selectedCurrency.logo_url.startsWith('http') || selectedCurrency.logo_url.startsWith('data:') ? (
-                            <img src={selectedCurrency.logo_url} alt="" className="h-6 w-6 rounded-full object-cover" />
-                          ) : (
-                            <span className="text-lg">{selectedCurrency.logo_url}</span>
-                          )
-                        ) : (
-                          <span className="flex h-6 w-6 items-center justify-center rounded-full bg-slate-100 text-[10px] font-bold text-slate-600">{selectedCurrency.symbol?.charAt(0)}</span>
-                        )}
-                        {selectedCurrency.name}
-                      </span>
-                    ) : (
-                      <span className="text-slate-400">-- Select Currency --</span>
-                    )}
-                    <ChevronDown className="h-4 w-4 text-slate-400" />
-                  </button>
-                  {currencyOpen && (
-                    <div className="absolute z-50 mt-1 w-full rounded-lg border border-slate-200 bg-white shadow-lg max-h-60 overflow-y-auto">
-                      {currencies.map(cur => (
-                        <button
-                          key={cur.id}
-                          type="button"
-                          onClick={() => {
-                            setSelectedCurrency(cur);
-                            setSelectedNetwork(null);
-                            setSelectedWallet(null);
-                            setCurrencyOpen(false);
-                          }}
-                          className={`w-full flex items-center gap-3 px-4 py-3 text-sm text-left hover:bg-slate-50 transition-colors ${selectedCurrency?.id === cur.id ? 'bg-teal-50 text-teal-700' : 'text-slate-900'}`}
-                        >
-                          {cur.logo_url ? (
-                            cur.logo_url.startsWith('http') || cur.logo_url.startsWith('data:') ? (
-                              <img src={cur.logo_url} alt="" className="h-6 w-6 rounded-full object-cover" />
-                            ) : (
-                              <span className="text-lg">{cur.logo_url}</span>
-                            )
-                          ) : (
-                            <span className="flex h-6 w-6 items-center justify-center rounded-full bg-slate-100 text-[10px] font-bold text-slate-600">{cur.symbol?.charAt(0)}</span>
-                          )}
-                          {cur.name}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-
-            {selectedCurrency && (
-              <div className="space-y-3" ref={networkRef}>
-                <Label>Select Network</Label>
-                {networksForCurrency.length === 0 ? (
-                  <p className="text-sm text-slate-500 text-center py-4">No networks available for {selectedCurrency.symbol}.</p>
-                ) : (
-                  <div className="relative">
-                    <button
-                      type="button"
-                      onClick={() => { setNetworkOpen(!networkOpen); setCurrencyOpen(false); }}
-                      className="w-full flex items-center justify-between rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-teal-500"
-                    >
-                      {selectedNetwork ? (
-                        <span>{selectedNetwork.name}</span>
-                      ) : (
-                        <span className="text-slate-400">-- Select Network --</span>
-                      )}
-                      <ChevronDown className="h-4 w-4 text-slate-400" />
-                    </button>
-                    {networkOpen && (
-                      <div className="absolute z-50 mt-1 w-full rounded-lg border border-slate-200 bg-white shadow-lg max-h-60 overflow-y-auto">
-                        {networksForCurrency.map(net => (
-                          <button
-                            key={net.id}
-                            type="button"
-                            onClick={() => {
-                              setSelectedNetwork(net);
-                              setSelectedWallet(null);
-                              setNetworkOpen(false);
-                            }}
-                            className={`w-full flex items-center gap-3 px-4 py-3 text-sm text-left hover:bg-slate-50 transition-colors ${selectedNetwork?.id === net.id ? 'bg-teal-50 text-teal-700' : 'text-slate-900'}`}
-                          >
-                            {net.name}
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-            )}
-
-            {selectedNetwork && selectedWallet && (
-              <div className="rounded-xl border-2 border-teal-200 bg-gradient-to-br from-teal-50 to-sky-50 p-5 space-y-3">
-                <p className="text-xs font-semibold text-teal-700 uppercase tracking-wider">Send {selectedCurrency.symbol} to this address</p>
-                <div className="flex items-center gap-2 bg-white rounded-lg p-3 border border-teal-100">
-                  <code className="flex-1 break-all text-xs font-mono text-slate-700 select-all">{selectedWallet.address}</code>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    className="shrink-0 h-8 w-8 p-0"
-                    onClick={() => copyAddress(selectedWallet.address)}
-                  >
-                    {copied ? <CheckCircle2 className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4 text-teal-600" />}
-                  </Button>
-                </div>
-                {selectedWallet.label && <p className="text-[11px] text-teal-600">{selectedWallet.label}</p>}
-                <p className="text-[11px] text-slate-500">Make sure to send only {selectedCurrency.symbol} on {selectedNetwork.name} network.</p>
-              </div>
-            )}
-
-            {selectedNetwork && walletsForNetwork.length === 0 && (
-              <div className="rounded-lg bg-amber-50 border border-amber-200 p-4 text-sm text-amber-700">
-                No wallet address configured for {selectedNetwork.name}. Contact support.
-              </div>
-            )}
-
-            {selectedNetwork && selectedWallet && (
-              <div className="space-y-3">
-                <Button
-                  onClick={() => setConfirmOpen(true)}
-                  className="w-full bg-gradient-to-r from-teal-500 to-sky-500 text-white"
-                >
-                  <Send className="mr-2 h-4 w-4" /> I&apos;ve Sent Payment
-                </Button>
-                <p className="text-[11px] text-center text-slate-400">
-                  Click after you have sent the payment from your wallet
-                </p>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      )}
-
-      {step === 'payment' && paymentMethod === 'binance' && (
-        <Card className="shadow-card">
-          <CardContent className="p-6 space-y-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <h2 className="text-lg font-bold text-slate-900">Binance Payment</h2>
-                <p className="text-sm text-slate-500">Amount: <span className="font-semibold text-slate-900">${parsedAmount.toFixed(2)}</span></p>
-              </div>
-              <Button variant="ghost" size="sm" onClick={() => setStep('method')}>
-                <ArrowLeft className="h-4 w-4 mr-1" /> Change
-              </Button>
-            </div>
-
-            {!binanceId ? (
-              <div className="rounded-lg bg-amber-50 border border-amber-200 p-4 text-sm text-amber-700">
-                Binance ID is not configured yet. Please contact support or try the crypto option.
-              </div>
-            ) : (
-              <>
-                <div className="rounded-xl border-2 border-yellow-200 bg-gradient-to-br from-yellow-50 to-amber-50 p-5 space-y-3">
-                  <p className="text-xs font-semibold text-yellow-700 uppercase tracking-wider">Send payment to this Binance ID</p>
-                  <div className="flex items-center gap-2 bg-white rounded-lg p-3 border border-yellow-100">
-                    <code className="flex-1 break-all text-sm font-mono text-slate-700 select-all">{binanceId}</code>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      className="shrink-0 h-8 w-8 p-0"
-                      onClick={() => copyAddress(binanceId)}
-                    >
-                      {copied ? <CheckCircle2 className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4 text-yellow-600" />}
-                    </Button>
-                  </div>
-                  <p className="text-[11px] text-yellow-600">Send exactly ${parsedAmount.toFixed(2)} to this Binance ID.</p>
-                  <p className="text-[11px] text-slate-500">After sending, click below and enter your Binance Order ID to confirm.</p>
-                </div>
-
-                <div className="space-y-3">
-                  <Button
-                    onClick={() => setConfirmOpen(true)}
-                    className="w-full bg-gradient-to-r from-yellow-500 to-amber-500 text-white hover:from-yellow-600 hover:to-amber-600"
-                  >
-                    <Send className="mr-2 h-4 w-4" /> I&apos;ve Sent Payment via Binance
-                  </Button>
-                  <p className="text-[11px] text-center text-slate-400">
-                    Click after you have sent the payment from your Binance account
-                  </p>
-                </div>
-              </>
-            )}
           </CardContent>
         </Card>
       )}
@@ -686,7 +349,7 @@ export default function AddFundsPage() {
 
             <div className="rounded-lg bg-amber-50 border border-amber-200 p-4">
               <p className="text-xs text-amber-700">
-                <strong>Important:</strong> Please do not leave this page. You will be notified once your payment is approved. If you close this page, you can check your deposit status in Billing.
+                <strong>Important:</strong> Please do not leave this page. You will be notified once your payment is approved.
               </p>
             </div>
 
@@ -694,9 +357,9 @@ export default function AddFundsPage() {
               <p className="text-xs font-medium text-slate-700">Deposit Details</p>
               <div className="text-xs text-slate-500 space-y-1">
                 <p>Amount: <span className="font-semibold text-slate-900">${parsedAmount.toFixed(2)}</span></p>
-                <p>Method: <span className="font-semibold text-slate-900">{paymentMethod === 'binance' ? 'Binance' : selectedCurrency?.symbol}</span></p>
-                <p>{paymentMethod === 'binance' ? 'Binance ID' : 'Network'}: <span className="font-semibold text-slate-900">{paymentMethod === 'binance' ? binanceId : selectedNetwork?.name}</span></p>
-                <p>{paymentMethod === 'binance' ? 'Order ID' : 'TX Hash'}: <code className="text-[10px] text-slate-600">{txHash}</code></p>
+                <p>Method: <span className="font-semibold text-slate-900">Binance</span></p>
+                <p>Binance ID: <span className="font-semibold text-slate-900">{binanceId}</span></p>
+                <p>Order ID: <code className="text-[10px] text-slate-600">{txHash}</code></p>
               </div>
             </div>
           </CardContent>
@@ -735,20 +398,11 @@ export default function AddFundsPage() {
                 </div>
                 <div>
                   <h2 className="text-2xl font-bold text-red-700">Payment Not Verified</h2>
-                  <p className="mt-2 text-sm text-slate-600">Your deposit could not be verified. Please contact our support team for assistance.</p>
-                </div>
-                <div className="rounded-xl bg-red-50 border border-red-200 p-4">
-                  <p className="text-sm text-red-700">
-                    <strong>Contact Support:</strong> support@gmbcleaner.online
-                  </p>
+                  <p className="mt-2 text-sm text-slate-600">Your deposit could not be verified. Please contact our support team.</p>
                 </div>
                 <div className="flex gap-3">
-                  <Button variant="outline" onClick={resetFlow} className="flex-1">
-                    Try Again
-                  </Button>
-                  <Button onClick={() => window.location.href = '/dashboard/support'} className="flex-1 bg-gradient-to-r from-teal-500 to-sky-500 text-white">
-                    Contact Support
-                  </Button>
+                  <Button variant="outline" onClick={resetFlow} className="flex-1">Try Again</Button>
+                  <Button onClick={() => window.location.href = '/dashboard/support'} className="flex-1 bg-gradient-to-r from-teal-500 to-sky-500 text-white">Contact Support</Button>
                 </div>
               </>
             )}
@@ -762,22 +416,11 @@ export default function AddFundsPage() {
                 </div>
                 <div>
                   <h2 className="text-2xl font-bold text-amber-700">Processing Timeout</h2>
-                  <p className="mt-2 text-sm text-slate-600">
-                    Your payment is taking longer than expected. Please contact our support team for assistance.
-                  </p>
-                </div>
-                <div className="rounded-xl bg-amber-50 border border-amber-200 p-4">
-                  <p className="text-sm text-amber-700">
-                    <strong>Contact Support:</strong> support@gmbcleaner.online
-                  </p>
+                  <p className="mt-2 text-sm text-slate-600">Your payment is taking longer than expected. Please contact support.</p>
                 </div>
                 <div className="flex gap-3">
-                  <Button variant="outline" onClick={resetFlow} className="flex-1">
-                    Go Back
-                  </Button>
-                  <Button onClick={() => window.location.href = '/dashboard/support'} className="flex-1 bg-gradient-to-r from-teal-500 to-sky-500 text-white">
-                    Contact Support
-                  </Button>
+                  <Button variant="outline" onClick={resetFlow} className="flex-1">Go Back</Button>
+                  <Button onClick={() => window.location.href = '/dashboard/support'} className="flex-1 bg-gradient-to-r from-teal-500 to-sky-500 text-white">Contact Support</Button>
                 </div>
               </>
             )}
@@ -785,17 +428,16 @@ export default function AddFundsPage() {
         </Card>
       )}
 
-      {step !== 'processing' && step !== 'result' && (
+      {step === 'form' && (
         <Card className="shadow-card">
           <CardContent className="p-6 space-y-4">
             <h3 className="text-sm font-bold text-slate-900">How it works</h3>
             <div className="space-y-3">
               {[
-                { n: 1, t: 'Enter amount', d: `Minimum deposit is $${minDeposit}` },
-                { n: 2, t: 'Choose payment method', d: 'Crypto wallet or Binance ID' },
-                { n: 3, t: 'Send payment', d: 'Send to the address / Binance ID shown' },
-                { n: 4, t: 'Confirm with transaction ID', d: 'Paste your TX hash' },
-                { n: 5, t: 'Wait for approval', d: 'Processing takes 10-20 minutes' },
+                { n: 1, t: 'Copy Binance ID', d: 'Click the copy button to copy our Binance ID' },
+                { n: 2, t: 'Send USDT via Binance', d: `Send exactly the amount you enter (min $${minDeposit})` },
+                { n: 3, t: 'Paste Order ID', d: 'Copy the Binance Order/Transaction ID and paste it here' },
+                { n: 4, t: 'Wait for approval', d: 'Processing takes 10-20 minutes' },
               ].map((item) => (
                 <div key={item.n} className="flex gap-3">
                   <div className="flex h-7 w-7 items-center justify-center rounded-full bg-teal-100 text-xs font-bold text-teal-700 shrink-0">{item.n}</div>
@@ -814,44 +456,19 @@ export default function AddFundsPage() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Confirm Payment</DialogTitle>
-            <DialogDescription>
-              {paymentMethod === 'binance'
-                ? 'Paste your Binance Order ID to confirm you have sent the payment.'
-                : 'Paste your transaction hash (TX ID) to confirm you have sent the payment.'}
-            </DialogDescription>
+            <DialogDescription>Make sure you have sent the payment via Binance before confirming.</DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-2">
             <div className="rounded-lg bg-slate-50 border p-3 text-xs space-y-1">
               <p>Amount: <span className="font-semibold">${parsedAmount.toFixed(2)}</span></p>
-              {paymentMethod === 'binance' ? (
-                <>
-                  <p>Method: <span className="font-semibold">Binance</span></p>
-                  <p>Binance ID: <span className="font-semibold">{binanceId}</span></p>
-                </>
-              ) : (
-                <>
-                  <p>Currency: <span className="font-semibold">{selectedCurrency?.symbol}</span></p>
-                  <p>Network: <span className="font-semibold">{selectedNetwork?.name}</span></p>
-                </>
-              )}
-            </div>
-            <div className="space-y-2">
-              <Label>{paymentMethod === 'binance' ? 'Binance Order ID *' : 'Transaction Hash (TX ID) *'}</Label>
-              <Input
-                placeholder={paymentMethod === 'binance' ? "Paste your Binance Order ID here" : "Paste your transaction hash here"}
-                value={txHash}
-                onChange={(e) => setTxHash(e.target.value)}
-                autoFocus
-              />
-              {txHash.trim().length === 0 && (
-                <p className="text-xs text-red-500">{paymentMethod === 'binance' ? 'Order ID is required' : 'Transaction ID is required'}</p>
-              )}
+              <p>Method: <span className="font-semibold">Binance</span></p>
+              <p>Binance ID: <span className="font-semibold">{binanceId}</span></p>
+              <p>Order ID: <span className="font-semibold">{txHash}</span></p>
             </div>
           </div>
           <DialogFooter className="flex-col gap-3">
             <Button
-              onClick={handleConfirmPayment}
-              disabled={!txHash.trim()}
+              onClick={handleSubmit}
               className="w-full bg-gradient-to-r from-teal-500 to-sky-500 text-white"
             >
               <ShieldCheck className="mr-2 h-4 w-4" /> Confirm &amp; Submit
