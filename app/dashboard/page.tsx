@@ -277,7 +277,7 @@ export default function DashboardHomePage() {
               Our Proven Results
             </DialogTitle>
             <DialogDescription>
-              Below are links to reviews we have successfully removed using our tool. Feel free to verify them yourself — these reviews are no longer visible on Google Maps.
+              Below are links to reviews you have successfully removed using our tool. Feel free to verify them yourself — these reviews are no longer visible on Google Maps.
             </DialogDescription>
           </DialogHeader>
 
