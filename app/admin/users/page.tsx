@@ -33,6 +33,8 @@ import {
   DollarSign,
   Eye,
   CalendarDays,
+  Clock,
+  Activity,
 } from 'lucide-react';
 import { formatBDTime, isTodayInBD } from '@/lib/utils';
 
@@ -63,6 +65,9 @@ export default function AdminUsersPage() {
   const [deleteDialog, setDeleteDialog] = useState<UserProfile | null>(null);
   const [detailDialog, setDetailDialog] = useState<UserProfile | null>(null);
 
+  const [activityDialog, setActivityDialog] = useState<UserProfile | null>(null);
+  const [activityData, setActivityData] = useState<any[]>([]);
+
   const [saving, setSaving] = useState(false);
 
   const fetchUsers = useCallback(async () => {
@@ -75,6 +80,17 @@ export default function AdminUsersPage() {
       setLoading(false);
     }
   }, []);
+
+  const handleViewActivity = async (user: UserProfile) => {
+    try {
+      const data = await fetchCollection('user_activity', [
+        { field: 'user_id', op: '==', value: user.id },
+      ]);
+      const sorted = (data || []).sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()).slice(0, 20);
+      setActivityData(sorted);
+      setActivityDialog(user);
+    } catch {}
+  };
 
   useEffect(() => {
     fetchUsers();
@@ -306,15 +322,24 @@ export default function AdminUsersPage() {
                         ${(user.wallet_balance || 0).toFixed(2)}
                       </p>
                     </div>
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      className="h-8 w-8 text-slate-500 hover:text-slate-700"
-                      title="View details"
-                      onClick={() => setDetailDialog(user)}
-                    >
-                      <Eye className="h-4 w-4" />
-                    </Button>
+                     <Button
+                       size="icon"
+                       variant="ghost"
+                       className="h-8 w-8 text-slate-500 hover:text-sky-600"
+                       title="View activity"
+                       onClick={() => handleViewActivity(user)}
+                     >
+                       <Activity className="h-4 w-4" />
+                     </Button>
+                     <Button
+                       size="icon"
+                       variant="ghost"
+                       className="h-8 w-8 text-slate-500 hover:text-teal-600"
+                       title="View details"
+                       onClick={() => setDetailDialog(user)}
+                     >
+                       <Eye className="h-4 w-4" />
+                     </Button>
                     <Button
                       size="icon"
                       variant="ghost"
@@ -567,6 +592,36 @@ export default function AdminUsersPage() {
               <Trash2 className="mr-2 h-4 w-4" />
               Delete
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Activity Dialog */}
+      <Dialog open={!!activityDialog} onOpenChange={() => setActivityDialog(null)}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Activity className="h-4 w-4 text-blue-600" />
+              User Activity
+            </DialogTitle>
+            <DialogDescription>Recent page visits by {activityDialog?.email || 'this user'}.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2 max-h-80 overflow-y-auto py-2">
+            {activityData.length === 0 ? (
+              <p className="py-4 text-center text-sm text-slate-400">No activity recorded.</p>
+            ) : (
+              activityData.map((act) => (
+                <div key={act.id} className="flex items-center justify-between rounded-lg border border-slate-200 p-2.5">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs font-semibold text-slate-900 font-mono truncate">{act.page}</p>
+                    <p className="text-[10px] text-slate-500">{new Date(act.created_at).toLocaleString()}</p>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setActivityDialog(null)}>Close</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
