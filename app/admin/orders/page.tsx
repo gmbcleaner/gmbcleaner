@@ -16,7 +16,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import {
   ListOrdered, ChevronDown, ChevronUp, Trash2, ExternalLink, Search, Filter, Edit,
   Package, CheckCircle2, XCircle, Star, MapPin, PlayCircle, Shield, RotateCcw,
-  Save, DollarSign, Copy, Check,
+  Save, DollarSign, Copy, Check, Activity,
 } from 'lucide-react';
 
 interface OrderItem {
@@ -128,6 +128,10 @@ export default function AdminOrdersPage() {
   const [copiedItemId, setCopiedItemId] = useState<string | null>(null);
 
   const [refundDialogItem, setRefundDialogItem] = useState<{ orderId: string; orderCode: string; itemId: string; itemUrl: string; userId: string; userEmail: string } | null>(null);
+
+  const [activityOrderId, setActivityOrderId] = useState<string | null>(null);
+  const [activityData, setActivityData] = useState<any[]>([]);
+  const [activityOpen, setActivityOpen] = useState(false);
 
   const loadTelegramSettings = useCallback(async () => {
     try {
@@ -409,11 +413,23 @@ export default function AdminOrdersPage() {
         await updateDocument('orders', orderId, { status: 'processing' });
       }
 
-      toast({ title: 'Item reversed to pending' });
+       toast({ title: 'Item reversed to pending' });
       fetchOrders();
     } catch (err: any) {
       toast({ title: 'Error', description: err.message, variant: 'destructive' });
     }
+  };
+
+  const handleViewActivity = async (order: Order) => {
+    try {
+      const data = await fetchCollection('user_activity', [
+        { field: 'user_id', op: '==', value: order.user_id },
+      ]);
+      const sorted = (data || []).sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()).slice(0, 20);
+      setActivityData(sorted);
+      setActivityOrderId(order.id);
+      setActivityOpen(true);
+    } catch {}
   };
 
   const filtered = orders.filter((order) => {
@@ -641,6 +657,15 @@ export default function AdminOrdersPage() {
                         <p className="text-xs text-slate-500 truncate">
                           {order.user_email || 'Unknown'} &middot; {order.item_count || order.order_items?.length || 0} items &middot; {new Date(order.created_at).toLocaleDateString()}
                         </p>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-5 px-2 text-[10px] text-blue-600 border-blue-200 hover:bg-blue-50 mt-0.5"
+                          onClick={(e) => { e.stopPropagation(); handleViewActivity(order); }}
+                        >
+                          <Activity className="mr-1 h-2.5 w-2.5" />
+                          Activity
+                        </Button>
                       </div>
                     </div>
                     <div className="flex items-center gap-3 shrink-0 ml-3">
@@ -886,14 +911,46 @@ export default function AdminOrdersPage() {
               />
             </div>
           </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setEditOrder(null)}>Cancel</Button>
-            <Button onClick={saveOrderEdits} disabled={saving} className="bg-gradient-to-r from-teal-500 to-sky-500 text-white">
-              {saving ? 'Saving...' : 'Save Changes'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </div>
+           <DialogFooter>
+             <Button variant="outline" onClick={() => setEditOrder(null)}>Cancel</Button>
+             <Button onClick={saveOrderEdits} disabled={saving} className="bg-gradient-to-r from-teal-500 to-sky-500 text-white">
+               {saving ? 'Saving...' : 'Save Changes'}
+             </Button>
+           </DialogFooter>
+         </DialogContent>
+       </Dialog>
+
+       <Dialog open={activityOpen} onOpenChange={setActivityOpen}>
+         <DialogContent className="max-w-lg">
+           <DialogHeader>
+             <DialogTitle className="flex items-center gap-2">
+               <Activity className="h-4 w-4 text-blue-600" />
+               User Activity
+             </DialogTitle>
+             <DialogDescription>Recent page visits by this order's user.</DialogDescription>
+           </DialogHeader>
+           <div className="rounded-lg bg-slate-50 border border-slate-200 p-3 mb-2">
+             <p className="text-xs font-semibold text-slate-700">User: {orders.find((o) => o.id === activityOrderId)?.user_email || 'Unknown'}</p>
+           </div>
+           <div className="space-y-2 max-h-80 overflow-y-auto py-2">
+             {activityData.length === 0 ? (
+               <p className="py-4 text-center text-sm text-slate-400">No activity recorded.</p>
+             ) : (
+               activityData.map((act) => (
+                 <div key={act.id} className="flex items-center justify-between rounded-lg border border-slate-200 p-2.5">
+                   <div className="min-w-0 flex-1">
+                     <p className="text-xs font-semibold text-slate-900 font-mono truncate">{act.page}</p>
+                     <p className="text-[10px] text-slate-500">{new Date(act.created_at).toLocaleString()}</p>
+                   </div>
+                 </div>
+               ))
+             )}
+           </div>
+           <DialogFooter>
+             <Button variant="outline" onClick={() => setActivityOpen(false)}>Close</Button>
+           </DialogFooter>
+         </DialogContent>
+       </Dialog>
+     </div>
   );
 }
