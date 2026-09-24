@@ -2,22 +2,9 @@
 
 import { useEffect, useState, useCallback, useRef } from 'react';
 import {
-  Users,
-  ListOrdered,
-  DollarSign,
-  Activity,
-  Clock,
-  CheckCircle,
-  XCircle,
-  ChevronDown,
-  ChevronUp,
-  RefreshCw,
-  UserPlus,
-  Settings,
-  Wallet,
-  TrendingUp,
-  AlertCircle,
-  ArrowUpRight,
+  Users, ListOrdered, DollarSign, Activity, Clock, CheckCircle,
+  XCircle, ChevronDown, ChevronUp, RefreshCw, UserPlus, Settings,
+  Wallet, TrendingUp, AlertCircle, ArrowUpRight, ExternalLink,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -65,6 +52,13 @@ interface RecentUser {
   role?: string;
 }
 
+interface RecentActivity {
+  id: string;
+  user_email: string;
+  page: string;
+  created_at: string;
+}
+
 const statusColors: Record<string, string> = {
   pending: 'bg-amber-100 text-amber-700 border-amber-200',
   processing: 'bg-blue-100 text-blue-700 border-blue-200',
@@ -87,6 +81,7 @@ export default function AdminDashboardPage() {
   const [recentOrders, setRecentOrders] = useState<RecentOrder[]>([]);
   const [recentDeposits, setRecentDeposits] = useState<RecentDeposit[]>([]);
   const [recentUsers, setRecentUsers] = useState<RecentUser[]>([]);
+  const [recentActivity, setRecentActivity] = useState<RecentActivity[]>([]);
   const [loading, setLoading] = useState(true);
   const [expandedOrder, setExpandedOrder] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
@@ -100,19 +95,21 @@ export default function AdminDashboardPage() {
         allDeposits,
         pendingDeposits,
         activeOrders,
-        recentOrdersData,
-        recentDepositsData,
-        recentUsersData,
-      ] = await Promise.all([
+         recentOrdersData,
+         recentDepositsData,
+         recentUsersData,
+         recentActivityData,
+       ] = await Promise.all([
         fetchCollection('profiles').catch(() => []),
         fetchCollection('orders').catch(() => []),
         fetchCollection('deposits').catch(() => []),
         fetchCollection('deposits', [{ field: 'status', op: '==', value: 'pending' }]).catch(() => []),
         fetchCollection('orders', [{ field: 'status', op: '==', value: 'pending' }]).catch(() => []),
-        fetchCollection('orders', undefined, 'created_at', 5).catch(() => []),
-        fetchCollection('deposits', [{ field: 'status', op: '==', value: 'pending' }], 'created_at', 5).catch(() => []),
-        fetchCollection('profiles', undefined, 'created_at', 5).catch(() => []),
-      ]);
+         fetchCollection('orders', undefined, 'created_at', 5).catch(() => []),
+         fetchCollection('deposits', [{ field: 'status', op: '==', value: 'pending' }], 'created_at', 5).catch(() => []),
+         fetchCollection('profiles', undefined, 'created_at', 5).catch(() => []),
+         fetchCollection('user_activity', undefined, 'created_at', 20).catch(() => []),
+       ]);
 
       const approvedDeposits = (allDeposits || []).filter(
         (d: any) => d.status === 'approved' || d.status === 'paid'
@@ -136,6 +133,7 @@ export default function AdminDashboardPage() {
       setRecentOrders((recentOrdersData as RecentOrder[]) || []);
       setRecentDeposits((recentDepositsData as RecentDeposit[]) || []);
       setRecentUsers((recentUsersData as RecentUser[]) || []);
+      setRecentActivity((recentActivityData as RecentActivity[]) || []);
     } catch (err) {
       console.error('Failed to fetch dashboard data:', err);
     } finally {
@@ -653,6 +651,44 @@ export default function AdminDashboardPage() {
                 </div>
               </div>
             </div>
+          </CardContent>
+        </Card>
+
+        <Card className="shadow-sm border border-slate-100">
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="text-sm font-semibold text-slate-700 flex items-center gap-2">
+                  <Activity className="h-4 w-4 text-blue-600" />
+                  Recent Activity
+                </CardTitle>
+                <CardDescription>User page visits</CardDescription>
+              </div>
+              <Button variant="ghost" size="sm" asChild>
+                <Link href="/admin/orders" className="text-xs gap-1">
+                  View All <ArrowUpRight className="h-3 w-3" />
+                </Link>
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent>
+            {recentActivity.length === 0 ? (
+              <p className="py-8 text-center text-sm text-slate-400">No recent activity.</p>
+            ) : (
+              <div className="space-y-2">
+                {recentActivity.map((act) => (
+                  <div key={act.id} className="flex items-center justify-between rounded-lg border border-slate-100 p-2.5">
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs font-semibold text-slate-900 truncate">{act.user_email || 'Unknown'}</p>
+                      <p className="text-[10px] text-slate-500 font-mono">{act.page}</p>
+                    </div>
+                    <span className="text-[10px] text-slate-400 shrink-0 ml-2">
+                      {act.created_at ? new Date(act.created_at).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' }) : ''}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>

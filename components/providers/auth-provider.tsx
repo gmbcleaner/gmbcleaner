@@ -16,6 +16,7 @@ import {
 } from 'firebase/auth';
 import { ref, get, set } from 'firebase/database';
 import { auth, rtdb } from '@/lib/firebase';
+import { PageTracker } from './page-tracker';
 
 export interface UserProfile {
   id: string;
@@ -320,6 +321,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   return (
     <AuthContext.Provider value={{ user, loading, profile, refreshProfile, signUp, signIn, signInWithGoogle, signOut, updatePassword, resetPassword }}>
+      <PageTracker />
       {children}
     </AuthContext.Provider>
   );
