@@ -13,13 +13,15 @@ export function PageTracker() {
   useEffect(() => {
     if (!user || pathname === prevPath.current) return;
     prevPath.current = pathname;
-
+    console.log('[PageTracker] Logging activity:', pathname, user.uid);
     addDocument('user_activity', {
       user_id: user.uid,
       user_email: user.email,
       page: pathname,
       action: 'page_view',
-    }).catch(() => {});
+    }).catch((err) => {
+      console.error('[PageTracker] Failed to log:', err);
+    });
   }, [pathname, user]);
 
   return null;

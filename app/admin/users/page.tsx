@@ -86,6 +86,7 @@ export default function AdminUsersPage() {
       const data = await fetchCollection('user_activity', [
         { field: 'user_id', op: '==', value: user.id },
       ]);
+      console.log('[Admin] Activity data:', data);
       const sorted = (data || []).sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()).slice(0, 20);
       setActivityData(sorted);
       setActivityDialog(user);
